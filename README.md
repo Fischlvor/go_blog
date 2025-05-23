@@ -12,7 +12,7 @@ node: v22.13.0
 
 docker: 26.1.3
 
-编译器：vscode、goland、webstorm
+编译器：IDEA
 
 ### 启动容器
 
