@@ -1,6 +1,6 @@
 [submodule "web"]
 	path = web
-	url = git@github.com:Fischlvor/go_blog.git
+	url = git@github.com:Fischlvor/go_blog_web.git
 [submodule "server"]
 	path = server
-	url = git@github.com:Fischlvor/go_blog.git
+	url = git@github.com:Fischlvor/go_blog_server.git
