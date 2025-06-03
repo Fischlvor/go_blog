@@ -302,16 +302,16 @@ server {
 ```nginx
 server {
     listen 80;
-    server_name your_domain www.your_domain;
-    return 301 https://www.your_domain$request_uri;
+    server_name hsk423.cn www.hsk423.cn;
+    return 301 https://www.hsk423.cn$request_uri;
 }
 
 server { 
     listen 443 ssl; 
-    server_name your_domain;  # 仅匹配非 www 的域名
+    server_name hsk423.cn;  # 仅匹配非 www 的域名
     ssl_certificate /etc/nginx/cert/your_domain.crt; # 证书公钥
     ssl_certificate_key /etc/nginx/cert/your_domain.key; # 证书私钥
-    return 301 https://www.your_domain$request_uri;  # 强制跳转到 www.your_domain
+    return 301 https://www.hsk423.cn$request_uri;  # 强制跳转到 www.your_domain
 }
 
 server {
@@ -327,9 +327,9 @@ server {
     gzip_types text/plain text/css text/xml application/javascript application/x-javascript application/xml application/xml+rss application/emacscript application/json image/svg+xml;
 
     listen 443 ssl;
-    server_name www.your_domain; # 多个域名⽤空格分开 
-    ssl_certificate /etc/nginx/cert/your_domain.crt; # 证书公钥
-    ssl_certificate_key /etc/nginx/cert/your_domain.key; # 证书私钥
+    server_name www.hsk423.cn; # 多个域名⽤空格分开 
+    ssl_certificate /www/server/panel/vhost/cert/hsk423.cn/certificate.crt; # 证书公钥
+    ssl_certificate_key /www/server/panel/vhost/cert/hsk423.cn/private.key; # 证书私钥
     ssl_session_timeout 5m; 
     ssl_session_cache shared:MozSSL:10m;  # 设置会话缓存以提⾼性能 
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;  # 配置加密算法 
@@ -343,7 +343,7 @@ server {
 
     location / {
         try_files $uri $uri/ /index.html;
-        root   /opt/go_blog/web/dist;
+        root   /media/practice/onServer/go_blog/web/dist;
         index  index.html index.htm;
     }
 
@@ -351,19 +351,19 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header REMOTE-HOST $remote_addr;
-        proxy_pass http://127.0.0.1:8080/api/;
+        proxy_pass http://127.0.0.1:8081/api/;
     }
 
     location /image {
-        alias /opt/go_blog/web/dist/image;
+        alias /media/practice/onServer/go_blog/web/dist/image;
     }
 
     location /emoji {
-        alias /opt/go_blog/web/dist/emoji;
+        alias /media/practice/onServer/go_blog/web/dist/emoji;
     }
 
     location /uploads/ {
-        alias /opt/go_blog/server/uploads/;
+        alias /media/practice/onServer/go_blog/server/uploads/;
     }
 }
 ```
