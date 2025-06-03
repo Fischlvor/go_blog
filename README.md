@@ -309,8 +309,8 @@ server {
 server { 
     listen 443 ssl; 
     server_name hsk423.cn;  # 仅匹配非 www 的域名
-    ssl_certificate /etc/nginx/cert/your_domain.crt; # 证书公钥
-    ssl_certificate_key /etc/nginx/cert/your_domain.key; # 证书私钥
+    ssl_certificate /www/server/panel/vhost/cert/hsk423.cn/certificate.crt; # 证书公钥
+    ssl_certificate_key /www/server/panel/vhost/cert/hsk423.cn/private.key; # 证书私钥
     return 301 https://www.hsk423.cn$request_uri;  # 强制跳转到 www.your_domain
 }
 
