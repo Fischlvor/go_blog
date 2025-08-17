@@ -19,3 +19,4 @@ bin-release/
 
 # Configuration files
 server/config.yaml
+web/pkg/
