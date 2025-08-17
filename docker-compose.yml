@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0.20
+    container_name: mysql8
+    restart: always
+    ports:
+      - "13306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: blog_db
+    volumes:
+      - ./data/mysql/conf:/etc/mysql/conf.d
+      - ./data/mysql/datadir:/var/lib/mysql
+      - ./data/mysql/go_blog.sql:/opt/go_blog.sql
+    networks:
+      - blog-network
+
+  elasticsearch:
+    image: elasticsearch:8.17.0
+    container_name: es8
+    restart: always
+    ports:
+      - "0.0.0.0:19200:9200"
+    environment:
+      discovery.type: single-node
+      xpack.security.http.ssl.enabled: false
+      xpack.license.self_generated.type: trial
+      xpack.security.enabled: false
+      ES_JAVA_OPTS: "-Xms84m -Xmx512m"
+    volumes:
+      - ./data/es/config:/usr/share/elasticsearch/config
+      - ./data/es/data:/usr/share/elasticsearch/data
+      - ./data/es/plugins:/usr/share/elasticsearch/plugins
+    networks:
+      - blog-network
+
+  redis:
+    image: redis:6.2
+    container_name: redis6
+    restart: always
+    ports:
+      - "16379:6379"
+    volumes:
+      - ./data/redis/redis.conf:/usr/local/etc/redis/redis.conf
+      - ./data/redis:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - blog-network
+
+networks:
+  blog-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  es_data:
+  redis_data: 
