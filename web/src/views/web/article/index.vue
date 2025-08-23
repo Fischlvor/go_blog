@@ -100,8 +100,6 @@ import {type Article, articleInfoByID} from "@/api/article";
 import router from "@/router";
 import {computed, onMounted, ref, watch} from "vue";
 import {MdPreview, MdCatalog} from 'md-editor-v3';
-import 'md-editor-v3/lib/style.css';
-import 'md-editor-v3/lib/preview.css';
 import WebNavbar from "@/components/layout/WebNavbar.vue";
 import CommentItem from "@/components/common/CommentItem.vue";
 import {articleIsLike, articleLike, type ArticleLikeRequest} from "@/api/article";

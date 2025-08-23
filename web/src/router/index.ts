@@ -55,6 +55,14 @@ const routes = [
         meta: {
           title: "文章"
         }
+      },
+      {
+        path: "ai-assistant",
+        name: "ai-assistant",
+        component: () => import('@/views/web/ai-assistant/index.vue'),
+        meta: {
+          title: "AI助手"
+        }
       }
 
     ]

@@ -12,7 +12,6 @@
 </template>
 
 <script setup lang="ts">
-import WebNavbar from "@/components/layout/WebNavbar.vue";
 import {MdPreview} from "md-editor-v3";
 import {ref} from "vue";
 
@@ -145,6 +144,18 @@ TypeScript 与 Vue 配合的类型检查工具，确保在开发过程中发现�
       max-width: 1400px;
       width: 100%;
       background-color: rgba(255,255,255,0.2);
+      
+      // 保留两个有效的选择器
+      :deep([class*="md-editor"]) {
+        background-color: transparent !important;
+        color: #000000 !important; // 确保文本颜色深色
+        z-index: 1; // 确保文本在前面
+      }
+      
+      // 确保标题字体是黑色
+      :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
+        color: #000000 !important;
+      }
     }
   }
 }

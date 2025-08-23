@@ -125,3 +125,154 @@ const handleSpecificError = (status: number, error: AxiosError) => {
 };
 
 export default service
+
+// 流式请求配置接口
+export interface StreamRequestConfig {
+    url: string;
+    method?: string;
+    data?: any;
+    headers?: Record<string, string>;
+    timeout?: number; // 超时时间（毫秒）
+}
+
+// 流式响应数据接口
+export interface StreamResponseData {
+    content?: string;
+    is_complete?: boolean;
+    [key: string]: any;
+}
+
+// 流式请求回调接口
+export interface StreamCallbacks {
+    onData?: (data: StreamResponseData) => void;
+    onComplete?: (data: StreamResponseData) => void;
+    onError?: (error: Error) => void;
+}
+
+// 通用流式请求方法 - 支持拦截器
+export const streamRequest = (
+    config: StreamRequestConfig,
+    callbacks: StreamCallbacks
+): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        // 获取token（模拟拦截器行为）
+        const userStore = useUserStore();
+        const token = userStore.state.accessToken;
+        
+        if (!token) {
+            const error = new Error('未登录');
+            callbacks.onError?.(error);
+            reject(error);
+            return;
+        }
+
+        // 创建XMLHttpRequest来处理流式数据
+        const xhr = new XMLHttpRequest();
+        // 使用与axios相同的baseURL
+        const baseURL = import.meta.env.VITE_BASE_API;
+        const fullURL = config.url.startsWith('http') ? config.url : `${baseURL}${config.url}`;
+        xhr.open(config.method?.toUpperCase() || 'POST', fullURL, true);
+        
+        // 设置默认头部（模拟拦截器行为）
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('x-access-token', token);
+        
+        // 设置自定义头部
+        if (config.headers) {
+            Object.entries(config.headers).forEach(([key, value]) => {
+                xhr.setRequestHeader(key, value);
+            });
+        }
+
+        // 设置超时
+        if (config.timeout) {
+            xhr.timeout = config.timeout;
+        }
+
+        let buffer = '';
+        let timeoutId: number | null = null;
+
+        // 设置超时处理
+        if (config.timeout) {
+            timeoutId = setTimeout(() => {
+                xhr.abort();
+                const error = new Error(`请求超时 (${config.timeout}ms)`);
+                callbacks.onError?.(error);
+                reject(error);
+            }, config.timeout);
+        }
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 3) { // 接收到部分数据
+                // 重置超时计时器
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => {
+                        xhr.abort();
+                        const error = new Error(`请求超时 (${config.timeout}ms)`);
+                        callbacks.onError?.(error);
+                        reject(error);
+                    }, config.timeout!);
+                }
+
+                const newData = xhr.responseText.substring(buffer.length);
+                buffer = xhr.responseText;
+                
+                // 处理SSE数据
+                const lines = newData.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6); // 移除 'data: ' 前缀
+                        
+                        try {
+                            const parsed = JSON.parse(data);
+                            
+                            if (parsed.is_complete) {
+                                if (timeoutId) clearTimeout(timeoutId);
+                                callbacks.onComplete?.(parsed);
+                                resolve();
+                                return;
+                            } else {
+                                callbacks.onData?.(parsed);
+                            }
+                        } catch (e) {
+                            // 忽略解析错误，继续处理下一行
+                            console.warn('解析流式数据失败:', e, 'data:', data);
+                        }
+                    }
+                }
+            } else if (xhr.readyState === 4) { // 请求完成
+                if (timeoutId) clearTimeout(timeoutId);
+                
+                if (xhr.status === 200) {
+                    resolve();
+                } else {
+                    const error = new Error(`HTTP error! status: ${xhr.status}`);
+                    callbacks.onError?.(error);
+                    reject(error);
+                }
+            }
+        };
+
+        xhr.ontimeout = function() {
+            const error = new Error(`请求超时 (${config.timeout}ms)`);
+            callbacks.onError?.(error);
+            reject(error);
+        };
+
+        xhr.onerror = function() {
+            if (timeoutId) clearTimeout(timeoutId);
+            const error = new Error('网络请求失败');
+            callbacks.onError?.(error);
+            reject(error);
+        };
+
+        // 发送请求
+        if (config.data) {
+            xhr.send(JSON.stringify(config.data));
+        } else {
+            xhr.send();
+        }
+    });
+};

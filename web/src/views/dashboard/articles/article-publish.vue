@@ -39,7 +39,6 @@
 <script setup lang="ts">
 import {ref, watch} from 'vue';
 import {MdEditor} from 'md-editor-v3';
-import 'md-editor-v3/lib/style.css';
 import axios from "axios";
 import {useLayoutStore} from "@/stores/layout";
 import ArticleCreateForm from "@/components/forms/ArticleCreateForm.vue";

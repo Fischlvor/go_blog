@@ -1,6 +1,7 @@
 package main
 
 import (
+	"server/api"
 	"server/core"
 	"server/flag"
 	"server/global"
@@ -14,6 +15,9 @@ func main() {
 	global.DB = initialize.InitGorm()
 	global.Redis = initialize.ConnectRedis()
 	global.ESClient = initialize.ConnectEs()
+
+	// 初始化AI聊天服务（在数据库初始化完成后）
+	api.InitAIChatService()
 
 	defer global.Redis.Close()
 
