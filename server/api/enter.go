@@ -13,6 +13,7 @@ type ApiGroup struct {
 	FeedbackApi
 	WebsiteApi
 	ConfigApi
+	AIChatApi
 }
 
 var ApiGroupApp = new(ApiGroup)
@@ -29,3 +30,9 @@ var friendLinkService = service.ServiceGroupApp.FriendLinkService
 var feedbackService = service.ServiceGroupApp.FeedbackService
 var websiteService = service.ServiceGroupApp.WebsiteService
 var configService = service.ServiceGroupApp.ConfigService
+var aiChatService *service.AIChatService
+
+// InitAIChatService 初始化AI聊天服务
+func InitAIChatService() {
+	aiChatService = service.NewAIChatService()
+}

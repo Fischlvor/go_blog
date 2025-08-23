@@ -132,7 +132,6 @@ import {useUserStore} from "@/stores/user";
 import {useLayoutStore} from "@/stores/layout";
 import type {Hit} from "@/api/common";
 import {MdEditor} from 'md-editor-v3';
-import 'md-editor-v3/lib/style.css';
 import axios, {type AxiosResponse} from "axios";
 
 const props = defineProps<{

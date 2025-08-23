@@ -11,6 +11,7 @@ declare module 'vue' {
     Advertisement: typeof import('./src/components/pages/Advertisement.vue')['default']
     AdvertisementCreateForm: typeof import('./src/components/forms/AdvertisementCreateForm.vue')['default']
     AdvertisementUpdateForm: typeof import('./src/components/forms/AdvertisementUpdateForm.vue')['default']
+    AIAssistant: typeof import('./src/components/AIAssistant.vue')['default']
     ArticleCreateForm: typeof import('./src/components/forms/ArticleCreateForm.vue')['default']
     ArticleList: typeof import('./src/components/pages/ArticleList.vue')['default']
     ArticleUpdateForm: typeof import('./src/components/forms/ArticleUpdateForm.vue')['default']

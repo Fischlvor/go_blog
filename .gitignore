@@ -19,4 +19,7 @@ bin-release/
 
 # Configuration files
 server/config.yaml
+server/uploads/
+server/log/
 web/pkg/
+web/node_modules/

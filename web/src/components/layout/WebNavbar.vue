@@ -64,6 +64,10 @@ const menuList: MenuItem[] = [
     name: "/news",
   },
   {
+    title: "AI助手",
+    name: "/ai-assistant",
+  },
+  {
     title: "友链",
     name: "/friend-link",
   },

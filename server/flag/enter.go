@@ -3,10 +3,11 @@ package flag
 import (
 	"errors"
 	"fmt"
-	"github.com/urfave/cli"
-	"go.uber.org/zap"
 	"os"
 	"server/global"
+
+	"github.com/urfave/cli"
+	"go.uber.org/zap"
 )
 
 // 定义 CLI 标志，用于不同操作的命令行选项
@@ -38,6 +39,10 @@ var (
 	adminFlag = &cli.BoolFlag{
 		Name:  "admin",
 		Usage: "Creates an administrator using the name, email and address specified in the config.yaml file.",
+	}
+	aiFlag = &cli.BoolFlag{
+		Name:  "ai",
+		Usage: "Initializes AI-related database tables and default models.",
 	}
 )
 
@@ -101,6 +106,12 @@ func Run(c *cli.Context) {
 		} else {
 			global.Log.Info("Successfully created an administrator")
 		}
+	case c.Bool(aiFlag.Name):
+		if err := AI(); err != nil {
+			global.Log.Error("Failed to initialize AI tables and models:", zap.Error(err))
+		} else {
+			global.Log.Info("Successfully initialized AI tables and models")
+		}
 	default:
 		err := cli.NewExitError("unknown command", 1)
 		global.Log.Error(err.Error(), zap.Error(err))
@@ -119,6 +130,7 @@ func NewApp() *cli.App {
 		esExportFlag,
 		esImportFlag,
 		adminFlag,
+		aiFlag,
 	}
 	app.Action = Run
 	return app
