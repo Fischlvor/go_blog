@@ -300,7 +300,7 @@ const routes = [
                 name: "jwt-config",
                 component: () => import('@/views/dashboard/system/config/jwt-config.vue'),
                 meta: {
-                  title: "jwt配置"
+                  title: "JWT配置"
                 }
               },
               {
@@ -308,10 +308,44 @@ const routes = [
                 name: "gaode-config",
                 component: () => import('@/views/dashboard/system/config/gaode-config.vue'),
                 meta: {
-                  title: "高德配置"
+                  title: "高德API配置"
                 }
               }
             ]
+          }
+        ]
+      },
+      {
+        path: "ai-management",
+        name: "ai-management",
+        meta: {
+          title: "AI对话管理",
+          requiresAdmin: true
+        },
+        children: [
+          {
+            path: "models",
+            name: "ai-models",
+            component: () => import('@/views/dashboard/ai-management/models.vue'),
+            meta: {
+              title: "模型管理"
+            }
+          },
+          {
+            path: "sessions",
+            name: "ai-sessions",
+            component: () => import('@/views/dashboard/ai-management/sessions.vue'),
+            meta: {
+              title: "会话管理"
+            }
+          },
+          {
+            path: "messages",
+            name: "ai-messages",
+            component: () => import('@/views/dashboard/ai-management/messages.vue'),
+            meta: {
+              title: "消息管理"
+            }
           }
         ]
       }

@@ -61,28 +61,13 @@
                 :preview-theme="'github'"
                 :code-theme="'github'"
               />
-              <div class="message-time">{{ formatTime(message.created_at) }}</div>
             </div>
           </div>
           
-          <!-- 加载中状态 -->
-          <div v-if="loading" class="message assistant">
-            <div class="message-content">
-              <div class="message-text">
-                <el-icon class="is-loading"><Loading /></el-icon>
-                正在思考中...
-              </div>
-            </div>
-          </div>
-          
-          <!-- 流式响应状态 -->
-          <div v-if="streaming" class="message assistant">
-            <div class="message-content">
-              <div class="message-text">
-                <el-icon class="is-loading"><Loading /></el-icon>
-                AI正在回复中...
-              </div>
-            </div>
+          <!-- 思考中状态 - 只显示加载状态，不显示对话框 -->
+          <div v-if="thinking" class="thinking-status">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            正在思考中...
           </div>
         </div>
 
@@ -158,6 +143,7 @@ import { MdPreview } from 'md-editor-v3'
 const isOpen = ref(false)
 const loading = ref(false)
 const streaming = ref(false)
+const thinking = ref(false)
 const inputMessage = ref('')
 const messages = ref<any[]>([])
 const sessions = ref<any[]>([])
@@ -233,6 +219,7 @@ const sendMessage = async () => {
   inputMessage.value = ''
   loading.value = true
   streaming.value = false
+  thinking.value = true
   
   // 添加用户消息到界面
   messages.value.push({
@@ -245,18 +232,8 @@ const sendMessage = async () => {
   await nextTick()
   scrollToBottom()
   
-  // 创建AI回复消息占位符
-  const aiMessageId = Date.now() + 1
-  const aiMessageIndex = messages.value.length
-  messages.value.push({
-    id: aiMessageId,
-    role: 'assistant',
-    content: '',
-    created_at: new Date().toISOString()
-  })
-  
-  await nextTick()
-  scrollToBottom()
+  // 不预先创建AI消息占位符，等收到第一个数据时再创建
+  let aiMessageIndex = -1
   
   try {
     loading.value = false
@@ -268,9 +245,24 @@ const sendMessage = async () => {
       content
     }, {
       onData: (data) => {
-        // 更新AI消息内容
+        // 收到第一个数据时，创建AI消息并隐藏思考状态
         if (data.content !== undefined) {
-          messages.value[aiMessageIndex].content += data.content
+          thinking.value = false
+          
+          // 如果是第一个数据，创建AI消息
+          if (aiMessageIndex === -1) {
+            aiMessageIndex = messages.value.length
+            messages.value.push({
+              id: data.message_id || Date.now(),
+              role: 'assistant',
+              content: data.content,
+              created_at: new Date().toISOString()
+            })
+          } else {
+            // 后续数据，追加内容
+            messages.value[aiMessageIndex].content += data.content
+          }
+          
           nextTick(() => {
             scrollToBottom()
           })
@@ -290,11 +282,14 @@ const sendMessage = async () => {
   } catch (error) {
     ElMessage.error('发送消息失败')
     console.error('发送消息失败:', error)
-    // 移除空的AI消息
-    messages.value.splice(aiMessageIndex, 1)
+    // 如果已经创建了AI消息，则移除它
+    if (aiMessageIndex !== -1) {
+      messages.value.splice(aiMessageIndex, 1)
+    }
   } finally {
     loading.value = false
     streaming.value = false // 结束流式响应
+    thinking.value = false
   }
 }
 
@@ -480,6 +475,8 @@ watch(messages, () => {
   color: inherit;
   font-size: 14px;
   line-height: 1.5;
+  margin: 0;
+  padding: 0;
 }
 
 .message.assistant .message-content :deep(.md-preview pre) {
@@ -498,7 +495,11 @@ watch(messages, () => {
 }
 
 .message.assistant .message-content :deep(.md-preview p) {
-  margin: 4px 0;
+  margin: 0;
+}
+
+.message.assistant .message-content :deep(.md-preview p:last-child) {
+  margin-bottom: 0;
 }
 
 .message.assistant .message-content :deep(.md-preview h1, .md-preview h2, .md-preview h3, .md-preview h4, .md-preview h5, .md-preview h6) {
@@ -518,14 +519,22 @@ watch(messages, () => {
   color: #666;
 }
 
-.message-time {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
+
+
+/* 思考中状态样式 */
+.thinking-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+  color: #666;
+  font-size: 14px;
+  gap: 8px;
 }
 
-.message.user .message-time {
-  color: rgba(255, 255, 255, 0.8);
+.thinking-status .el-icon {
+  font-size: 16px;
+  color: #409eff;
 }
 
 .input-container {

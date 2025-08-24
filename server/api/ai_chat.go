@@ -221,6 +221,37 @@ func (api *AIChatApi) UpdateSession(c *gin.Context) {
 	response.OkWithMessage("更新成功", c)
 }
 
+// GetSessionDetail 获取会话详情
+func (api *AIChatApi) GetSessionDetail(c *gin.Context) {
+	sessionIDStr := c.Param("id")
+	if sessionIDStr == "" {
+		response.FailWithMessage("会话ID不能为空", c)
+		return
+	}
+
+	sessionID, err := strconv.ParseUint(sessionIDStr, 10, 32)
+	if err != nil {
+		response.FailWithMessage("会话ID格式错误", c)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := utils.GetUserID(c)
+	if userID == 0 {
+		response.FailWithMessage("用户未登录", c)
+		return
+	}
+
+	session, err := aiChatService.GetSessionDetail(userID, uint(sessionID))
+	if err != nil {
+		global.Log.Error("获取会话详情失败: " + err.Error())
+		response.FailWithMessage("获取会话详情失败", c)
+		return
+	}
+
+	response.OkWithData(session, c)
+}
+
 // GetAvailableModels 获取可用模型列表
 func (api *AIChatApi) GetAvailableModels(c *gin.Context) {
 	models, err := aiChatService.GetAvailableModels()
