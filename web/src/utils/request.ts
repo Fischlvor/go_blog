@@ -191,10 +191,12 @@ export const streamRequest = (
 
         let buffer = '';
         let timeoutId: number | null = null;
+        let isAborted = false; // 添加标记，避免主动abort后触发错误
 
         // 设置超时处理
         if (config.timeout) {
             timeoutId = setTimeout(() => {
+                isAborted = true;
                 xhr.abort();
                 const error = new Error(`请求超时 (${config.timeout}ms)`);
                 callbacks.onError?.(error);
@@ -208,6 +210,7 @@ export const streamRequest = (
                 if (timeoutId) {
                     clearTimeout(timeoutId);
                     timeoutId = setTimeout(() => {
+                        isAborted = true;
                         xhr.abort();
                         const error = new Error(`请求超时 (${config.timeout}ms)`);
                         callbacks.onError?.(error);
@@ -228,9 +231,12 @@ export const streamRequest = (
                         try {
                             const parsed = JSON.parse(data);
                             
-                            if (parsed.is_complete) {
+                            // 检查是否是完成事件
+                            if (parsed.event_id === 2 || parsed.is_complete) {
                                 if (timeoutId) clearTimeout(timeoutId);
+                                isAborted = true; // 标记为主动abort
                                 callbacks.onComplete?.(parsed);
+                                xhr.abort(); // 主动结束请求
                                 resolve();
                                 return;
                             } else {
@@ -245,6 +251,11 @@ export const streamRequest = (
             } else if (xhr.readyState === 4) { // 请求完成
                 if (timeoutId) clearTimeout(timeoutId);
                 
+                // 如果是主动abort的，不触发错误
+                if (isAborted) {
+                    return;
+                }
+                
                 if (xhr.status === 200) {
                     resolve();
                 } else {
@@ -256,6 +267,7 @@ export const streamRequest = (
         };
 
         xhr.ontimeout = function() {
+            isAborted = true;
             const error = new Error(`请求超时 (${config.timeout}ms)`);
             callbacks.onError?.(error);
             reject(error);
@@ -263,6 +275,12 @@ export const streamRequest = (
 
         xhr.onerror = function() {
             if (timeoutId) clearTimeout(timeoutId);
+            
+            // 如果是主动abort的，不触发错误
+            if (isAborted) {
+                return;
+            }
+            
             const error = new Error('网络请求失败');
             callbacks.onError?.(error);
             reject(error);

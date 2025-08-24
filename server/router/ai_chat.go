@@ -20,6 +20,7 @@ func (a *AIChatRouter) InitAIChatRouter(Router *gin.RouterGroup, PublicRouter *g
 		// 需要登录的接口
 		aiChatRouter.POST("session", aiChatApi.CreateSession)            // 创建会话
 		aiChatRouter.GET("sessions", aiChatApi.GetSessions)              // 获取会话列表
+		aiChatRouter.GET("session/:id", aiChatApi.GetSessionDetail)      // 获取会话详情
 		aiChatRouter.GET("messages", aiChatApi.GetMessages)              // 获取消息列表
 		aiChatRouter.POST("message", aiChatApi.SendMessage)              // 发送消息
 		aiChatRouter.POST("message/stream", aiChatApi.SendMessageStream) // 流式发送消息

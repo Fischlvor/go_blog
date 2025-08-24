@@ -133,6 +133,29 @@ const menuList: MenuItem[] = [
     ]
   },
   {
+    title: "AI对话管理",
+    name: "ai-management",
+    icon: "ChatDotRound",
+    admin_role:true,
+    subItems: [
+      {
+        title: "模型管理",
+        name: "models",
+        icon: "Setting"
+      },
+      {
+        title: "会话管理",
+        name: "sessions",
+        icon: "ChatLineRound"
+      },
+      {
+        title: "消息管理",
+        name: "messages",
+        icon: "Message"
+      }
+    ]
+  },
+  {
     title: "系统管理",
     name: "system",
     icon: "Coin",

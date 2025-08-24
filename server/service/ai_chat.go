@@ -12,6 +12,7 @@ import (
 	"server/model/response"
 	"server/service/ai"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -55,7 +56,6 @@ func (s *AIChatService) CreateSession(userID uint, req request.CreateSessionRequ
 		ID:        session.ID,
 		Title:     session.Title,
 		Model:     session.Model,
-		CreatedAt: session.CreatedAt,
 		UpdatedAt: session.UpdatedAt,
 	}, nil
 }
@@ -70,7 +70,7 @@ func (s *AIChatService) GetSessions(userID uint, req request.GetSessionsRequest)
 		return nil, 0, err
 	}
 
-	// 获取会话列表
+	// 获取会话列表，按updated_at倒序排列
 	query := global.DB.Where("user_id = ?", userID).Order("updated_at DESC")
 	if req.Page > 0 && req.PageSize > 0 {
 		offset := (req.Page - 1) * req.PageSize
@@ -84,22 +84,11 @@ func (s *AIChatService) GetSessions(userID uint, req request.GetSessionsRequest)
 	// 转换为响应格式
 	var responses []response.ChatSessionResponse
 	for _, session := range sessions {
-		// 获取最后一条消息
-		var lastMessage database.AIChatMessage
-		global.DB.Where("session_id = ?", session.ID).Order("created_at DESC").First(&lastMessage)
-
-		// 获取消息数量
-		var messageCount int64
-		global.DB.Model(&database.AIChatMessage{}).Where("session_id = ?", session.ID).Count(&messageCount)
-
 		responses = append(responses, response.ChatSessionResponse{
-			ID:           session.ID,
-			Title:        session.Title,
-			Model:        session.Model,
-			CreatedAt:    session.CreatedAt,
-			UpdatedAt:    session.UpdatedAt,
-			LastMessage:  lastMessage.Content,
-			MessageCount: int(messageCount),
+			ID:        session.ID,
+			Title:     session.Title,
+			Model:     session.Model,
+			UpdatedAt: session.UpdatedAt,
 		})
 	}
 
@@ -255,6 +244,13 @@ func (s *AIChatService) SendMessageStream(userID uint, req request.SendMessageRe
 		return err
 	}
 
+	// 异步生成会话标题（如果是第一次对话且标题还是默认值）
+	var wg sync.WaitGroup
+	if len(messages) == 0 {
+		wg.Add(1)
+		go s.generateSessionTitleAsync(userID, req.SessionID, req.Content, session.Model, &wg)
+	}
+
 	// 构建AI请求消息
 	var aiMessages []ai.Message
 	for _, msg := range messages {
@@ -315,10 +311,18 @@ func (s *AIChatService) SendMessageStream(userID uint, req request.SendMessageRe
 						Content string `json:"content"`
 					} `json:"delta"`
 				} `json:"choices"`
+				Usage struct {
+					TotalTokens int `json:"total_tokens"`
+				} `json:"usage"`
 			}
 
 			if err := json.Unmarshal([]byte(data), &streamResp); err != nil {
 				continue
+			}
+
+			// 更新token统计（如果存在）
+			if streamResp.Usage.TotalTokens > 0 {
+				totalTokens = streamResp.Usage.TotalTokens
 			}
 
 			if len(streamResp.Choices) > 0 && streamResp.Choices[0].Delta.Content != "" {
@@ -327,11 +331,10 @@ func (s *AIChatService) SendMessageStream(userID uint, req request.SendMessageRe
 
 				// 发送流式响应
 				streamResponse := response.StreamingChatResponse{
-					Content:     content,
-					IsComplete:  false,
-					SessionID:   req.SessionID,
-					MessageID:   aiMessage.ID,
-					TotalTokens: totalTokens,
+					Content:   content,
+					SessionID: req.SessionID,
+					MessageID: aiMessage.ID,
+					EventID:   response.EventMessage, // 正常消息
 				}
 
 				jsonData, _ := json.Marshal(streamResponse)
@@ -344,17 +347,38 @@ func (s *AIChatService) SendMessageStream(userID uint, req request.SendMessageRe
 		}
 	}
 
-	// 更新AI消息内容
+	// 更新AI消息内容和token数量
 	aiMessage.Content = fullContent.String()
+	aiMessage.Tokens = totalTokens
 	global.DB.Save(aiMessage)
 
-	// 发送完成信号
+	// 等待标题生成完成
+	wg.Wait()
+
+	// 如果生成了新标题，发送一个特殊的流式消息作为标记
+	if len(messages) == 0 {
+		// 发送标题生成完成的标记消息
+		titleCompleteResponse := response.StreamingChatResponse{
+			Content:   "",
+			SessionID: req.SessionID,
+			MessageID: aiMessage.ID,
+			EventID:   response.EventTitleGenerated, // 标题生成完成
+		}
+
+		jsonData, _ := json.Marshal(titleCompleteResponse)
+		writer.Write([]byte("data: " + string(jsonData) + "\n\n"))
+		// 确保数据立即发送
+		if flusher, ok := writer.(interface{ Flush() }); ok {
+			flusher.Flush()
+		}
+	}
+
+	// 发送完成信号（统一结束）
 	completeResponse := response.StreamingChatResponse{
-		Content:     "",
-		IsComplete:  true,
-		SessionID:   req.SessionID,
-		MessageID:   aiMessage.ID,
-		TotalTokens: totalTokens,
+		Content:   "",
+		SessionID: req.SessionID,
+		MessageID: aiMessage.ID,
+		EventID:   response.EventComplete, // 流式响应完成
 	}
 
 	jsonData, _ := json.Marshal(completeResponse)
@@ -412,6 +436,69 @@ func (s *AIChatService) UpdateSession(userID uint, req request.UpdateSessionRequ
 	// 更新会话标题
 	session.Title = req.Title
 	return global.DB.Save(&session).Error
+}
+
+// GetSessionDetail 获取会话详情
+func (s *AIChatService) GetSessionDetail(userID uint, sessionID uint) (*response.ChatSessionResponse, error) {
+	var session database.AIChatSession
+	if err := global.DB.Where("id = ? AND user_id = ?", sessionID, userID).First(&session).Error; err != nil {
+		return nil, fmt.Errorf("session not found or access denied")
+	}
+
+	return &response.ChatSessionResponse{
+		ID:        session.ID,
+		Title:     session.Title,
+		Model:     session.Model,
+		UpdatedAt: session.UpdatedAt,
+	}, nil
+}
+
+// 异步生成会话标题
+func (s *AIChatService) generateSessionTitleAsync(userID uint, sessionID uint, userQuestion string, model string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	// 构建AI提示词来生成标题
+	prompt := fmt.Sprintf(`请根据以下用户问题生成一个简洁的对话标题（不超过20个字符）：
+
+用户问题：%s
+
+要求：
+1. 标题要简洁明了，体现对话主题
+2. 不超过20个字符
+3. 只返回标题，不要其他内容
+
+标题：`, userQuestion)
+
+	// 调用AI服务生成标题
+	aiReq := ai.ChatRequest{
+		Model:       model, // 使用传入的模型
+		Messages:    []ai.Message{{Role: "user", Content: prompt}},
+		MaxTokens:   100,
+		Temperature: 0.3, // 使用较低的温度确保标题的一致性
+	}
+
+	ctx := context.Background()
+	aiResp, err := s.aiManager.Chat(ctx, model, aiReq)
+	if err != nil {
+		global.Log.Error("异步生成标题失败: " + err.Error())
+		return
+	}
+
+	// 清理AI返回的标题（去除多余的空格、换行等）
+	title := strings.TrimSpace(aiResp.Content)
+	title = strings.ReplaceAll(title, "\n", "")
+	title = strings.ReplaceAll(title, "\r", "")
+
+	// 如果标题过长，截取前20个字符
+	if len([]rune(title)) > 20 {
+		title = string([]rune(title)[:20])
+	}
+
+	// 更新数据库中的会话标题
+	if err := global.DB.Model(&database.AIChatSession{}).Where("id = ?", sessionID).Update("title", title).Error; err != nil {
+		global.Log.Error("更新会话标题失败: " + err.Error())
+		return
+	}
 }
 
 // GetAvailableModels 获取可用模型列表

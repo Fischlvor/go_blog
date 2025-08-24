@@ -4,16 +4,19 @@ import (
 	"time"
 )
 
+// 事件类型常量
+const (
+	EventMessage        = 1 // 正常消息
+	EventComplete       = 2 // 流式响应完成
+	EventTitleGenerated = 3 // 标题生成完成
+)
+
 // ChatSessionResponse 聊天会话响应
 type ChatSessionResponse struct {
 	ID        uint      `json:"id"`
 	Title     string    `json:"title"`
 	Model     string    `json:"model"`
-	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	// 最后一条消息预览
-	LastMessage  string `json:"last_message"`
-	MessageCount int    `json:"message_count"`
 }
 
 // ChatMessageResponse 聊天消息响应
@@ -44,9 +47,8 @@ type ChatResponse struct {
 
 // StreamingChatResponse 流式聊天响应
 type StreamingChatResponse struct {
-	Content     string `json:"content"`
-	IsComplete  bool   `json:"is_complete"`
-	SessionID   uint   `json:"session_id"`
-	MessageID   uint   `json:"message_id"`
-	TotalTokens int    `json:"total_tokens"`
+	Content   string `json:"content"`
+	SessionID uint   `json:"session_id"`
+	MessageID uint   `json:"message_id"` // 消息ID，用于前端定位和更新消息
+	EventID   int    `json:"event_id"`   // 事件ID：1(正常消息)、2(完成)、3(标题生成完成)
 }

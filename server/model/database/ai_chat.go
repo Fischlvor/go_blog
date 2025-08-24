@@ -12,6 +12,7 @@ type AIChatSession struct {
 	Model  string `json:"model" gorm:"size:50;not null;comment:AI模型名称"`
 
 	// 关联关系
+	User     User            `json:"user" gorm:"foreignKey:UserID"` // 用户信息
 	Messages []AIChatMessage `json:"messages" gorm:"foreignKey:SessionID"`
 }
 

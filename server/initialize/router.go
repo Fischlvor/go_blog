@@ -57,6 +57,7 @@ func InitRouter() *gin.Engine {
 		routerGroup.InitFriendLinkRouter(adminGroup, publicGroup)
 		routerGroup.InitWebsiteRouter(adminGroup, publicGroup)
 		routerGroup.InitConfigRouter(adminGroup)
+		routerGroup.InitAIManagementRouter(adminGroup)
 	}
 	return Router
 }

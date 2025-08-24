@@ -73,5 +73,13 @@ export const aiChatApi = {
       method: 'put',
       data
     })
+  },
+
+  // 获取会话详情
+  getSessionDetail(sessionId: number) {
+    return request({
+      url: `/ai-chat/session/${sessionId}`,
+      method: 'get'
+    })
   }
 } 
