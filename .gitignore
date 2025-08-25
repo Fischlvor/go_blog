@@ -21,5 +21,6 @@ bin-release/
 server/config.yaml
 server/uploads/
 server/log/
+server/main
 web/pkg/
 web/node_modules/

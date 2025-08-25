@@ -1,11 +1,11 @@
 package main
 
 import (
-	"server/api"
-	"server/core"
-	"server/flag"
-	"server/global"
-	"server/initialize"
+	"server/internal/api"
+	"server/internal/initialize"
+	"server/pkg/core"
+	"server/pkg/global"
+	"server/scripts/flag"
 )
 
 func main() {
