@@ -1,13 +1,14 @@
 package utils
 
 import (
-	"gopkg.in/yaml.v3"
 	"io/fs"
 	"os"
 	"server/pkg/global"
+
+	"gopkg.in/yaml.v3"
 )
 
-const configFile = "config.yaml"
+const configFile = "configs/config.yaml"
 
 // LoadYAML 从文件中读取 YAML 数据并返回字节数组
 func LoadYAML() ([]byte, error) {
