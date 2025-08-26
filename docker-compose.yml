@@ -1,6 +1,37 @@
 version: '3.8'
 
 services:
+  # Go后端服务
+  go-blog:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: go-blog-server
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      # 挂载配置文件目录
+      - /media/practice/onServer/go_blog/server/configs:/app/configs
+      # 挂载上传文件目录
+      - /media/practice/onServer/go_blog/server/uploads:/app/uploads
+      # 挂载日志目录
+      - /media/practice/onServer/go_blog/server/log:/app/log
+    depends_on:
+      - mysql
+      - redis
+      - elasticsearch
+    networks:
+      - blog-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   mysql:
     image: mysql:8.0.20
     container_name: mysql8
