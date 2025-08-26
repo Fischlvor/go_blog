@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # CI/CD 部署脚本
-# 用于自动构建前端代码并部署到服务器
+# 用于自动构建前端代码并部署到服务器，同时构建和部署Go后端Docker镜像
 
 set -e  # 遇到错误立即退出
 
@@ -10,9 +10,11 @@ SERVER_HOST="8.148.64.96"
 SERVER_USER="root"
 SERVER_PORT="22"
 SSH_KEY_PATH="$HOME/.ssh/id_rsa_go_blog"
-REMOTE_DIR="/media/practice/onServer/go_blog/web"
+REMOTE_DIR="/media/practice/onServer/go_blog"
 LOCAL_DIST_DIR="web/dist"
 PROJECT_NAME="go_blog"
+DOCKER_IMAGE_NAME="go-blog"
+DOCKER_IMAGE_TAG="latest"
 
 # 颜色输出
 RED='\033[0;31m'
@@ -107,6 +109,25 @@ check_node_environment() {
     log_info "npm版本: $(npm --version)"
 }
 
+# 检查Docker环境
+check_docker_environment() {
+    log_info "检查Docker环境..."
+    
+    if ! command -v docker &> /dev/null; then
+        log_error "Docker未安装"
+        exit 1
+    fi
+    
+    # 检查Docker服务状态
+    if ! sudo docker info &> /dev/null; then
+        log_error "Docker服务未运行或无权限访问"
+        exit 1
+    fi
+    
+    log_success "Docker环境检查通过"
+    log_info "Docker版本: $(docker --version)"
+}
+
 # 构建前端项目
 build_frontend() {
     log_info "开始构建前端项目..."
@@ -134,18 +155,50 @@ build_frontend() {
     cd ..
 }
 
+# 构建Docker镜像
+build_docker_image() {
+    log_info "开始构建Docker镜像..."
+    
+    # 构建Go后端镜像
+    log_info "构建Go后端镜像..."
+    sudo docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ./server
+    
+    if [ $? -eq 0 ]; then
+        log_success "Docker镜像构建成功"
+        log_info "镜像名称: ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+    else
+        log_error "Docker镜像构建失败"
+        exit 1
+    fi
+}
+
+# 保存镜像为tar文件
+save_docker_image() {
+    log_info "保存Docker镜像..."
+    local image_file="${DOCKER_IMAGE_NAME}_${DOCKER_IMAGE_TAG}.tar"
+    
+    sudo docker save -o "$image_file" "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+    
+    if [ $? -eq 0 ]; then
+        log_success "镜像保存成功: $image_file"
+    else
+        log_error "镜像保存失败"
+        exit 1
+    fi
+}
+
 # 备份远程文件
 backup_remote_files() {
     log_info "备份远程文件..."
     local backup_dir="/tmp/${PROJECT_NAME}_backup_$(date +%Y%m%d_%H%M%S)"
     
     ssh -i "$SSH_KEY_PATH" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" << EOF
-        if [ -d "$REMOTE_DIR" ]; then
+        if [ -d "$REMOTE_DIR/web/dist" ]; then
             mkdir -p $backup_dir
-            cp -r $REMOTE_DIR/* $backup_dir/ 2>/dev/null || true
-            echo "备份完成: $backup_dir"
+            cp -r $REMOTE_DIR/web/dist/* $backup_dir/ 2>/dev/null || true
+            echo "前端文件备份完成: $backup_dir"
         else
-            echo "远程目录不存在，无需备份"
+            echo "远程前端目录不存在，无需备份"
         fi
 EOF
     log_success "远程文件备份完成"
@@ -155,12 +208,21 @@ EOF
 deploy_to_server() {
     log_info "开始部署到服务器..."
     
-    # 创建远程目录（如果不存在）
-    ssh -i "$SSH_KEY_PATH" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "mkdir -p $REMOTE_DIR"
+    # 创建远程目录
+    ssh -i "$SSH_KEY_PATH" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "mkdir -p $REMOTE_DIR/web/dist"
     
-    # 上传文件
-    log_info "上传文件到服务器..."
-    scp -i "$SSH_KEY_PATH" -P "$SERVER_PORT" -r "$LOCAL_DIST_DIR" "$SERVER_USER@$SERVER_HOST:$REMOTE_DIR/"
+    # 上传前端文件
+    log_info "上传前端文件到服务器..."
+    scp -i "$SSH_KEY_PATH" -P "$SERVER_PORT" -r "$LOCAL_DIST_DIR" "$SERVER_USER@$SERVER_HOST:$REMOTE_DIR/web/"
+    
+    # 上传Docker镜像
+    log_info "上传Docker镜像到服务器..."
+    local image_file="${DOCKER_IMAGE_NAME}_${DOCKER_IMAGE_TAG}.tar"
+    scp -i "$SSH_KEY_PATH" -P "$SERVER_PORT" "$image_file" "$SERVER_USER@$SERVER_HOST:$REMOTE_DIR/"
+    
+    # 上传docker-compose.yml
+    log_info "上传docker-compose.yml到服务器..."
+    scp -i "$SSH_KEY_PATH" -P "$SERVER_PORT" "docker-compose.yml" "$SERVER_USER@$SERVER_HOST:$REMOTE_DIR/"
     
     if [ $? -eq 0 ]; then
         log_success "文件上传成功"
@@ -170,12 +232,42 @@ deploy_to_server() {
     fi
 }
 
+# 在服务器上部署Docker服务
+deploy_docker_on_server() {
+    log_info "在服务器上部署Docker服务..."
+    
+    ssh -i "$SSH_KEY_PATH" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" << EOF
+        cd $REMOTE_DIR
+        
+        # 停止现有容器
+        log_info "停止现有容器..."
+        docker-compose down || true
+        
+        # 加载Docker镜像
+        log_info "加载Docker镜像..."
+        docker load -i ${DOCKER_IMAGE_NAME}_${DOCKER_IMAGE_TAG}.tar
+        
+        # 启动服务
+        log_info "启动服务..."
+        docker-compose up -d
+        
+        # 清理镜像文件
+        rm -f ${DOCKER_IMAGE_NAME}_${DOCKER_IMAGE_TAG}.tar
+        
+        # 检查服务状态
+        log_info "检查服务状态..."
+        docker-compose ps
+EOF
+    
+    log_success "Docker服务部署完成"
+}
+
 # 设置文件权限
 set_permissions() {
     log_info "设置文件权限..."
     ssh -i "$SSH_KEY_PATH" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" << EOF
-        chmod -R 755 $REMOTE_DIR
-        chown -R www-data:www-data $REMOTE_DIR 2>/dev/null || true
+        chmod -R 755 $REMOTE_DIR/web/dist
+        chown -R www-data:www-data $REMOTE_DIR/web/dist 2>/dev/null || true
         echo "权限设置完成"
 EOF
     log_success "文件权限设置完成"
@@ -185,13 +277,26 @@ EOF
 verify_deployment() {
     log_info "验证部署..."
     
-    # 检查远程文件是否存在
-    local file_count=$(ssh -i "$SSH_KEY_PATH" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "find $REMOTE_DIR -type f | wc -l")
+    # 检查前端文件是否存在
+    local file_count=$(ssh -i "$SSH_KEY_PATH" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "find $REMOTE_DIR/web/dist -type f | wc -l")
     
     if [ "$file_count" -gt 0 ]; then
-        log_success "部署验证成功，共部署 $file_count 个文件"
+        log_success "前端部署验证成功，共部署 $file_count 个文件"
     else
-        log_warning "部署验证失败，远程目录为空"
+        log_warning "前端部署验证失败，远程目录为空"
+    fi
+    
+    # 检查Docker容器状态
+    local container_status=$(ssh -i "$SSH_KEY_PATH" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "cd $REMOTE_DIR && docker-compose ps --format 'table {{.Name}}\t{{.Status}}'")
+    
+    echo "$container_status"
+    
+    # 检查服务健康状态
+    sleep 10
+    if curl -f http://$SERVER_HOST/health &> /dev/null; then
+        log_success "服务健康检查通过"
+    else
+        log_warning "服务健康检查失败，请手动检查"
     fi
 }
 
@@ -200,7 +305,13 @@ cleanup_local() {
     log_info "清理本地构建文件..."
     if [ -d "$LOCAL_DIST_DIR" ]; then
         rm -rf "$LOCAL_DIST_DIR"
-        log_success "本地构建文件清理完成"
+        log_success "本地前端构建文件清理完成"
+    fi
+    
+    local image_file="${DOCKER_IMAGE_NAME}_${DOCKER_IMAGE_TAG}.tar"
+    if [ -f "$image_file" ]; then
+        rm -f "$image_file"
+        log_success "本地Docker镜像文件清理完成"
     fi
 }
 
@@ -214,15 +325,19 @@ main() {
     check_ssh_key
     test_ssh_connection
     check_node_environment
+    check_docker_environment
     build_frontend
+    build_docker_image
+    save_docker_image
     backup_remote_files
     deploy_to_server
+    deploy_docker_on_server
     set_permissions
     verify_deployment
     cleanup_local
     
     log_success "部署完成！"
-    log_info "访问地址: http://$SERVER_HOST"
+    log_info "访问地址: https://www.hsk423.cn"
 }
 
 # 显示帮助信息
@@ -236,13 +351,21 @@ show_help() {
     echo "  -p, --port     指定SSH端口 (默认: $SERVER_PORT)"
     echo "  -k, --key      指定SSH密钥路径 (默认: $SSH_KEY_PATH)"
     echo "  -d, --dir      指定远程目录 (默认: $REMOTE_DIR)"
+    echo "  -t, --tag      指定Docker镜像标签 (默认: $DOCKER_IMAGE_TAG)"
+    echo "  --frontend-only 仅部署前端"
+    echo "  --backend-only  仅部署后端"
     echo ""
     echo "示例:"
     echo "  $0"
     echo "  $0 -s 192.168.1.100 -u deploy -d /var/www/html"
+    echo "  $0 --frontend-only"
+    echo "  $0 --backend-only"
 }
 
 # 解析命令行参数
+FRONTEND_ONLY=false
+BACKEND_ONLY=false
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help)
@@ -268,6 +391,18 @@ while [[ $# -gt 0 ]]; do
         -d|--dir)
             REMOTE_DIR="$2"
             shift 2
+            ;;
+        -t|--tag)
+            DOCKER_IMAGE_TAG="$2"
+            shift 2
+            ;;
+        --frontend-only)
+            FRONTEND_ONLY=true
+            shift
+            ;;
+        --backend-only)
+            BACKEND_ONLY=true
+            shift
             ;;
         *)
             log_error "未知参数: $1"
