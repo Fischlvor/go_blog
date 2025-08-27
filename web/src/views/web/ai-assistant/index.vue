@@ -115,7 +115,7 @@
                 placeholder="请输入问题"
                 type="textarea"
                 :rows="1"
-                @keydown.enter.prevent="sendMessage"
+                @keydown="handleKeydown"
                 :disabled="loading"
                 class="chat-textarea"
               />
@@ -129,7 +129,7 @@
                   placeholder="选择模型" 
                   size="small"
                   class="model-selector"
-                  :disabled="!isNewSession"
+                  :disabled="currentSessionId !== null && !isNewSession"
                 >
                   <el-option
                     v-for="model in availableModels"
@@ -234,6 +234,11 @@ const loadAvailableModels = async () => {
   try {
     const response = await aiChatApi.getAvailableModels()
     availableModels.value = response.data || []
+    
+    // 如果没有选中的模型且有可用模型，默认选择第一个
+    if (!selectedModel.value && availableModels.value.length > 0) {
+      selectedModel.value = availableModels.value[0].name
+    }
   } catch (error) {
     console.error('加载可用模型失败:', error)
     ElMessage.error('加载可用模型失败')
@@ -255,6 +260,11 @@ const loadSessions = async () => {
         selectedModel.value = currentSession.model
       }
       await loadSessionMessages()
+    } else if (sessions.value.length === 0) {
+      // 如果没有会话，设置为空会话状态，模型选择器应该可用
+      currentSessionId.value = null
+      isNewSession.value = true
+      messages.value = []
     }
     
     // 如果当前会话ID不在列表中，清空消息
@@ -284,7 +294,7 @@ const loadSessionMessages = async () => {
 
 // 发送消息
 const sendMessage = async () => {
-  if (!inputMessage.value.trim() || !currentSessionId.value) return
+  if (!inputMessage.value.trim()) return
   
   const content = inputMessage.value
   inputMessage.value = ''
@@ -304,7 +314,7 @@ const sendMessage = async () => {
   scrollToBottom()
   
   // 如果是新会话的第一次提问，先创建真正的会话
-  if (isNewSession.value && currentSessionId.value) {
+  if (isNewSession.value) {
     try {
       const response = await aiChatApi.createSession({
         title: '新对话',
@@ -334,7 +344,7 @@ const sendMessage = async () => {
     
     // 使用流式API
     await aiChatApi.sendMessageStream({
-      session_id: currentSessionId.value,
+      session_id: currentSessionId.value!,
       content
     }, {
       onData: (data) => {
@@ -419,6 +429,11 @@ const createNewSession = async () => {
   
   // 清空输入框
   inputMessage.value = ''
+  
+  // 确保有默认选中的模型
+  if (!selectedModel.value && availableModels.value.length > 0) {
+    selectedModel.value = availableModels.value[0].name
+  }
   
   ElMessage.success('新对话已创建，请选择模型并开始提问')
 }
@@ -563,6 +578,19 @@ const handleSessionAction = async (command: string) => {
 // 切换侧边栏
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value
+}
+
+// 处理键盘事件
+const handleKeydown = (event: KeyboardEvent) => {
+  // 检查是否正在使用输入法（通过检查 isComposing 属性）
+  const target = event.target as any
+  const isComposing = target?.isComposing || false
+  
+  // 如果是回车键且不在输入法组合状态，则发送消息
+  if (event.key === 'Enter' && !event.shiftKey && !isComposing) {
+    event.preventDefault()
+    sendMessage()
+  }
 }
 
 // 格式化消息内容 - 用户消息的普通文本处理
