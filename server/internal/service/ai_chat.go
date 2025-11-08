@@ -6,14 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"server/pkg/global"
 	"server/internal/model/database"
 	"server/internal/model/request"
 	"server/internal/model/response"
 	"server/internal/service/ai"
+	"server/pkg/global"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gofrs/uuid"
 )
 
 // AIChatService AI聊天服务
@@ -41,11 +43,11 @@ func (s *AIChatService) Init() error {
 }
 
 // CreateSession 创建会话
-func (s *AIChatService) CreateSession(userID uint, req request.CreateSessionRequest) (*response.ChatSessionResponse, error) {
+func (s *AIChatService) CreateSession(userUUID uuid.UUID, req request.CreateSessionRequest) (*response.ChatSessionResponse, error) {
 	session := &database.AIChatSession{
-		UserID: userID,
-		Title:  req.Title,
-		Model:  req.Model,
+		UserUUID: userUUID,
+		Title:    req.Title,
+		Model:    req.Model,
 	}
 
 	if err := global.DB.Create(session).Error; err != nil {
@@ -61,17 +63,17 @@ func (s *AIChatService) CreateSession(userID uint, req request.CreateSessionRequ
 }
 
 // GetSessions 获取会话列表
-func (s *AIChatService) GetSessions(userID uint, req request.GetSessionsRequest) ([]response.ChatSessionResponse, int64, error) {
+func (s *AIChatService) GetSessions(userUUID uuid.UUID, req request.GetSessionsRequest) ([]response.ChatSessionResponse, int64, error) {
 	var sessions []database.AIChatSession
 	var total int64
 
 	// 获取总数
-	if err := global.DB.Model(&database.AIChatSession{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
+	if err := global.DB.Model(&database.AIChatSession{}).Where("user_uuid = ?", userUUID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	// 获取会话列表，按updated_at倒序排列
-	query := global.DB.Where("user_id = ?", userID).Order("updated_at DESC")
+	query := global.DB.Where("user_uuid = ?", userUUID).Order("updated_at DESC")
 	if req.Page > 0 && req.PageSize > 0 {
 		offset := (req.Page - 1) * req.PageSize
 		query = query.Offset(offset).Limit(req.PageSize)
@@ -96,10 +98,10 @@ func (s *AIChatService) GetSessions(userID uint, req request.GetSessionsRequest)
 }
 
 // GetMessages 获取消息列表
-func (s *AIChatService) GetMessages(userID uint, req request.GetMessagesRequest) ([]response.ChatMessageResponse, int64, error) {
+func (s *AIChatService) GetMessages(userUUID uuid.UUID, req request.GetMessagesRequest) ([]response.ChatMessageResponse, int64, error) {
 	// 验证会话所有权
 	var session database.AIChatSession
-	if err := global.DB.Where("id = ? AND user_id = ?", req.SessionID, userID).First(&session).Error; err != nil {
+	if err := global.DB.Where("id = ? AND user_uuid = ?", req.SessionID, userUUID).First(&session).Error; err != nil {
 		return nil, 0, fmt.Errorf("session not found or access denied")
 	}
 
@@ -138,10 +140,10 @@ func (s *AIChatService) GetMessages(userID uint, req request.GetMessagesRequest)
 }
 
 // SendMessage 发送消息
-func (s *AIChatService) SendMessage(userID uint, req request.SendMessageRequest) (*response.ChatResponse, error) {
+func (s *AIChatService) SendMessage(userUUID uuid.UUID, req request.SendMessageRequest) (*response.ChatResponse, error) {
 	// 验证会话所有权
 	var session database.AIChatSession
-	if err := global.DB.Where("id = ? AND user_id = ?", req.SessionID, userID).First(&session).Error; err != nil {
+	if err := global.DB.Where("id = ? AND user_uuid = ?", req.SessionID, userUUID).First(&session).Error; err != nil {
 		return nil, fmt.Errorf("session not found or access denied")
 	}
 
@@ -219,10 +221,10 @@ func (s *AIChatService) SendMessage(userID uint, req request.SendMessageRequest)
 }
 
 // SendMessageStream 流式发送消息
-func (s *AIChatService) SendMessageStream(userID uint, req request.SendMessageRequest, writer io.Writer) error {
+func (s *AIChatService) SendMessageStream(userUUID uuid.UUID, req request.SendMessageRequest, writer io.Writer) error {
 	// 验证会话所有权
 	var session database.AIChatSession
-	if err := global.DB.Where("id = ? AND user_id = ?", req.SessionID, userID).First(&session).Error; err != nil {
+	if err := global.DB.Where("id = ? AND user_uuid = ?", req.SessionID, userUUID).First(&session).Error; err != nil {
 		return fmt.Errorf("session not found or access denied")
 	}
 
@@ -248,7 +250,7 @@ func (s *AIChatService) SendMessageStream(userID uint, req request.SendMessageRe
 	var wg sync.WaitGroup
 	if len(messages) == 0 {
 		wg.Add(1)
-		go s.generateSessionTitleAsync(userID, req.SessionID, req.Content, session.Model, &wg)
+		go s.generateSessionTitleAsync(userUUID, req.SessionID, req.Content, session.Model, &wg)
 	}
 
 	// 构建AI请求消息
@@ -395,10 +397,10 @@ func (s *AIChatService) SendMessageStream(userID uint, req request.SendMessageRe
 }
 
 // DeleteSession 删除会话
-func (s *AIChatService) DeleteSession(userID uint, req request.DeleteSessionRequest) error {
+func (s *AIChatService) DeleteSession(userUUID uuid.UUID, req request.DeleteSessionRequest) error {
 	// 验证会话所有权
 	var session database.AIChatSession
-	if err := global.DB.Where("id = ? AND user_id = ?", req.SessionID, userID).First(&session).Error; err != nil {
+	if err := global.DB.Where("id = ? AND user_uuid = ?", req.SessionID, userUUID).First(&session).Error; err != nil {
 		return fmt.Errorf("session not found or access denied")
 	}
 
@@ -426,10 +428,10 @@ func (s *AIChatService) DeleteSession(userID uint, req request.DeleteSessionRequ
 }
 
 // UpdateSession 更新会话
-func (s *AIChatService) UpdateSession(userID uint, req request.UpdateSessionRequest) error {
+func (s *AIChatService) UpdateSession(userUUID uuid.UUID, req request.UpdateSessionRequest) error {
 	// 验证会话所有权
 	var session database.AIChatSession
-	if err := global.DB.Where("id = ? AND user_id = ?", req.SessionID, userID).First(&session).Error; err != nil {
+	if err := global.DB.Where("id = ? AND user_uuid = ?", req.SessionID, userUUID).First(&session).Error; err != nil {
 		return fmt.Errorf("session not found or access denied")
 	}
 
@@ -439,9 +441,9 @@ func (s *AIChatService) UpdateSession(userID uint, req request.UpdateSessionRequ
 }
 
 // GetSessionDetail 获取会话详情
-func (s *AIChatService) GetSessionDetail(userID uint, sessionID uint) (*response.ChatSessionResponse, error) {
+func (s *AIChatService) GetSessionDetail(userUUID uuid.UUID, sessionID uint) (*response.ChatSessionResponse, error) {
 	var session database.AIChatSession
-	if err := global.DB.Where("id = ? AND user_id = ?", sessionID, userID).First(&session).Error; err != nil {
+	if err := global.DB.Where("id = ? AND user_uuid = ?", sessionID, userUUID).First(&session).Error; err != nil {
 		return nil, fmt.Errorf("session not found or access denied")
 	}
 
@@ -454,7 +456,7 @@ func (s *AIChatService) GetSessionDetail(userID uint, sessionID uint) (*response
 }
 
 // 异步生成会话标题
-func (s *AIChatService) generateSessionTitleAsync(userID uint, sessionID uint, userQuestion string, model string, wg *sync.WaitGroup) {
+func (s *AIChatService) generateSessionTitleAsync(userUUID uuid.UUID, sessionID uint, userQuestion string, model string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// 构建AI提示词来生成标题

@@ -18,9 +18,17 @@ bin-release/
 # information for Eclipse / Flash Builder.
 
 # Configuration files
-server/config.yaml
+server/configs/config.yaml
 server/uploads/
 server/log/
 server/main
+
+# Auth Service  
+auth-service/configs/config.yaml
+auth-service/log/
+
+# Frontend
 web/pkg/
 web/node_modules/
+web-auth-service/node_modules/
+web-auth-service/dist/

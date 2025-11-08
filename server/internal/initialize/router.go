@@ -2,9 +2,9 @@ package initialize
 
 import (
 	"net/http"
-	"server/pkg/global"
 	"server/internal/middleware"
 	"server/internal/router"
+	"server/pkg/global"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -33,14 +33,16 @@ func InitRouter() *gin.Engine {
 
 	publicGroup := Router.Group(global.Config.System.RouterPrefix)
 
+	// ✅ 使用SSO JWT中间件
 	privateGroup := Router.Group(global.Config.System.RouterPrefix)
-	privateGroup.Use(middleware.JWTAuth())
+	privateGroup.Use(middleware.SSOJWTAuth())
 
 	adminGroup := Router.Group(global.Config.System.RouterPrefix)
-	adminGroup.Use(middleware.JWTAuth()).Use(middleware.AdminAuth())
+	adminGroup.Use(middleware.SSOJWTAuth()).Use(middleware.AdminAuth())
 	// 基础 路由
 	{
 		routerGroup.InitBaseRouter(publicGroup)
+		routerGroup.InitAuthRouter(publicGroup)
 	}
 	// 功能 路由
 	{

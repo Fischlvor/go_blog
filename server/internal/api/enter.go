@@ -4,6 +4,7 @@ import "server/internal/service"
 
 type ApiGroup struct {
 	BaseApi
+	AuthApi
 	UserApi
 	ImageApi
 	ArticleApi
