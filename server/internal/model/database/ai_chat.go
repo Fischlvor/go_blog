@@ -2,17 +2,19 @@ package database
 
 import (
 	"server/pkg/global"
+
+	"github.com/gofrs/uuid"
 )
 
 // AIChatSession AI聊天会话
 type AIChatSession struct {
 	global.MODEL
-	UserID uint   `json:"user_id" gorm:"not null;comment:用户ID"`
-	Title  string `json:"title" gorm:"size:255;comment:会话标题"`
-	Model  string `json:"model" gorm:"size:50;not null;comment:AI模型名称"`
+	UserUUID uuid.UUID `json:"user_uuid" gorm:"type:char(36);not null;comment:用户UUID"`
+	Title    string    `json:"title" gorm:"size:255;comment:会话标题"`
+	Model    string    `json:"model" gorm:"size:50;not null;comment:AI模型名称"`
 
 	// 关联关系
-	User     User            `json:"user" gorm:"foreignKey:UserID"` // 用户信息
+	User     User            `json:"user" gorm:"foreignKey:UserUUID;references:UUID"` // 用户信息
 	Messages []AIChatMessage `json:"messages" gorm:"foreignKey:SessionID"`
 }
 

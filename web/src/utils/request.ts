@@ -20,7 +20,8 @@ service.interceptors.request.use(
         const userStore = useUserStore();
         config.headers = {
             'Content-Type': 'application/json',
-            'x-access-token': userStore.state.accessToken,
+            // ✅ SSO模式：使用 Authorization: Bearer <token>
+            'Authorization': userStore.state.accessToken ? `Bearer ${userStore.state.accessToken}` : '',
             ...config.headers,
         }
         return config as InternalAxiosRequestConfig
@@ -38,11 +39,17 @@ service.interceptors.request.use(
 service.interceptors.response.use(
     (response: AxiosResponse) => {
         const userStore = useUserStore()
-        if (response.headers['new-access-token']) {
-            userStore.state.accessToken = (response.headers['new-access-token'])
+        // ✅ SSO自动刷新token：后端在响应头返回新token
+        const newAccessToken = response.headers['x-new-access-token'] || response.headers['X-New-Access-Token']
+        if (newAccessToken) {
+            userStore.state.accessToken = newAccessToken
+            console.log('✓ Token已自动刷新')
         }
         if (response.data.code !== 0) {
-            ElMessage.error(response.data.msg)
+            // ✅ 只有非静默接口才显示错误提示
+            if (!response.config.url?.includes('/user/info')) {
+                ElMessage.error(response.data.msg)
+            }
 
             if (response.data.data && response.data.data.reload) {
                 userStore.reset()
@@ -76,6 +83,13 @@ service.interceptors.response.use(
             case 404:
                 return handleSpecificError(404, error)
             case 403:
+                // ✅ SSO模式：403可能是token无效，静默处理/user/info接口的403
+                if (error.config?.url?.includes('/user/info')) {
+                    const userStore = useUserStore()
+                    userStore.reset()
+                    console.warn('Token无效，已清除登录状态')
+                    return Promise.reject(error)
+                }
                 return handleSpecificError(403, error)
         }
         return Promise.reject(error)
@@ -175,7 +189,8 @@ export const streamRequest = (
         
         // 设置默认头部（模拟拦截器行为）
         xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.setRequestHeader('x-access-token', token);
+        // ✅ SSO模式：使用 Authorization: Bearer <token>
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         
         // 设置自定义头部
         if (config.headers) {

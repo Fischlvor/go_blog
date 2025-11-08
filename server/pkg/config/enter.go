@@ -10,6 +10,7 @@ type Config struct {
 	Qiniu   Qiniu   `json:"qiniu" yaml:"qiniu"`
 	QQ      QQ      `json:"qq" yaml:"qq"`
 	Redis   Redis   `json:"redis" yaml:"redis"`
+	SSO     SSO     `json:"sso" yaml:"sso"`
 	System  System  `json:"system" yaml:"system"`
 	Upload  Upload  `json:"upload" yaml:"upload"`
 	Website Website `json:"website" yaml:"website"`

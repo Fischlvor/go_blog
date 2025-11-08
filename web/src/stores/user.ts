@@ -23,9 +23,11 @@ function initState() {
         freeze: false,
     })
     const savedIsUserLoggedInBefore = localStorage.getItem('isUserLoggedInBefore');
+    // ✅ SSO模式：从localStorage恢复accessToken
+    const savedAccessToken = localStorage.getItem('accessToken') || '';
     return {
         userInfo,
-        accessToken: '',
+        accessToken: savedAccessToken,
         userInfoInitialized: false,
         isUserLoggedInBefore: savedIsUserLoggedInBefore === 'true'
     }
@@ -94,14 +96,35 @@ export const useUserStore = defineStore('user', () => {
         localStorage.setItem('isUserLoggedInBefore', String(newIsUserLoggedInBefore));
     })
 
+    // ✅ SSO模式：持久化accessToken
+    watch(() => state.value.accessToken, (newAccessToken) => {
+        if (newAccessToken) {
+            localStorage.setItem('accessToken', newAccessToken);
+        } else {
+            localStorage.removeItem('accessToken');
+        }
+    })
+
     const initializeUserInfo = async () => {
-        if (state.value.isUserLoggedInBefore && !state.value.userInfoInitialized) {
-            const res = await userInfo();
-            if (res.code === 0) {
-                state.value.userInfo = res.data;
+        // ✅ SSO模式：必须同时满足 isUserLoggedInBefore 和 accessToken 存在
+        if (state.value.isUserLoggedInBefore && state.value.accessToken && !state.value.userInfoInitialized) {
+            // ✅ 标记为已初始化（无论成功与否，避免重复请求）
+            state.value.userInfoInitialized = true
+            
+            try {
+                const res = await userInfo();
+                if (res.code === 0) {
+                    state.value.userInfo = res.data;
+                } else {
+                    // 如果获取用户信息失败，清除登录状态
+                    console.warn('获取用户信息失败，清除登录状态');
+                    reset();
+                }
+            } catch (error) {
+                console.error('获取用户信息异常:', error);
+                reset();
             }
         }
-        state.value.userInfoInitialized = true
     }
 
     // 添加验证方法：验证是否已登录

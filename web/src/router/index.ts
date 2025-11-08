@@ -72,6 +72,14 @@ const routes = [
     name: "login",
     component: () => import('@/views/login/index.vue')
   },
+  {
+    path: "/sso-callback",
+    name: "sso-callback",
+    component: () => import('@/views/SSOCallback.vue'),
+    meta: {
+      title: "登录处理中"
+    }
+  },
   // {
   //   path: "/article/:id",
   //   name: "article",

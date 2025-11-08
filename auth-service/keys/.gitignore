@@ -1,0 +1,6 @@
+# 忽略私钥文件（安全）
+private.pem
+
+# 公钥可以提交
+public.pem
+

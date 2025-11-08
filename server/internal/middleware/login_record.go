@@ -1,9 +1,10 @@
 package middleware
 
 import (
-	"server/pkg/global"
 	"server/internal/model/database"
 	"server/internal/service"
+	"server/pkg/global"
+	"server/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ua-parser/uap-go/uaparser"
@@ -18,18 +19,10 @@ func LoginRecord() gin.HandlerFunc {
 		// 异步记录日志
 		go func() {
 			gaodeService := service.ServiceGroupApp.GaodeService
-			var userID uint
 			var address string
 			ip := c.ClientIP()
 			loginMethod := c.DefaultQuery("flag", "email") // 若未传递flag参数，则默认为"email"
 			userAgent := c.Request.UserAgent()
-
-			// 从请求上下文中获取用户ID，确保获取到的是当前请求的正确用户ID
-			if value, exists := c.Get("user_id"); exists {
-				if id, ok := value.(uint); ok {
-					userID = id
-				}
-			}
 
 			// 获取用户IP的地理位置
 			address = getAddressFromIP(ip, gaodeService)
@@ -38,8 +31,9 @@ func LoginRecord() gin.HandlerFunc {
 			os, deviceInfo, browserInfo := parseUserAgent(userAgent)
 
 			// 创建登录记录
+			userUUID := utils.GetUUID(c)
 			login := database.Login{
-				UserID:      userID,
+				UserUUID:    userUUID, // ✅ 使用UUID
 				LoginMethod: loginMethod,
 				IP:          ip,
 				Address:     address,

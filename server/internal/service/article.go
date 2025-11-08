@@ -3,20 +3,21 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
-	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
-	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/scriptlanguage"
-	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/sortorder"
-	"gorm.io/gorm"
-	"server/pkg/global"
 	"server/internal/model/appTypes"
 	"server/internal/model/database"
 	"server/internal/model/elasticsearch"
 	"server/internal/model/other"
 	"server/internal/model/request"
+	"server/pkg/global"
 	"server/pkg/utils"
 	"strconv"
 	"time"
+
+	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/scriptlanguage"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/sortorder"
+	"gorm.io/gorm"
 )
 
 type ArticleService struct {
@@ -148,9 +149,16 @@ func (articleService *ArticleService) ArticleLike(req request.ArticleLike) error
 		var al database.ArticleLike
 		var num int
 
+		// ✅ 使用UUID查询
+		// 先获取user的UUID
+		var user database.User
+		if err := tx.Where("id = ?", req.UserID).First(&user).Error; err != nil {
+			return err
+		}
+
 		// 如果用户未收藏，则创建收藏记录
-		if errors.Is(tx.Where("user_id = ? AND article_id = ?", req.UserID, req.ArticleID).First(&al).Error, gorm.ErrRecordNotFound) {
-			if err := tx.Create(&database.ArticleLike{UserID: req.UserID, ArticleID: req.ArticleID}).Error; err != nil {
+		if errors.Is(tx.Where("user_uuid = ? AND article_id = ?", user.UUID, req.ArticleID).First(&al).Error, gorm.ErrRecordNotFound) {
+			if err := tx.Create(&database.ArticleLike{UserUUID: user.UUID, ArticleID: req.ArticleID}).Error; err != nil {
 				return err
 			}
 			num = 1

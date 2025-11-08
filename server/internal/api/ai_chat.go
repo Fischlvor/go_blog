@@ -1,13 +1,14 @@
 package api
 
 import (
-	"server/pkg/global"
 	"server/internal/model/request"
 	"server/internal/model/response"
+	"server/pkg/global"
 	"server/pkg/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 )
 
 type AIChatApi struct{}
@@ -20,14 +21,14 @@ func (api *AIChatApi) CreateSession(c *gin.Context) {
 		return
 	}
 
-	// 获取当前用户ID
-	userID := utils.GetUserID(c)
-	if userID == 0 {
+	// ✅ 获取当前用户UUID
+	userUUID := utils.GetUUID(c)
+	if userUUID == uuid.Nil {
 		response.FailWithMessage("用户未登录", c)
 		return
 	}
 
-	session, err := aiChatService.CreateSession(userID, req)
+	session, err := aiChatService.CreateSession(userUUID, req)
 	if err != nil {
 		global.Log.Error("创建会话失败: " + err.Error())
 		response.FailWithMessage("创建会话失败", c)
@@ -45,14 +46,14 @@ func (api *AIChatApi) GetSessions(c *gin.Context) {
 		return
 	}
 
-	// 获取当前用户ID
-	userID := utils.GetUserID(c)
-	if userID == 0 {
+	// ✅ 获取当前用户UUID
+	userUUID := utils.GetUUID(c)
+	if userUUID == uuid.Nil {
 		response.FailWithMessage("用户未登录", c)
 		return
 	}
 
-	sessions, total, err := aiChatService.GetSessions(userID, req)
+	sessions, total, err := aiChatService.GetSessions(userUUID, req)
 	if err != nil {
 		global.Log.Error("获取会话列表失败: " + err.Error())
 		response.FailWithMessage("获取会话列表失败", c)
@@ -87,13 +88,13 @@ func (api *AIChatApi) GetMessages(c *gin.Context) {
 	}
 
 	// 获取当前用户ID
-	userID := utils.GetUserID(c)
-	if userID == 0 {
+	userUUID := utils.GetUUID(c)
+	if userUUID == uuid.Nil {
 		response.FailWithMessage("用户未登录", c)
 		return
 	}
 
-	messages, total, err := aiChatService.GetMessages(userID, req)
+	messages, total, err := aiChatService.GetMessages(userUUID, req)
 	if err != nil {
 		global.Log.Error("获取消息列表失败: " + err.Error())
 		response.FailWithMessage("获取消息列表失败", c)
@@ -115,13 +116,13 @@ func (api *AIChatApi) SendMessage(c *gin.Context) {
 	}
 
 	// 获取当前用户ID
-	userID := utils.GetUserID(c)
-	if userID == 0 {
+	userUUID := utils.GetUUID(c)
+	if userUUID == uuid.Nil {
 		response.FailWithMessage("用户未登录", c)
 		return
 	}
 
-	chatResp, err := aiChatService.SendMessage(userID, req)
+	chatResp, err := aiChatService.SendMessage(userUUID, req)
 	if err != nil {
 		global.Log.Error("发送消息失败: " + err.Error())
 		response.FailWithMessage("发送消息失败", c)
@@ -140,8 +141,8 @@ func (api *AIChatApi) SendMessageStream(c *gin.Context) {
 	}
 
 	// 获取当前用户ID
-	userID := utils.GetUserID(c)
-	if userID == 0 {
+	userUUID := utils.GetUUID(c)
+	if userUUID == uuid.Nil {
 		response.FailWithMessage("用户未登录", c)
 		return
 	}
@@ -159,7 +160,7 @@ func (api *AIChatApi) SendMessageStream(c *gin.Context) {
 	// 创建一个自定义的writer来处理SSE格式
 	sseWriter := &SSEWriter{writer: c.Writer}
 
-	err := aiChatService.SendMessageStream(userID, req, sseWriter)
+	err := aiChatService.SendMessageStream(userUUID, req, sseWriter)
 	if err != nil {
 		global.Log.Error("流式发送消息失败: " + err.Error())
 		// 发送错误消息
@@ -180,13 +181,13 @@ func (api *AIChatApi) DeleteSession(c *gin.Context) {
 	}
 
 	// 获取当前用户ID
-	userID := utils.GetUserID(c)
-	if userID == 0 {
+	userUUID := utils.GetUUID(c)
+	if userUUID == uuid.Nil {
 		response.FailWithMessage("用户未登录", c)
 		return
 	}
 
-	err := aiChatService.DeleteSession(userID, req)
+	err := aiChatService.DeleteSession(userUUID, req)
 	if err != nil {
 		global.Log.Error("删除会话失败: " + err.Error())
 		response.FailWithMessage("删除会话失败", c)
@@ -205,13 +206,13 @@ func (api *AIChatApi) UpdateSession(c *gin.Context) {
 	}
 
 	// 获取当前用户ID
-	userID := utils.GetUserID(c)
-	if userID == 0 {
+	userUUID := utils.GetUUID(c)
+	if userUUID == uuid.Nil {
 		response.FailWithMessage("用户未登录", c)
 		return
 	}
 
-	err := aiChatService.UpdateSession(userID, req)
+	err := aiChatService.UpdateSession(userUUID, req)
 	if err != nil {
 		global.Log.Error("更新会话失败: " + err.Error())
 		response.FailWithMessage("更新会话失败", c)
@@ -236,13 +237,13 @@ func (api *AIChatApi) GetSessionDetail(c *gin.Context) {
 	}
 
 	// 获取当前用户ID
-	userID := utils.GetUserID(c)
-	if userID == 0 {
+	userUUID := utils.GetUUID(c)
+	if userUUID == uuid.Nil {
 		response.FailWithMessage("用户未登录", c)
 		return
 	}
 
-	session, err := aiChatService.GetSessionDetail(userID, uint(sessionID))
+	session, err := aiChatService.GetSessionDetail(userUUID, uint(sessionID))
 	if err != nil {
 		global.Log.Error("获取会话详情失败: " + err.Error())
 		response.FailWithMessage("获取会话详情失败", c)
