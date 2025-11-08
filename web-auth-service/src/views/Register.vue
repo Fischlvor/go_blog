@@ -74,7 +74,7 @@
         </button>
 
         <div class="links">
-          <router-link to="/login">已有账号？立即登录</router-link>
+          <router-link :to="{ path: '/login', query: { app_id: appId, redirect_uri: redirectUri, state: state } }">已有账号？立即登录</router-link>
         </div>
       </form>
 

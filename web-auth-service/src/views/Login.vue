@@ -52,7 +52,7 @@
         </button>
 
         <div class="links">
-          <router-link to="/register">注册账号</router-link>
+          <router-link :to="{ path: '/register', query: { app_id: appId, redirect_uri: redirectUri, state: state } }">注册账号</router-link>
           <a href="#" @click.prevent="forgotPassword">忘记密码?</a>
         </div>
 
@@ -175,7 +175,6 @@ function getBrowserName() {
 }
 
 function qqLogin() {
-  // TODO: 实现QQ登录
   alert('QQ登录功能开发中...')
 }
 
