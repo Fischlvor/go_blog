@@ -37,17 +37,17 @@ WORKDIR /app
 COPY --from=builder /app/main .
 
 # 创建必要的目录
-RUN mkdir -p /app/configs /app/uploads /app/log
+RUN mkdir -p /app/configs /app/log
 
 # 复制配置文件
 COPY --from=builder /app/configs/config.yaml /app/configs/
 
-# 暴露端口
-EXPOSE 8081
+# 复制密钥文件
+COPY --from=builder /app/keys /app/keys
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/health || exit 1
+# 暴露端口
+EXPOSE 8001
 
 # 启动应用
-CMD ["./main"] 
+CMD ["./main"]
+

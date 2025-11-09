@@ -28,6 +28,11 @@ func InitRouter() *gin.Engine {
 	// "uploads" 是URL路径前缀，http.Dir("uploads")是实际文件系统中存储文件的目录
 	Router.StaticFS(global.Config.Upload.Path, http.Dir(global.Config.Upload.Path))
 
+	// 健康检查接口
+	Router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
 	// 创建路由组
 	routerGroup := router.RouterGroupApp
 
