@@ -7,6 +7,10 @@ WORKDIR /app
 # 安装必要的系统依赖
 RUN apk add --no-cache git ca-certificates tzdata
 
+# 设置Go代理（加速下载）
+ENV GOPROXY=https://goproxy.cn,direct
+ENV GOSUMDB=sum.golang.org
+
 # 复制go mod文件
 COPY go.mod go.sum ./
 
@@ -37,10 +41,13 @@ WORKDIR /app
 COPY --from=builder /app/main .
 
 # 创建必要的目录
-RUN mkdir -p /app/configs /app/uploads /app/log
+RUN mkdir -p /app/configs /app/uploads /app/log /app/keys
 
 # 复制配置文件
 COPY --from=builder /app/configs/config.yaml /app/configs/
+
+# 复制密钥文件
+COPY --from=builder /app/keys /app/keys
 
 # 暴露端口
 EXPOSE 8081
