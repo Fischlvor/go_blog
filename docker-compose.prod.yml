@@ -3,9 +3,7 @@ version: '3.8'
 services:
   # Go博客后端服务
   server-blog:
-    build:
-      context: ./server-blog
-      dockerfile: Dockerfile
+    image: go-blog-server:latest
     container_name: go-blog-server
     restart: always
     environment:
@@ -32,9 +30,7 @@ services:
 
   # Go认证后端服务
   server-auth-service:
-    build:
-      context: ./server-auth-service
-      dockerfile: Dockerfile
+    image: auth-service-server:latest
     container_name: auth-service-server
     restart: always
     environment:
@@ -60,9 +56,7 @@ services:
 
   # 博客前端服务
   web-blog:
-    build:
-      context: ./web-blog
-      dockerfile: Dockerfile
+    image: web-blog:latest
     container_name: web-blog
     restart: always
     networks:
@@ -76,9 +70,7 @@ services:
 
   # 认证前端服务
   web-auth-service:
-    build:
-      context: ./web-auth-service
-      dockerfile: Dockerfile
+    image: web-auth-service:latest
     container_name: web-auth-service
     restart: always
     networks:
@@ -92,9 +84,7 @@ services:
 
   # Nginx反向代理服务
   nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
+    image: nginx-proxy:latest
     container_name: nginx-proxy
     restart: always
     ports:
@@ -121,3 +111,4 @@ networks:
   blog-network:
     external: true
     name: blog-network
+
