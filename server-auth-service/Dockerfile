@@ -7,6 +7,10 @@ WORKDIR /app
 # 安装必要的系统依赖
 RUN apk add --no-cache git ca-certificates tzdata
 
+# 设置Go代理（加速下载）
+ENV GOPROXY=https://goproxy.cn,direct
+ENV GOSUMDB=sum.golang.org
+
 # 复制go mod文件
 COPY go.mod go.sum ./
 

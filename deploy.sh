@@ -14,6 +14,7 @@ GIT_BRANCH="master"  # 或 "main"，根据实际情况修改
 BASE_DIR="/media/practice/onServer/go_blog"
 PROJECT_DIR="${BASE_DIR}/source"
 COMPOSE_DIR="${BASE_DIR}"
+DEPLOY_DIR="${BASE_DIR}/deploy"  # 部署目录
 
 # 颜色输出
 RED='\033[0;31m'
@@ -54,13 +55,13 @@ check_command git
 log_info "创建必要的目录..."
 mkdir -p ${PROJECT_DIR}
 mkdir -p ${COMPOSE_DIR}
-mkdir -p ${COMPOSE_DIR}/nginx
-mkdir -p ${BASE_DIR}/server/configs
-mkdir -p ${BASE_DIR}/server/uploads
-mkdir -p ${BASE_DIR}/server/log
-mkdir -p ${BASE_DIR}/auth-server/configs
-mkdir -p ${BASE_DIR}/auth-server/log
-mkdir -p ${BASE_DIR}/auth-server/keys
+mkdir -p ${DEPLOY_DIR}/server-blog/configs
+mkdir -p ${DEPLOY_DIR}/server-blog/uploads
+mkdir -p ${DEPLOY_DIR}/server-blog/log
+mkdir -p ${DEPLOY_DIR}/server-blog/keys
+mkdir -p ${DEPLOY_DIR}/server-auth-service/configs
+mkdir -p ${DEPLOY_DIR}/server-auth-service/log
+mkdir -p ${DEPLOY_DIR}/server-auth-service/keys
 
 # 3. 克隆或更新代码
 log_info "从Git仓库获取代码..."
@@ -79,15 +80,63 @@ fi
 log_info "代码更新完成！当前分支: $(git rev-parse --abbrev-ref HEAD)"
 log_info "最新提交: $(git log -1 --oneline)"
 
-# 4. 检查配置文件是否存在
-log_info "检查配置文件..."
+# 4. 复制配置文件到挂载位置（仅当挂载点没有文件时）
+log_info "检查并复制配置文件到挂载位置..."
 
-if [ ! -f "${BASE_DIR}/server/configs/config.yaml" ]; then
-    log_warn "server-blog 配置文件不存在，请确保已配置: ${BASE_DIR}/server/configs/config.yaml"
+# 复制 server-blog 配置文件到挂载位置
+if [ ! -f "${DEPLOY_DIR}/server-blog/configs/config.yaml" ]; then
+    if [ -f "${PROJECT_DIR}/server-blog/configs/config.yaml" ]; then
+        log_info "复制 server-blog 配置文件到挂载位置..."
+        mkdir -p ${DEPLOY_DIR}/server-blog/configs
+        cp ${PROJECT_DIR}/server-blog/configs/config.yaml ${DEPLOY_DIR}/server-blog/configs/
+    else
+        log_warn "挂载位置不存在配置文件，且源码中也没有: ${DEPLOY_DIR}/server-blog/configs/config.yaml"
+        log_warn "请手动配置: ${DEPLOY_DIR}/server-blog/configs/config.yaml"
+    fi
+else
+    log_info "server-blog 配置文件已存在于挂载位置，跳过复制"
 fi
 
-if [ ! -f "${BASE_DIR}/auth-server/configs/config.yaml" ]; then
-    log_warn "server-auth-service 配置文件不存在，请确保已配置: ${BASE_DIR}/auth-server/configs/config.yaml"
+# 复制 server-auth-service 配置文件到挂载位置
+if [ ! -f "${DEPLOY_DIR}/server-auth-service/configs/config.yaml" ]; then
+    if [ -f "${PROJECT_DIR}/server-auth-service/configs/config.yaml" ]; then
+        log_info "复制 server-auth-service 配置文件到挂载位置..."
+        mkdir -p ${DEPLOY_DIR}/server-auth-service/configs
+        cp ${PROJECT_DIR}/server-auth-service/configs/config.yaml ${DEPLOY_DIR}/server-auth-service/configs/
+    else
+        log_warn "挂载位置不存在配置文件，且源码中也没有: ${DEPLOY_DIR}/server-auth-service/configs/config.yaml"
+        log_warn "请手动配置: ${DEPLOY_DIR}/server-auth-service/configs/config.yaml"
+    fi
+else
+    log_info "server-auth-service 配置文件已存在于挂载位置，跳过复制"
+fi
+
+# 复制 server-blog 密钥文件到挂载位置
+if [ ! -d "${DEPLOY_DIR}/server-blog/keys" ] || [ -z "$(ls -A ${DEPLOY_DIR}/server-blog/keys 2>/dev/null)" ]; then
+    if [ -d "${PROJECT_DIR}/server-blog/keys" ] && [ "$(ls -A ${PROJECT_DIR}/server-blog/keys 2>/dev/null)" ]; then
+        log_info "复制 server-blog 密钥文件到挂载位置..."
+        mkdir -p ${DEPLOY_DIR}/server-blog/keys
+        cp -r ${PROJECT_DIR}/server-blog/keys/* ${DEPLOY_DIR}/server-blog/keys/
+    else
+        log_warn "挂载位置不存在密钥文件，且源码中也没有: ${DEPLOY_DIR}/server-blog/keys/"
+        log_warn "请手动配置: ${DEPLOY_DIR}/server-blog/keys/"
+    fi
+else
+    log_info "server-blog 密钥文件已存在于挂载位置，跳过复制"
+fi
+
+# 复制 server-auth-service 密钥文件到挂载位置
+if [ ! -d "${DEPLOY_DIR}/server-auth-service/keys" ] || [ -z "$(ls -A ${DEPLOY_DIR}/server-auth-service/keys 2>/dev/null)" ]; then
+    if [ -d "${PROJECT_DIR}/server-auth-service/keys" ] && [ "$(ls -A ${PROJECT_DIR}/server-auth-service/keys 2>/dev/null)" ]; then
+        log_info "复制 server-auth-service 密钥文件到挂载位置..."
+        mkdir -p ${DEPLOY_DIR}/server-auth-service/keys
+        cp -r ${PROJECT_DIR}/server-auth-service/keys/* ${DEPLOY_DIR}/server-auth-service/keys/
+    else
+        log_warn "挂载位置不存在密钥文件，且源码中也没有: ${DEPLOY_DIR}/server-auth-service/keys/"
+        log_warn "请手动配置: ${DEPLOY_DIR}/server-auth-service/keys/"
+    fi
+else
+    log_info "server-auth-service 密钥文件已存在于挂载位置，跳过复制"
 fi
 
 # 5. 构建Docker镜像
@@ -142,10 +191,6 @@ sed -i "s|context: ./nginx|context: ${PROJECT_DIR}/nginx|g" ${COMPOSE_DIR}/docke
 
 # 复制基础服务compose文件
 cp ${PROJECT_DIR}/docker-compose.base.yml ${COMPOSE_DIR}/
-
-# 7. 复制nginx配置文件
-log_info "复制nginx配置文件..."
-cp ${PROJECT_DIR}/nginx/go_blog.conf ${COMPOSE_DIR}/nginx/
 
 # 8. 停止旧容器
 log_info "停止旧容器..."
