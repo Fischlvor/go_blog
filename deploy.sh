@@ -1,20 +1,34 @@
 #!/bin/bash
 
 # CI/CD 部署脚本
-# 在远程服务器上执行：从Git仓库拉取代码，构建Docker镜像并部署
+# 功能：本地构建Docker镜像，上传到远程服务器并部署
+# 支持分步执行：./deploy.sh [step]
+# 步骤：1=构建镜像, 2=保存上传, 3=远程部署
 
 set -e  # 遇到错误立即退出
 
 # ==================== 配置区域 ====================
-# Git仓库配置
-GIT_REPO="git@gitee.com:qiyana423/go_blog.git"
-GIT_BRANCH="master"  # 或 "main"，根据实际情况修改
+# 远程服务器配置
+REMOTE_HOST="8.148.64.96"     # 服务器IP
+REMOTE_USER="root"            # SSH用户名
+REMOTE_PORT="22"              # SSH端口，默认22
 
 # 远程服务器路径
-BASE_DIR="/media/practice/onServer/go_blog"
-PROJECT_DIR="${BASE_DIR}/source"
-COMPOSE_DIR="${BASE_DIR}"
-DEPLOY_DIR="${BASE_DIR}/deploy"  # 部署目录
+REMOTE_BASE_DIR="/media/practice/onServer/go_blog"
+REMOTE_IMAGE_DIR="${REMOTE_BASE_DIR}/docker_images"
+REMOTE_COMPOSE_DIR="${REMOTE_BASE_DIR}"
+REMOTE_DEPLOY_DIR="${REMOTE_BASE_DIR}/deploy"
+
+# 本地项目根目录
+LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Docker镜像名称和标签
+IMAGE_TAG="latest"
+SERVER_BLOG_IMAGE="server-blog:${IMAGE_TAG}"
+SERVER_AUTH_IMAGE="server-auth:${IMAGE_TAG}"
+WEB_BLOG_IMAGE="web-blog:${IMAGE_TAG}"
+WEB_AUTH_IMAGE="web-auth:${IMAGE_TAG}"
+NGINX_IMAGE="nginx-proxy:${IMAGE_TAG}"
 
 # 颜色输出
 RED='\033[0;31m'
@@ -43,184 +57,239 @@ check_command() {
     fi
 }
 
+# ==================== 步骤函数 ====================
+
+# 步骤1：构建Docker镜像
+step_build_images() {
+    log_info "=========================================="
+    log_info "步骤1: 构建Docker镜像"
+    log_info "=========================================="
+    
+    # 检查必要的命令
+    log_info "检查必要的命令..."
+    check_command docker
+    
+    log_info "开始构建Docker镜像..."
+    
+    log_info "构建 server-blog 镜像..."
+    cd "${LOCAL_PROJECT_DIR}/server-blog"
+    docker build -t ${SERVER_BLOG_IMAGE} .
+    
+    log_info "构建 server-auth 镜像..."
+    cd "${LOCAL_PROJECT_DIR}/server-auth-service"
+    docker build -t ${SERVER_AUTH_IMAGE} .
+    
+    log_info "构建 web-blog 镜像..."
+    cd "${LOCAL_PROJECT_DIR}/web-blog"
+    docker build -t ${WEB_BLOG_IMAGE} .
+    
+    log_info "构建 web-auth 镜像..."
+    cd "${LOCAL_PROJECT_DIR}/web-auth-service"
+    docker build -t ${WEB_AUTH_IMAGE} .
+    
+    log_info "构建 nginx 镜像..."
+    cd "${LOCAL_PROJECT_DIR}/nginx"
+    docker build -t ${NGINX_IMAGE} .
+    
+    log_info "所有镜像构建完成！"
+    
+    # 清理多阶段构建的中间镜像和悬空镜像
+    log_info "清理多阶段构建的中间镜像..."
+    docker image prune -f 2>/dev/null || true
+    docker builder prune -f 2>/dev/null || true
+    log_info "镜像清理完成！"
+}
+
+# 步骤2：保存镜像并上传
+step_save_and_upload() {
+    log_info "=========================================="
+    log_info "步骤2: 保存镜像并上传到远程服务器"
+    log_info "=========================================="
+    
+    check_command ssh
+    check_command scp
+    
+    # 保存镜像为tar文件
+    log_info "保存镜像为tar文件..."
+    TEMP_DIR=$(mktemp -d)
+    cd ${TEMP_DIR}
+    
+    docker save ${SERVER_BLOG_IMAGE} -o server-blog.tar
+    docker save ${SERVER_AUTH_IMAGE} -o server-auth.tar
+    docker save ${WEB_BLOG_IMAGE} -o web-blog.tar
+    docker save ${WEB_AUTH_IMAGE} -o web-auth.tar
+    docker save ${NGINX_IMAGE} -o nginx.tar
+    
+    log_info "镜像保存完成！"
+    
+    # 创建远程目录
+    log_info "创建远程服务器目录..."
+    ssh -T -q -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} << EOF
+        mkdir -p ${REMOTE_IMAGE_DIR}
+        mkdir -p ${REMOTE_COMPOSE_DIR}
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/configs
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/uploads
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/log
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/keys
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/configs
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/log
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/keys
+EOF
+    
+    # 上传镜像文件
+    log_info "上传镜像文件到远程服务器..."
+    scp -P ${REMOTE_PORT} ${TEMP_DIR}/*.tar ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_IMAGE_DIR}/
+    
+    # 上传docker-compose文件
+    log_info "上传docker-compose文件..."
+    scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/docker-compose.prod.yml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_COMPOSE_DIR}/docker-compose.prod.yml
+    
+    # 上传配置文件（正式环境）
+    log_info "检查并上传正式环境配置文件..."
+    
+    # 复制 server-blog 正式环境配置文件到挂载位置
+    if [ -f "${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml" ]; then
+        log_info "上传 server-blog 正式环境配置文件..."
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/configs/ || log_warn "上传正式环境配置文件失败"
+    else
+        log_warn "server-blog 正式环境配置文件不存在于本地: ${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml"
+    fi
+    
+    # 复制 server-auth 正式环境配置文件到挂载位置
+    if [ -f "${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml" ]; then
+        log_info "上传 server-auth 正式环境配置文件..."
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-auth/configs/ || log_warn "上传正式环境配置文件失败"
+    else
+        log_warn "server-auth 正式环境配置文件不存在于本地: ${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml"
+    fi
+    
+    # 上传 server-blog 密钥文件
+    if [ -d "${LOCAL_PROJECT_DIR}/server-blog/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/server-blog/keys 2>/dev/null)" ]; then
+        log_info "上传 server-blog 密钥文件..."
+        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/server-blog/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/keys/ 2>/dev/null || log_warn "密钥文件已存在，跳过上传"
+    fi
+    
+    # 上传 server-auth 密钥文件
+    if [ -d "${LOCAL_PROJECT_DIR}/server-auth-service/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/server-auth-service/keys 2>/dev/null)" ]; then
+        log_info "上传 server-auth 密钥文件..."
+        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/server-auth-service/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-auth/keys/ 2>/dev/null || log_warn "密钥文件已存在，跳过上传"
+    fi
+    
+    # 清理本地临时文件
+    log_info "清理本地临时文件..."
+    rm -rf ${TEMP_DIR}
+    
+    log_info "步骤2完成！"
+}
+
+# 步骤3：远程部署
+step_deploy() {
+    log_info "=========================================="
+    log_info "步骤3: 在远程服务器部署"
+    log_info "=========================================="
+    
+    # 在远程服务器加载镜像并部署
+    log_info "在远程服务器加载镜像并部署..."
+    ssh -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} << EOF
+        set -e
+        
+        echo "加载Docker镜像..."
+        cd ${REMOTE_IMAGE_DIR}
+        docker load -i server-blog.tar
+        docker load -i server-auth.tar
+        docker load -i web-blog.tar
+        docker load -i web-auth.tar
+        docker load -i nginx.tar
+        
+        # 停止旧业务服务容器（如果存在）
+        cd ${REMOTE_COMPOSE_DIR}
+        echo "停止旧业务服务容器..."
+        docker-compose -f docker-compose.prod.yml down 2>/dev/null || true
+        
+        # 启动业务服务
+        # 注意：基础服务（mysql, redis, elasticsearch）需要单独管理，不在此脚本中处理
+        echo "启动业务服务..."
+        docker-compose -f docker-compose.prod.yml up -d
+        
+        # 清理旧的镜像文件（可选）
+        echo "清理临时文件..."
+        rm -f ${REMOTE_IMAGE_DIR}/*.tar
+        
+        echo "部署完成！"
+EOF
+    
+    log_info "=========================================="
+    log_info "部署完成！"
+    log_info "=========================================="
+    log_info "远程服务器: ${REMOTE_HOST}"
+    log_info "部署目录: ${REMOTE_COMPOSE_DIR}"
+    log_info ""
+    log_info "查看服务状态:"
+    log_info "  ssh ${REMOTE_USER}@${REMOTE_HOST} 'cd ${REMOTE_COMPOSE_DIR} && docker-compose ps'"
+    log_info ""
+    log_info "查看日志:"
+    log_info "  ssh ${REMOTE_USER}@${REMOTE_HOST} 'cd ${REMOTE_COMPOSE_DIR} && docker-compose logs -f'"
+}
+
 # ==================== 主流程 ====================
 
-# 1. 检查必要的命令
-log_info "检查必要的命令..."
-check_command docker
-check_command docker-compose
-check_command git
-
-# 2. 创建必要的目录
-log_info "创建必要的目录..."
-mkdir -p ${PROJECT_DIR}
-mkdir -p ${COMPOSE_DIR}
-mkdir -p ${DEPLOY_DIR}/server-blog/configs
-mkdir -p ${DEPLOY_DIR}/server-blog/uploads
-mkdir -p ${DEPLOY_DIR}/server-blog/log
-mkdir -p ${DEPLOY_DIR}/server-blog/keys
-mkdir -p ${DEPLOY_DIR}/server-auth-service/configs
-mkdir -p ${DEPLOY_DIR}/server-auth-service/log
-mkdir -p ${DEPLOY_DIR}/server-auth-service/keys
-
-# 3. 克隆或更新代码
-log_info "从Git仓库获取代码..."
-cd ${PROJECT_DIR}
-
-if [ -d ".git" ]; then
-    log_info "代码仓库已存在，更新代码..."
-    git fetch origin
-    git reset --hard origin/${GIT_BRANCH}
-    git clean -fd
-else
-    log_info "克隆代码仓库..."
-    git clone -b ${GIT_BRANCH} ${GIT_REPO} .
+# 检查参数
+if [ $# -eq 0 ]; then
+    log_error "必须指定执行步骤！"
+    echo ""
+    echo "用法: $0 <步骤>"
+    echo ""
+    echo "步骤选项:"
+    echo "  1 或 build  - 构建Docker镜像"
+    echo "  2 或 upload - 保存镜像并上传到远程服务器"
+    echo "  3 或 deploy - 在远程服务器部署"
+    echo "  all 或 ALL  - 执行所有步骤（完整部署流程）"
+    echo ""
+    echo "示例:"
+    echo "  $0 1        # 构建镜像"
+    echo "  $0 build    # 构建镜像（别名）"
+    echo "  $0 2        # 上传文件"
+    echo "  $0 upload   # 上传文件（别名）"
+    echo "  $0 3        # 远程部署"
+    echo "  $0 deploy   # 远程部署（别名）"
+    echo "  $0 all      # 执行完整部署流程"
+    exit 1
 fi
 
-log_info "代码更新完成！当前分支: $(git rev-parse --abbrev-ref HEAD)"
-log_info "最新提交: $(git log -1 --oneline)"
+# 解析参数
+STEP=$1
 
-# 4. 复制配置文件到挂载位置（仅当挂载点没有文件时）
-log_info "检查并复制配置文件到挂载位置..."
-
-# 复制 server-blog 配置文件到挂载位置
-if [ ! -f "${DEPLOY_DIR}/server-blog/configs/config.yaml" ]; then
-    if [ -f "${PROJECT_DIR}/server-blog/configs/config.yaml" ]; then
-        log_info "复制 server-blog 配置文件到挂载位置..."
-        mkdir -p ${DEPLOY_DIR}/server-blog/configs
-        cp ${PROJECT_DIR}/server-blog/configs/config.yaml ${DEPLOY_DIR}/server-blog/configs/
-    else
-        log_warn "挂载位置不存在配置文件，且源码中也没有: ${DEPLOY_DIR}/server-blog/configs/config.yaml"
-        log_warn "请手动配置: ${DEPLOY_DIR}/server-blog/configs/config.yaml"
-    fi
-else
-    log_info "server-blog 配置文件已存在于挂载位置，跳过复制"
-fi
-
-# 复制 server-auth-service 配置文件到挂载位置
-if [ ! -f "${DEPLOY_DIR}/server-auth-service/configs/config.yaml" ]; then
-    if [ -f "${PROJECT_DIR}/server-auth-service/configs/config.yaml" ]; then
-        log_info "复制 server-auth-service 配置文件到挂载位置..."
-        mkdir -p ${DEPLOY_DIR}/server-auth-service/configs
-        cp ${PROJECT_DIR}/server-auth-service/configs/config.yaml ${DEPLOY_DIR}/server-auth-service/configs/
-    else
-        log_warn "挂载位置不存在配置文件，且源码中也没有: ${DEPLOY_DIR}/server-auth-service/configs/config.yaml"
-        log_warn "请手动配置: ${DEPLOY_DIR}/server-auth-service/configs/config.yaml"
-    fi
-else
-    log_info "server-auth-service 配置文件已存在于挂载位置，跳过复制"
-fi
-
-# 复制 server-blog 密钥文件到挂载位置
-if [ ! -d "${DEPLOY_DIR}/server-blog/keys" ] || [ -z "$(ls -A ${DEPLOY_DIR}/server-blog/keys 2>/dev/null)" ]; then
-    if [ -d "${PROJECT_DIR}/server-blog/keys" ] && [ "$(ls -A ${PROJECT_DIR}/server-blog/keys 2>/dev/null)" ]; then
-        log_info "复制 server-blog 密钥文件到挂载位置..."
-        mkdir -p ${DEPLOY_DIR}/server-blog/keys
-        cp -r ${PROJECT_DIR}/server-blog/keys/* ${DEPLOY_DIR}/server-blog/keys/
-    else
-        log_warn "挂载位置不存在密钥文件，且源码中也没有: ${DEPLOY_DIR}/server-blog/keys/"
-        log_warn "请手动配置: ${DEPLOY_DIR}/server-blog/keys/"
-    fi
-else
-    log_info "server-blog 密钥文件已存在于挂载位置，跳过复制"
-fi
-
-# 复制 server-auth-service 密钥文件到挂载位置
-if [ ! -d "${DEPLOY_DIR}/server-auth-service/keys" ] || [ -z "$(ls -A ${DEPLOY_DIR}/server-auth-service/keys 2>/dev/null)" ]; then
-    if [ -d "${PROJECT_DIR}/server-auth-service/keys" ] && [ "$(ls -A ${PROJECT_DIR}/server-auth-service/keys 2>/dev/null)" ]; then
-        log_info "复制 server-auth-service 密钥文件到挂载位置..."
-        mkdir -p ${DEPLOY_DIR}/server-auth-service/keys
-        cp -r ${PROJECT_DIR}/server-auth-service/keys/* ${DEPLOY_DIR}/server-auth-service/keys/
-    else
-        log_warn "挂载位置不存在密钥文件，且源码中也没有: ${DEPLOY_DIR}/server-auth-service/keys/"
-        log_warn "请手动配置: ${DEPLOY_DIR}/server-auth-service/keys/"
-    fi
-else
-    log_info "server-auth-service 密钥文件已存在于挂载位置，跳过复制"
-fi
-
-# 5. 构建Docker镜像
-log_info "=========================================="
-log_info "开始构建Docker镜像..."
-log_info "=========================================="
-
-# 构建 server-blog 镜像
-log_info "构建 server-blog 镜像..."
-cd ${PROJECT_DIR}/server-blog
-docker build -t go-blog-server:latest .
-cd ${PROJECT_DIR}
-
-# 构建 server-auth-service 镜像
-log_info "构建 server-auth-service 镜像..."
-cd ${PROJECT_DIR}/server-auth-service
-docker build -t auth-service-server:latest .
-cd ${PROJECT_DIR}
-
-# 构建 web-blog 镜像
-log_info "构建 web-blog 镜像..."
-cd ${PROJECT_DIR}/web-blog
-docker build -t web-blog:latest .
-cd ${PROJECT_DIR}
-
-# 构建 web-auth-service 镜像
-log_info "构建 web-auth-service 镜像..."
-cd ${PROJECT_DIR}/web-auth-service
-docker build -t web-auth-service:latest .
-cd ${PROJECT_DIR}
-
-# 构建 nginx 镜像
-log_info "构建 nginx 镜像..."
-cd ${PROJECT_DIR}/nginx
-docker build -t nginx-proxy:latest .
-cd ${PROJECT_DIR}
-
-log_info "=========================================="
-log_info "所有镜像构建完成！"
-log_info "=========================================="
-
-# 6. 修改docker-compose.yml中的build context路径
-log_info "准备docker-compose文件..."
-cd ${PROJECT_DIR}
-
-# 创建部署用的docker-compose文件，修改build context为绝对路径
-sed "s|context: ./server-blog|context: ${PROJECT_DIR}/server-blog|g" docker-compose.yml > ${COMPOSE_DIR}/docker-compose.yml
-sed -i "s|context: ./server-auth-service|context: ${PROJECT_DIR}/server-auth-service|g" ${COMPOSE_DIR}/docker-compose.yml
-sed -i "s|context: ./web-blog|context: ${PROJECT_DIR}/web-blog|g" ${COMPOSE_DIR}/docker-compose.yml
-sed -i "s|context: ./web-auth-service|context: ${PROJECT_DIR}/web-auth-service|g" ${COMPOSE_DIR}/docker-compose.yml
-sed -i "s|context: ./nginx|context: ${PROJECT_DIR}/nginx|g" ${COMPOSE_DIR}/docker-compose.yml
-
-# 复制基础服务compose文件
-cp ${PROJECT_DIR}/docker-compose.base.yml ${COMPOSE_DIR}/
-
-# 8. 停止旧容器
-log_info "停止旧容器..."
-cd ${COMPOSE_DIR}
-docker-compose -f docker-compose.yml down 2>/dev/null || true
-docker-compose -f docker-compose.base.yml down 2>/dev/null || true
-
-# 9. 启动基础服务
-log_info "启动基础服务..."
-docker-compose -f docker-compose.base.yml up -d
-
-# 10. 等待基础服务就绪
-log_info "等待基础服务就绪..."
-sleep 10
-
-# 11. 启动业务服务
-log_info "启动业务服务..."
-docker-compose -f docker-compose.yml up -d
-
-# 12. 显示服务状态
-log_info "=========================================="
-log_info "部署完成！"
-log_info "=========================================="
-log_info ""
-log_info "服务状态："
-docker-compose -f docker-compose.yml ps
-
-log_info ""
-log_info "查看日志:"
-log_info "  cd ${COMPOSE_DIR} && docker-compose logs -f"
-log_info ""
-log_info "查看所有镜像:"
-log_info "  docker images | grep -E \"go-blog|auth-service|web-blog|web-auth|nginx-proxy\""
+case ${STEP} in
+    1|build)
+        step_build_images
+        ;;
+    2|upload)
+        step_save_and_upload
+        ;;
+    3|deploy)
+        step_deploy
+        ;;
+    all|ALL)
+        log_info "=========================================="
+        log_info "执行完整部署流程（所有步骤）"
+        log_info "=========================================="
+        step_build_images
+        step_save_and_upload
+        step_deploy
+        log_info "=========================================="
+        log_info "完整部署流程执行完成！"
+        log_info "=========================================="
+        ;;
+    *)
+        log_error "未知步骤: ${STEP}"
+        echo ""
+        echo "用法: $0 <步骤>"
+        echo ""
+        echo "步骤选项:"
+        echo "  1 或 build  - 构建Docker镜像"
+        echo "  2 或 upload - 保存镜像并上传到远程服务器"
+        echo "  3 或 deploy - 在远程服务器部署"
+        echo "  all 或 ALL  - 执行所有步骤（完整部署流程）"
+        exit 1
+        ;;
+esac

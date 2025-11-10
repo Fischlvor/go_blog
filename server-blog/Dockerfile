@@ -31,23 +31,16 @@ RUN go build -a -installsuffix cgo -o main .
 # 第二阶段：运行阶段
 FROM alpine:latest
 
-# 安装必要的运行时依赖
-RUN apk --no-cache add ca-certificates tzdata
+# 安装必要的运行时依赖并清理，同时创建必要的目录
+RUN apk --no-cache add ca-certificates tzdata && \
+    rm -rf /var/cache/apk/* /tmp/* /var/tmp/* && \
+    mkdir -p /app/configs /app/uploads /app/log /app/keys
 
 # 设置工作目录
 WORKDIR /app
 
 # 从构建阶段复制二进制文件
 COPY --from=builder /app/main .
-
-# 创建必要的目录
-RUN mkdir -p /app/configs /app/uploads /app/log /app/keys
-
-# 复制配置文件
-COPY --from=builder /app/configs/config.yaml /app/configs/
-
-# 复制密钥文件
-COPY --from=builder /app/keys /app/keys
 
 # 暴露端口
 EXPOSE 8081

@@ -8,9 +8,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// getConfigFile 根据环境变量获取配置文件路径
+func getConfigFile() string {
+	env := os.Getenv("APP_ENV")
+	if env == "prod" || env == "production" {
+		return "configs/config.prod.yaml"
+	}
+	return "configs/config.yaml"
+}
+
 // InitConfig 初始化配置
 func InitConfig() *config.Config {
-	configFile := "configs/config.yaml"
+	configFile := getConfigFile()
 
 	// 读取配置文件
 	content, err := os.ReadFile(configFile)
