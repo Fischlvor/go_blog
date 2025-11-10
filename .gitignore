@@ -1,39 +1,43 @@
-# Build and Release Folders
+# 构建产物
 bin-debug/
 bin-release/
 [Oo]bj/
 [Bb]in/
 
-# Other files and folders
+# IDE/项目设置
 .settings/
 
-# Executables
+# 可执行产物包
 *.swf
 *.air
 *.ipa
 *.apk
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
-
-# Configuration files
-server-blog/configs/config.yaml
-server-blog/uploads/
-server-blog/log/
-server-blog/main
-
-# Auth Service  
-server-auth-service/configs/config.yaml
-server-auth-service/log/
-server-auth-service/keys/private.pem
-server-auth-service/keys/public.pem
-
-# Blog Service Keys
-server-blog/keys/sso_public.pem
-
-# Frontend
+# 前端
 web/pkg/
 web/node_modules/
 web-auth-service/node_modules/
 web-auth-service/dist/
+
+# 配置（后端 Blog）
+server-blog/configs/config.yaml
+# 配置（后端 Auth Service）
+server-auth-service/configs/config.yaml
+
+# 日志（后端 Blog）
+server-blog/log/
+# 日志（后端 Auth Service）
+server-auth-service/log/
+
+# 运行数据与可执行文件（后端 Blog）
+server-blog/uploads/
+server-blog/main
+
+# 生产敏感配置（不要提交真实值）
+server-blog/configs/config.prod.yaml
+server-auth-service/configs/config.prod.yaml
+
+# 密钥与证书目录
+server-blog/keys/
+server-auth-service/keys/
+

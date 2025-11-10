@@ -3,11 +3,12 @@ version: '3.8'
 services:
   # Go博客后端服务
   server-blog:
-    image: go-blog-server:latest
-    container_name: go-blog-server
+    image: server-blog:latest
+    container_name: server-blog
     restart: always
     environment:
       - TZ=Asia/Shanghai
+      - APP_ENV=prod
     volumes:
       # 挂载配置文件目录
       - /media/practice/onServer/go_blog/deploy/server-blog/configs:/app/configs
@@ -17,10 +18,8 @@ services:
       - /media/practice/onServer/go_blog/deploy/server-blog/log:/app/log
       # 挂载密钥文件目录
       - /media/practice/onServer/go_blog/deploy/server-blog/keys:/app/keys
-    depends_on:
-      - mysql
-      - redis
-      - elasticsearch
+    # 注意：基础服务（mysql, redis, elasticsearch）在 docker-compose.base.yml 中
+    # 它们已经启动，业务服务通过 blog-network 网络连接
     networks:
       - blog-network
     healthcheck:
@@ -31,22 +30,22 @@ services:
       start_period: 40s
 
   # Go认证后端服务
-  server-auth-service:
-    image: auth-service-server:latest
-    container_name: auth-service-server
+  server-auth:
+    image: server-auth:latest
+    container_name: server-auth
     restart: always
     environment:
       - TZ=Asia/Shanghai
+      - APP_ENV=prod
     volumes:
       # 挂载配置文件目录
-      - /media/practice/onServer/go_blog/deploy/server-auth-service/configs:/app/configs
+      - /media/practice/onServer/go_blog/deploy/server-auth/configs:/app/configs
       # 挂载日志目录
-      - /media/practice/onServer/go_blog/deploy/server-auth-service/log:/app/log
+      - /media/practice/onServer/go_blog/deploy/server-auth/log:/app/log
       # 挂载密钥文件目录
-      - /media/practice/onServer/go_blog/deploy/server-auth-service/keys:/app/keys
-    depends_on:
-      - mysql
-      - redis
+      - /media/practice/onServer/go_blog/deploy/server-auth/keys:/app/keys
+    # 注意：基础服务（mysql, redis）在 docker-compose.base.yml 中
+    # 它们已经启动，业务服务通过 blog-network 网络连接
     networks:
       - blog-network
     healthcheck:
@@ -71,9 +70,9 @@ services:
       start_period: 10s
 
   # 认证前端服务
-  web-auth-service:
-    image: web-auth-service:latest
-    container_name: web-auth-service
+  web-auth:
+    image: web-auth:latest
+    container_name: web-auth
     restart: always
     networks:
       - blog-network
@@ -94,12 +93,12 @@ services:
       - "443:443"
     volumes:
       # 挂载SSL证书
-      - /www/server/panel/vhost/cert/hsk423.cn:/etc/nginx/ssl:ro
+      - /media/practice/onServer/ACME_cert:/etc/nginx/ssl:ro
     depends_on:
       - web-blog
-      - web-auth-service
+      - web-auth
       - server-blog
-      - server-auth-service
+      - server-auth
     networks:
       - blog-network
     healthcheck:
@@ -111,6 +110,4 @@ services:
 
 networks:
   blog-network:
-    external: true
-    name: blog-network
-
+    driver: bridge
