@@ -14,6 +14,8 @@ type RouterGroup struct {
 	ConfigRouter
 	AIChatRouter
 	AIManagementRouter
+	EmojiRouter
+	PublicEmojiRouter
 }
 
 var RouterGroupApp = new(RouterGroup)

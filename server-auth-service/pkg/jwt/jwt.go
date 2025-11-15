@@ -16,7 +16,6 @@ var (
 
 // AccessTokenClaims AccessToken载荷
 type AccessTokenClaims struct {
-	UserID    uint      `json:"user_id"`
 	UserUUID  uuid.UUID `json:"user_uuid"`
 	AppID     string    `json:"app_id"`
 	DeviceID  string    `json:"device_id"`
@@ -26,16 +25,15 @@ type AccessTokenClaims struct {
 
 // RefreshTokenClaims RefreshToken载荷
 type RefreshTokenClaims struct {
-	UserID    uint   `json:"user_id"`
-	AppID     string `json:"app_id"`
-	DeviceID  string `json:"device_id"`
-	TokenType string `json:"token_type"` // refresh_token
+	UserUUID  uuid.UUID `json:"user_uuid"`
+	AppID     string    `json:"app_id"`
+	DeviceID  string    `json:"device_id"`
+	TokenType string    `json:"token_type"` // refresh_token
 	jwt.RegisteredClaims
 }
 
 // CreateAccessToken 创建AccessToken
 func CreateAccessToken(
-	userID uint,
 	userUUID uuid.UUID,
 	appID string,
 	deviceID string,
@@ -45,7 +43,6 @@ func CreateAccessToken(
 ) (string, error) {
 	now := time.Now()
 	claims := AccessTokenClaims{
-		UserID:    userID,
 		UserUUID:  userUUID,
 		AppID:     appID,
 		DeviceID:  deviceID,
@@ -64,7 +61,7 @@ func CreateAccessToken(
 
 // CreateRefreshToken 创建RefreshToken
 func CreateRefreshToken(
-	userID uint,
+	userUUID uuid.UUID,
 	appID string,
 	deviceID string,
 	expiry time.Duration,
@@ -73,7 +70,7 @@ func CreateRefreshToken(
 ) (string, error) {
 	now := time.Now()
 	claims := RefreshTokenClaims{
-		UserID:    userID,
+		UserUUID:  userUUID,
 		AppID:     appID,
 		DeviceID:  deviceID,
 		TokenType: "refresh_token",

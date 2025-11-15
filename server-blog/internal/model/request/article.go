@@ -1,5 +1,7 @@
 package request
 
+import "github.com/gofrs/uuid"
+
 type ArticleInfoByID struct {
 	ID string `json:"id" form:"id" uri:"id" binding:"required"`
 }
@@ -14,12 +16,12 @@ type ArticleSearch struct {
 }
 
 type ArticleLike struct {
-	UserID    uint   `json:"-"`
-	ArticleID string `json:"article_id" form:"article_id" binding:"required"`
+	UserUUID  uuid.UUID `json:"-"`
+	ArticleID string    `json:"article_id" form:"article_id" binding:"required"`
 }
 
 type ArticleLikesList struct {
-	UserID uint `json:"-"`
+	UserUUID uuid.UUID `json:"-"`
 	PageInfo
 }
 

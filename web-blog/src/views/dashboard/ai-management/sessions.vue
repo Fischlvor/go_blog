@@ -9,8 +9,8 @@
 
       <!-- 搜索区域 -->
       <el-form :inline="true" :model="searchForm" class="search-form">
-        <el-form-item label="用户ID">
-          <el-input v-model="searchForm.userId" placeholder="请输入用户ID" clearable />
+        <el-form-item label="用户UUID">
+          <el-input v-model="searchForm.userUuid" placeholder="请输入用户UUID" clearable />
         </el-form-item>
         <el-form-item label="模型">
           <el-input v-model="searchForm.model" placeholder="请输入模型名称" clearable />
@@ -41,7 +41,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="user_id" label="用户ID" width="100" />
+        <el-table-column prop="user_uuid" label="用户UUID" width="100" />
         <el-table-column prop="title" label="会话标题" show-overflow-tooltip />
         <el-table-column prop="model" label="AI模型" />
         <el-table-column prop="created_at" label="创建时间" width="180">
@@ -90,7 +90,7 @@
               <el-avatar :src="sessionDetail.user.avatar" alt=""/>
               <span>{{ sessionDetail.user.username }}</span>
             </div>
-            <span v-else>{{ sessionDetail.user_id }}</span>
+            <span v-else>{{ sessionDetail.user_uuid }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="会话标题">{{ sessionDetail.title }}</el-descriptions-item>
           <el-descriptions-item label="AI模型">{{ sessionDetail.model }}</el-descriptions-item>
@@ -136,7 +136,7 @@ const sessionDetail = ref<any>(null)
 
 // 搜索表单
 const searchForm = reactive({
-  userId: '',
+  userUuid: '',
   model: ''
 })
 
@@ -157,7 +157,7 @@ const getList = async () => {
     const params = {
       page: pagination.page,
       page_size: pagination.page_size,
-      user_id: searchForm.userId,
+      user_uuid: searchForm.userUuid,
       model: searchForm.model
     }
     const res = await aiSessionApi.list(params)
@@ -181,7 +181,7 @@ const handleSearch = () => {
 // 重置搜索
 const handleReset = () => {
   Object.assign(searchForm, {
-    userId: '',
+    userUuid: '',
     model: ''
   })
   pagination.page = 1

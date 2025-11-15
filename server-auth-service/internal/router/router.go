@@ -20,6 +20,8 @@ func Setup(r *gin.Engine) {
 		{
 			captchaHandler := handler.NewCaptchaHandler()
 			base.GET("/captcha", captchaHandler.GetCaptcha)
+			authHandler := handler.NewAuthHandler()
+			base.GET("/qqLoginURL", authHandler.QQLoginURL) // QQ登录URL
 		}
 
 		// 认证相关（无需鉴权）
@@ -28,7 +30,11 @@ func Setup(r *gin.Engine) {
 			authHandler := handler.NewAuthHandler()
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
-			auth.POST("/token", authHandler.RefreshToken) // OAuth 2.0标准token端点
+			auth.POST("/token", authHandler.RefreshToken)                                  // OAuth 2.0标准token端点
+			auth.POST("/oauth/qq/login", authHandler.QQLogin)                              // QQ登录
+			auth.GET("/oauth/qq/callback", authHandler.QQCallback)                         // QQ回调（GET：QQ服务端回调）
+			auth.POST("/sendEmailVerificationCode", authHandler.SendEmailVerificationCode) // 发送邮箱验证码
+			auth.POST("/forgotPassword", authHandler.ForgotPassword)                       // 忘记密码
 		}
 
 		// 服务间调用接口（使用客户端认证）

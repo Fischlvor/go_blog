@@ -1,9 +1,11 @@
 package service
 
 import (
-	"gorm.io/gorm"
-	"server/pkg/global"
 	"server/internal/model/database"
+	"server/pkg/global"
+	"server/pkg/utils"
+
+	"gorm.io/gorm"
 )
 
 // LoadChildren 加载该评论下的所有子评论
@@ -26,6 +28,14 @@ func (commentService *CommentService) LoadChildren(comment *database.Comment) er
 	// 将子评论附加到当前评论的PComment字段
 	comment.Children = children
 	return nil
+}
+
+// normalizeCommentAvatars 递归将评论及其子评论中的用户头像转换为完整可访问 URL
+func (commentService *CommentService) normalizeCommentAvatars(comment *database.Comment) {
+	comment.User.Avatar = utils.PublicURLFromDB(comment.User.Avatar)
+	for i := range comment.Children {
+		commentService.normalizeCommentAvatars(&comment.Children[i])
+	}
 }
 
 // DeleteCommentAndChildren 根据id删除该评论及其所有子评论

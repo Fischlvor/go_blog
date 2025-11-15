@@ -13,7 +13,6 @@ import (
 
 // SSOAccessTokenClaims SSO的AccessToken载荷
 type SSOAccessTokenClaims struct {
-	UserID    uint      `json:"user_id"`
 	UserUUID  uuid.UUID `json:"user_uuid"`
 	AppID     string    `json:"app_id"`
 	DeviceID  string    `json:"device_id"`

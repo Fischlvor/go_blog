@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" :style="appStyle">
     <el-config-provider :locale="zhCn">
       <router-view/>
     </el-config-provider>
@@ -8,6 +8,20 @@
 
 <script setup lang="ts">
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import { cdn } from "@/utils/cdn"
+import { computed } from "vue"
+
+const appStyle = computed(() => ({
+  backgroundImage: `url('${cdn("blog/5523c88dd347d1b7cc617f632b7efdb7-20251111150011.png")}')`,
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  backgroundRepeat: "no-repeat",
+  backgroundAttachment: "fixed",
+  minHeight: "100vh",
+  width: "100%",
+  margin: "0",
+  padding: "0"
+}))
 </script>
 
 <style>
@@ -17,23 +31,7 @@ body {
   padding: 0;
 }
 
-#app {
-  /* 背景图片设置 */
-  background-image: url('/image/bg.png');
-  background-size: cover;       /* 覆盖整个容器 */
-  background-position: center;  /* 图片居中 */
-  background-repeat: no-repeat; /* 不重复 */
-  background-attachment: fixed; /* 背景固定，内容可滚动 */
-
-  /* 确保容器足够高以显示滚动内容 */
-  min-height: 100vh;
-
-  /* 其他样式 */
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
+/* 背景相关样式已移至内联绑定，便于使用环境变量域名 */
 /* 当窗口宽高比 >= 图片宽高比时，改为宽度填满，高度按比例缩放 */
 @media (min-aspect-ratio: 16/9) { /* 16/9 替换为你的图片实际宽高比 */
   #app {

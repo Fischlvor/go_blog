@@ -3,12 +3,14 @@ package entity
 import (
 	"auth-service/pkg/global"
 	"time"
+
+	"github.com/gofrs/uuid"
 )
 
 // SSODevice 设备管理表
 type SSODevice struct {
 	global.MODEL
-	UserID       uint      `json:"user_id" gorm:"uniqueIndex:idx_user_app_device;comment:关联sso_users.id"`
+	UserUUID     uuid.UUID `json:"user_uuid" gorm:"type:char(36);uniqueIndex:idx_user_app_device;comment:关联sso_users.uuid"`
 	AppID        uint      `json:"app_id" gorm:"uniqueIndex:idx_user_app_device;comment:关联sso_applications.id"`
 	DeviceID     string    `json:"device_id" gorm:"uniqueIndex:idx_user_app_device;size:100;comment:设备标识"`
 	DeviceName   string    `json:"device_name" gorm:"size:100;comment:设备名称"`

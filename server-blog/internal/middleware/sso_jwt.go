@@ -27,6 +27,13 @@ func SSOJWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 获取Authorization header
 		authHeader := c.GetHeader("Authorization")
+		
+		// 检查固定token白名单（与AdminAuth保持一致）
+		if isWhitelistedToken(authHeader, c.FullPath(), c.Request.URL.Path, c.Request.Method) {
+			c.Next()
+			return
+		}
+		
 		if authHeader == "" {
 			response.NoAuth("未提供认证token", c)
 			c.Abort()
@@ -97,7 +104,6 @@ func SSOJWTAuth() gin.HandlerFunc {
 		// ✅ 将SSO claims转换为应用的JwtCustomClaims格式
 		jwtClaims := &request.JwtCustomClaims{
 			BaseClaims: request.BaseClaims{
-				UserID: user.ID,         // 博客的用户ID
 				UUID:   claims.UserUUID, // SSO的UUID
 				RoleID: user.RoleID,     // 从博客数据库获取真实角色
 			},

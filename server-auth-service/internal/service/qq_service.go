@@ -2,14 +2,18 @@ package service
 
 import (
 	"auth-service/internal/model/entity"
+	"auth-service/internal/model/other"
 	"auth-service/internal/model/response"
 	"auth-service/internal/model/types"
 	"auth-service/pkg/crypto"
 	"auth-service/pkg/global"
 	"auth-service/pkg/jwt"
 	"auth-service/pkg/utils"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -17,6 +21,78 @@ import (
 )
 
 type QQService struct{}
+
+// GetAccessTokenByCode 通过Authorization Code获取Access Token
+func (s *QQService) GetAccessTokenByCode(code string) (other.AccessTokenResponse, error) {
+	data := other.AccessTokenResponse{}
+	clientID := global.Config.QQ.AppID
+	clientSecret := global.Config.QQ.AppKey
+	redirectUri := global.Config.QQ.RedirectURI
+	urlStr := "https://graph.qq.com/oauth2.0/token"
+	method := "GET"
+	params := map[string]string{
+		"grant_type":    "authorization_code",
+		"client_id":     clientID,
+		"client_secret": clientSecret,
+		"code":          code,
+		"redirect_uri":  redirectUri,
+		"fmt":           "json",
+		"need_openid":   "1",
+	}
+	res, err := utils.HttpRequest(urlStr, method, nil, params, nil)
+	if err != nil {
+		return data, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return data, fmt.Errorf("request failed with status code: %d", res.StatusCode)
+	}
+
+	byteData, err := io.ReadAll(res.Body)
+	if err != nil {
+		return data, err
+	}
+
+	err = json.Unmarshal(byteData, &data)
+	if err != nil {
+		return data, err
+	}
+	return data, nil
+}
+
+// GetUserInfoByAccessTokenAndOpenid 获取登录用户信息
+func (s *QQService) GetUserInfoByAccessTokenAndOpenid(accessToken, openID string) (other.UserInfoResponse, error) {
+	data := other.UserInfoResponse{}
+	oauthConsumerKey := global.Config.QQ.AppID
+	urlStr := "https://graph.qq.com/user/get_user_info"
+	method := "GET"
+	params := map[string]string{
+		"access_token":       accessToken,
+		"oauth_consumer_key": oauthConsumerKey,
+		"openid":             openID,
+	}
+	res, err := utils.HttpRequest(urlStr, method, nil, params, nil)
+	if err != nil {
+		return data, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return data, fmt.Errorf("request failed with status code: %d", res.StatusCode)
+	}
+
+	byteData, err := io.ReadAll(res.Body)
+	if err != nil {
+		return data, err
+	}
+
+	err = json.Unmarshal(byteData, &data)
+	if err != nil {
+		return data, err
+	}
+	return data, nil
+}
 
 // getAppByKey 通过app_key获取应用信息
 func (s *QQService) getAppByKey(appKey string) (*entity.SSOApplication, error) {
@@ -46,7 +122,7 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 
 		// 从QQ获取昵称和头像
 		nickname := "QQ用户"
-		avatar := "https://image.hsk423.cn/aaca0f5eb4d2d98a6ce6dffa99f8254b-20251108151238.jpg"
+		avatar := "https://image.hsk423.cn/blog/aaca0f5eb4d2d98a6ce6dffa99f8254b-20251108151238.jpg"
 		if name, ok := qqUserInfo["nickname"].(string); ok && name != "" {
 			nickname = name
 		}
@@ -81,7 +157,7 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 
 		// 创建OAuth绑定
 		oauthBinding = entity.SSOOAuthBinding{
-			UserID:   user.ID,
+			UserUUID: user.UUID,
 			Provider: "qq",
 			OpenID:   openID,
 		}
@@ -114,8 +190,8 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 	} else if err != nil {
 		return nil, err
 	} else {
-		// 老用户，查询用户信息
-		if err := global.DB.First(&user, oauthBinding.UserID).Error; err != nil {
+		// 老用户，查询用户信息（通过 UUID）
+		if err := global.DB.Where("uuid = ?", oauthBinding.UserUUID).First(&user).Error; err != nil {
 			return nil, errors.New("用户不存在")
 		}
 	}
@@ -157,13 +233,13 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 
 	// 检查该设备是否已存在（用户+应用+设备的组合唯一）
 	var existDevice entity.SSODevice
-	err = global.DB.Where("user_id = ? AND app_id = ? AND device_id = ?", user.ID, app.ID, deviceID).First(&existDevice).Error
+	err = global.DB.Where("user_uuid = ? AND app_id = ? AND device_id = ?", user.UUID, app.ID, deviceID).First(&existDevice).Error
 	isNewDevice := errors.Is(err, gorm.ErrRecordNotFound)
 
 	if isNewDevice {
 		var deviceCount int64
 		global.DB.Model(&entity.SSODevice{}).
-			Where("user_id = ? AND app_id = ? AND status = 1", user.ID, app.ID).
+			Where("user_uuid = ? AND app_id = ? AND status = 1", user.UUID, app.ID).
 			Count(&deviceCount)
 
 		if int(deviceCount) >= app.MaxDevices {
@@ -172,7 +248,7 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 	}
 
 	device := entity.SSODevice{
-		UserID:       user.ID,
+		UserUUID:     user.UUID,
 		AppID:        app.ID,
 		DeviceID:     deviceID,
 		DeviceName:   deviceName,
@@ -199,7 +275,6 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 	refreshTokenDuration, _ := utils.ParseDuration(global.Config.JWT.RefreshTokenExpiryTime)
 
 	accessToken, _ := jwt.CreateAccessToken(
-		user.ID,
 		user.UUID,
 		appID,
 		deviceID,
@@ -209,7 +284,7 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 	)
 
 	refreshToken, _ := jwt.CreateRefreshToken(
-		user.ID,
+		user.UUID,
 		appID,
 		deviceID,
 		refreshTokenDuration,
@@ -218,12 +293,12 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 	)
 
 	// 存储RefreshToken
-	refreshTokenKey := fmt.Sprintf("refresh_token:%d:%s", user.ID, deviceID)
+	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", user.UUID.String(), deviceID)
 	global.Redis.Set(refreshTokenKey, refreshToken, refreshTokenDuration)
 
 	// 记录登录日志
 	loginLog := entity.SSOLoginLog{
-		UserID:    user.ID,
+		UserUUID:  user.UUID,
 		AppID:     app.ID,
 		Action:    "login",
 		DeviceID:  deviceID,
@@ -240,7 +315,6 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 		TokenType:    "Bearer",
 		ExpiresIn:    int(accessTokenDuration.Seconds()),
 		UserInfo: &response.UserInfo{
-			UserID:    user.ID,
 			UUID:      user.UUID.String(),
 			Nickname:  user.Nickname,
 			Avatar:    user.Avatar,

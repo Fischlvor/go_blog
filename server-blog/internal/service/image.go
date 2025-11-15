@@ -1,15 +1,16 @@
 package service
 
 import (
-	"gorm.io/gorm"
 	"mime/multipart"
-	"server/pkg/global"
 	"server/internal/model/appTypes"
 	"server/internal/model/database"
 	"server/internal/model/other"
 	"server/internal/model/request"
+	"server/pkg/global"
 	"server/pkg/utils"
 	"server/pkg/utils/upload"
+
+	"gorm.io/gorm"
 )
 
 type ImageService struct {
@@ -17,7 +18,7 @@ type ImageService struct {
 
 func (imageService *ImageService) ImageUpload(file *multipart.FileHeader) (string, error) {
 	oss := upload.NewOss()
-	url, filename, err := oss.UploadImage(file)
+	url, filename, err := oss.UploadImageWithPrefix(file, "blog")
 	if err != nil {
 		return "", err
 	}

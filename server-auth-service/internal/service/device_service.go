@@ -6,15 +6,17 @@ import (
 	"auth-service/pkg/global"
 	"errors"
 	"fmt"
+
+	"github.com/gofrs/uuid"
 )
 
 type DeviceService struct{}
 
-// GetDevices 获取设备列表
-func (s *DeviceService) GetDevices(userID uint, appID string, currentDeviceID string) ([]response.DeviceInfo, error) {
+// GetDevices 获取设备列表（基于 UUID）
+func (s *DeviceService) GetDevices(userUUID uuid.UUID, appID string, currentDeviceID string) ([]response.DeviceInfo, error) {
 	var devices []entity.SSODevice
 
-	query := global.DB.Where("user_id = ? AND status = 1", userID)
+	query := global.DB.Where("user_uuid = ? AND status = 1", userUUID)
 	if appID != "" && appID != "all" {
 		query = query.Where("app_id = ?", appID)
 	}
@@ -39,8 +41,8 @@ func (s *DeviceService) GetDevices(userID uint, appID string, currentDeviceID st
 	return result, nil
 }
 
-// KickDevice 踢出设备
-func (s *DeviceService) KickDevice(userID uint, deviceID, appID string, currentDeviceID string) error {
+// KickDevice 踢出设备（基于 UUID）
+func (s *DeviceService) KickDevice(userUUID uuid.UUID, deviceID, appID string, currentDeviceID string) error {
 	// 不允许踢出当前设备
 	if deviceID == currentDeviceID {
 		return errors.New("不能移除当前设备")
@@ -48,7 +50,7 @@ func (s *DeviceService) KickDevice(userID uint, deviceID, appID string, currentD
 
 	// 验证设备所有权
 	var device entity.SSODevice
-	query := global.DB.Where("device_id = ? AND user_id = ?", deviceID, userID)
+	query := global.DB.Where("device_id = ? AND user_uuid = ?", deviceID, userUUID)
 	if appID != "" {
 		query = query.Where("app_id = ?", appID)
 	}
@@ -57,8 +59,8 @@ func (s *DeviceService) KickDevice(userID uint, deviceID, appID string, currentD
 		return errors.New("设备不存在或无权操作")
 	}
 
-	// 将该设备的refresh_token从Redis删除
-	refreshTokenKey := fmt.Sprintf("refresh_token:%d:%s", userID, deviceID)
+	// 将该设备的refresh_token从Redis删除（基于 UUID）
+	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", userUUID.String(), deviceID)
 	global.Redis.Del(refreshTokenKey)
 
 	// 将设备标记为黑名单
@@ -72,7 +74,7 @@ func (s *DeviceService) KickDevice(userID uint, deviceID, appID string, currentD
 
 	// 记录日志
 	loginLog := entity.SSOLoginLog{
-		UserID:   userID,
+		UserUUID: userUUID,
 		AppID:    device.AppID,
 		Action:   "kick",
 		DeviceID: deviceID,

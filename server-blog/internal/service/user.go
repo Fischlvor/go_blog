@@ -3,17 +3,18 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/gofrs/uuid"
-	"gorm.io/gorm"
-	"server/pkg/global"
 	"server/internal/model/appTypes"
 	"server/internal/model/database"
 	"server/internal/model/other"
 	"server/internal/model/request"
 	"server/internal/model/response"
+	"server/pkg/global"
 	"server/pkg/utils"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
+	"gorm.io/gorm"
 )
 
 type UserService struct {
@@ -96,7 +97,7 @@ func (userService *UserService) UserCard(req request.UserCard) (response.UserCar
 	return response.UserCard{
 		UUID:      user.UUID,
 		Username:  user.Username,
-		Avatar:    user.Avatar,
+		Avatar:    utils.PublicURLFromDB(user.Avatar),
 		Address:   user.Address,
 		Signature: user.Signature,
 	}, nil
@@ -112,7 +113,7 @@ func (userService *UserService) Logout(c *gin.Context) {
 
 func (userService *UserService) UserResetPassword(req request.UserResetPassword) error {
 	var user database.User
-	if err := global.DB.Take(&user, req.UserID).Error; err != nil {
+	if err := global.DB.Where("uuid = ?", req.UserUUID).First(&user).Error; err != nil {
 		return err
 	}
 	if ok := utils.BcryptCheck(req.Password, user.Password); !ok {
@@ -122,9 +123,9 @@ func (userService *UserService) UserResetPassword(req request.UserResetPassword)
 	return global.DB.Save(&user).Error
 }
 
-func (userService *UserService) UserInfo(userID uint) (database.User, error) {
+func (userService *UserService) UserInfoByUUID(u uuid.UUID) (database.User, error) {
 	var user database.User
-	if err := global.DB.Take(&user, userID).Error; err != nil {
+	if err := global.DB.Where("uuid = ?", u).First(&user).Error; err != nil {
 		return database.User{}, err
 	}
 	return user, nil
@@ -132,7 +133,7 @@ func (userService *UserService) UserInfo(userID uint) (database.User, error) {
 
 func (userService *UserService) UserChangeInfo(req request.UserChangeInfo) error {
 	var user database.User
-	if err := global.DB.Take(&user, req.UserID).Error; err != nil {
+	if err := global.DB.Where("uuid = ?", req.UserUUID).First(&user).Error; err != nil {
 		return err
 	}
 	return global.DB.Model(&user).Updates(req).Error
@@ -230,11 +231,7 @@ func (userService *UserService) UserLoginList(info request.UserLoginList) (inter
 	db := global.DB
 
 	if info.UUID != nil {
-		var userID uint
-		if err := global.DB.Model(database.User{}).Where("uuid = ?", *info.UUID).Pluck("id", &userID); err != nil {
-			return nil, 0, nil
-		}
-		db = db.Where("user_id = ?", userID)
+		db = db.Where("user_uuid = ?", *info.UUID)
 	}
 
 	option := other.MySQLOption{

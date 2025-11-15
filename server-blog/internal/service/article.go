@@ -149,16 +149,9 @@ func (articleService *ArticleService) ArticleLike(req request.ArticleLike) error
 		var al database.ArticleLike
 		var num int
 
-		// ✅ 使用UUID查询
-		// 先获取user的UUID
-		var user database.User
-		if err := tx.Where("id = ?", req.UserID).First(&user).Error; err != nil {
-			return err
-		}
-
 		// 如果用户未收藏，则创建收藏记录
-		if errors.Is(tx.Where("user_uuid = ? AND article_id = ?", user.UUID, req.ArticleID).First(&al).Error, gorm.ErrRecordNotFound) {
-			if err := tx.Create(&database.ArticleLike{UserUUID: user.UUID, ArticleID: req.ArticleID}).Error; err != nil {
+		if errors.Is(tx.Where("user_uuid = ? AND article_id = ?", req.UserUUID, req.ArticleID).First(&al).Error, gorm.ErrRecordNotFound) {
+			if err := tx.Create(&database.ArticleLike{UserUUID: req.UserUUID, ArticleID: req.ArticleID}).Error; err != nil {
 				return err
 			}
 			num = 1
@@ -178,11 +171,11 @@ func (articleService *ArticleService) ArticleLike(req request.ArticleLike) error
 }
 
 func (articleService *ArticleService) ArticleIsLike(req request.ArticleLike) (bool, error) {
-	return !errors.Is(global.DB.Where("user_id = ? AND article_id = ?", req.UserID, req.ArticleID).First(&database.ArticleLike{}).Error, gorm.ErrRecordNotFound), nil
+	return !errors.Is(global.DB.Where("user_uuid = ? AND article_id = ?", req.UserUUID, req.ArticleID).First(&database.ArticleLike{}).Error, gorm.ErrRecordNotFound), nil
 }
 
 func (articleService *ArticleService) ArticleLikesList(info request.ArticleLikesList) (interface{}, int64, error) {
-	db := global.DB.Where("user_id = ?", info.UserID)
+	db := global.DB.Where("user_uuid = ?", info.UserUUID)
 	option := other.MySQLOption{
 		PageInfo: info.PageInfo,
 		Where:    db,
@@ -225,6 +218,7 @@ func (articleService *ArticleService) ArticleCreate(req request.ArticleCreate) e
 		return errors.New("the article already exists")
 	}
 	now := time.Now().Format("2006-01-02 15:04:05")
+	dbCover := utils.DBURLFromPublic(req.Cover)
 	articleToCreate := elasticsearch.Article{
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -248,13 +242,16 @@ func (articleService *ArticleService) ArticleCreate(req request.ArticleCreate) e
 		}
 
 		// 同时更新图片表中的图片类别
-		if err := utils.ChangeImagesCategory(tx, []string{articleToCreate.Cover}, appTypes.Cover); err != nil {
+		if err := utils.ChangeImagesCategory(tx, []string{dbCover}, appTypes.Cover); err != nil {
 			return err
 		}
 		// 拿到 Text 中所有插图的 URL
 		illustrations, err := utils.FindIllustrations(articleToCreate.Content)
 		if err != nil {
 			return err
+		}
+		for i := range illustrations {
+			illustrations[i] = utils.DBURLFromPublic(illustrations[i])
 		}
 		if err := utils.ChangeImagesCategory(tx, illustrations, appTypes.Illustration); err != nil {
 			return err
@@ -298,7 +295,7 @@ func (articleService *ArticleService) ArticleDelete(req request.ArticleDelete) e
 			if err := utils.InitImagesCategory(tx, illustrations); err != nil {
 				return err
 			}
-			// TODO 同时删除该文章下的所有评论
+			// 同时删除该文章下的所有评论
 			comments, err := ServiceGroupApp.CommentService.CommentInfoByArticleID(request.CommentInfoByArticleID{ArticleID: id})
 			if err != nil {
 				return err
@@ -352,10 +349,10 @@ func (articleService *ArticleService) ArticleUpdate(req request.ArticleUpdate) e
 
 		// 同时更新图片表中的图片类别
 		if articleToUpdate.Cover != oldArticle.Cover {
-			if err := utils.InitImagesCategory(tx, []string{oldArticle.Cover}); err != nil {
+			if err := utils.InitImagesCategory(tx, []string{utils.DBURLFromPublic(oldArticle.Cover)}); err != nil {
 				return err
 			}
-			if err := utils.ChangeImagesCategory(tx, []string{articleToUpdate.Cover}, appTypes.Cover); err != nil {
+			if err := utils.ChangeImagesCategory(tx, []string{utils.DBURLFromPublic(articleToUpdate.Cover)}, appTypes.Cover); err != nil {
 				return err
 			}
 		}
@@ -368,6 +365,13 @@ func (articleService *ArticleService) ArticleUpdate(req request.ArticleUpdate) e
 			return err
 		}
 		addedIllustrations, removedIllustrations := utils.DiffArrays(oldIllustrations, newIllustrations)
+		// 归一化插图 URL
+		for i := range removedIllustrations {
+			removedIllustrations[i] = utils.DBURLFromPublic(removedIllustrations[i])
+		}
+		for i := range addedIllustrations {
+			addedIllustrations[i] = utils.DBURLFromPublic(addedIllustrations[i])
+		}
 		if err := utils.InitImagesCategory(tx, removedIllustrations); err != nil {
 			return err
 		}

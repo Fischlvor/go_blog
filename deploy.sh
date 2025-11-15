@@ -100,6 +100,44 @@ step_build_images() {
     log_info "镜像清理完成！"
 }
 
+# 按服务名构建单个镜像
+step_build_single_image() {
+    local service="$1"
+    check_command docker
+    case "$service" in
+        server-blog)
+            log_info "构建 server-blog 镜像..."
+            cd "${LOCAL_PROJECT_DIR}/server-blog"
+            docker build -t ${SERVER_BLOG_IMAGE} .
+            ;;
+        server-auth)
+            log_info "构建 server-auth 镜像..."
+            cd "${LOCAL_PROJECT_DIR}/server-auth-service"
+            docker build -t ${SERVER_AUTH_IMAGE} .
+            ;;
+        web-blog)
+            log_info "构建 web-blog 镜像..."
+            cd "${LOCAL_PROJECT_DIR}/web-blog"
+            docker build -t ${WEB_BLOG_IMAGE} .
+            ;;
+        web-auth)
+            log_info "构建 web-auth 镜像..."
+            cd "${LOCAL_PROJECT_DIR}/web-auth-service"
+            docker build -t ${WEB_AUTH_IMAGE} .
+            ;;
+        nginx)
+            log_info "构建 nginx 镜像..."
+            cd "${LOCAL_PROJECT_DIR}/nginx"
+            docker build -t ${NGINX_IMAGE} .
+            ;;
+        *)
+            log_error "未知服务: $service"
+            exit 1
+            ;;
+    esac
+    log_info "单个服务镜像构建完成：$service"
+}
+
 # 步骤2：保存镜像并上传
 step_save_and_upload() {
     log_info "=========================================="
@@ -182,6 +220,65 @@ EOF
     log_info "步骤2完成！"
 }
 
+# 保存并上传单个服务镜像
+step_save_and_upload_single() {
+    local service="$1"
+    log_info "=========================================="
+    log_info "步骤2(单服务): 保存并上传 ${service} 镜像"
+    log_info "=========================================="
+    check_command ssh
+    check_command scp
+    local tar_name=""
+    local image_name=""
+    case "$service" in
+        server-blog) tar_name="server-blog.tar"; image_name="${SERVER_BLOG_IMAGE}" ;;
+        server-auth) tar_name="server-auth.tar"; image_name="${SERVER_AUTH_IMAGE}" ;;
+        web-blog)   tar_name="web-blog.tar";   image_name="${WEB_BLOG_IMAGE}" ;;
+        web-auth)   tar_name="web-auth.tar";   image_name="${WEB_AUTH_IMAGE}" ;;
+        nginx)      tar_name="nginx.tar";      image_name="${NGINX_IMAGE}" ;;
+        *)
+            log_error "未知服务: $service"
+            exit 1
+            ;;
+    esac
+    local TEMP_DIR
+    TEMP_DIR=$(mktemp -d)
+    cd ${TEMP_DIR}
+    log_info "保存镜像为 tar：${tar_name}"
+    docker save ${image_name} -o "${tar_name}"
+    log_info "创建远程目录..."
+    ssh -T -q -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} << EOF
+        mkdir -p ${REMOTE_IMAGE_DIR}
+        mkdir -p ${REMOTE_COMPOSE_DIR}
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/configs
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/uploads
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/log
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/keys
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/configs
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/log
+        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/keys
+EOF
+    log_info "上传 tar 到远程..."
+    scp -P ${REMOTE_PORT} "${tar_name}" ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_IMAGE_DIR}/
+    log_info "上传 docker-compose 文件..."
+    scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/docker-compose.prod.yml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_COMPOSE_DIR}/docker-compose.prod.yml
+    # 上传必要配置与密钥（尽量幂等）
+    if [ -f "${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml" ]; then
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/configs/ 2>/dev/null || true
+    fi
+    if [ -f "${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml" ]; then
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-auth/configs/ 2>/dev/null || true
+    fi
+    if [ -d "${LOCAL_PROJECT_DIR}/server-blog/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/server-blog/keys 2>/dev/null)" ]; then
+        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/server-blog/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/keys/ 2>/dev/null || true
+    fi
+    if [ -d "${LOCAL_PROJECT_DIR}/server-auth-service/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/server-auth-service/keys 2>/dev/null)" ]; then
+        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/server-auth-service/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-auth/keys/ 2>/dev/null || true
+    fi
+    rm -rf ${TEMP_DIR}
+    log_info "步骤2(单服务) 完成！"
+}
+
 # 步骤3：远程部署
 step_deploy() {
     log_info "=========================================="
@@ -212,8 +309,8 @@ step_deploy() {
         docker-compose -f docker-compose.prod.yml up -d
         
         # 清理旧的镜像文件（可选）
-        echo "清理临时文件..."
-        rm -f ${REMOTE_IMAGE_DIR}/*.tar
+        #echo "清理临时文件..."
+        #rm -f ${REMOTE_IMAGE_DIR}/*.tar
         
         echo "部署完成！"
 EOF
@@ -229,6 +326,44 @@ EOF
     log_info ""
     log_info "查看日志:"
     log_info "  ssh ${REMOTE_USER}@${REMOTE_HOST} 'cd ${REMOTE_COMPOSE_DIR} && docker-compose logs -f'"
+}
+
+# 远程部署单个服务
+step_deploy_single() {
+    local service="$1"
+    log_info "=========================================="
+    log_info "步骤3(单服务): 在远程服务器部署 ${service}"
+    log_info "=========================================="
+    local tar_name=""
+    case "$service" in
+        server-blog) tar_name="server-blog.tar" ;;
+        server-auth) tar_name="server-auth.tar" ;;
+        web-blog)   tar_name="web-blog.tar" ;;
+        web-auth)   tar_name="web-auth.tar" ;;
+        nginx)      tar_name="nginx.tar" ;;
+        *)
+            log_error "未知服务: $service"
+            exit 1
+            ;;
+    esac
+    ssh -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} << EOF
+        set -e
+        echo "加载 ${service} Docker 镜像..."
+        cd ${REMOTE_IMAGE_DIR}
+        if [ -f "${tar_name}" ]; then
+            docker load -i ${tar_name}
+        else
+            echo "未找到镜像 tar：${tar_name}，请先执行 upload。"
+            exit 1
+        fi
+        echo "以 docker-compose 仅启动/更新 ${service}..."
+        cd ${REMOTE_COMPOSE_DIR}
+        docker-compose -f docker-compose.prod.yml up -d ${service}
+        #echo "清理镜像 tar..."
+        #rm -f ${REMOTE_IMAGE_DIR}/${tar_name}
+        echo "单服务部署完成！"
+EOF
+    log_info "单服务部署完成：${service}"
 }
 
 # ==================== 主流程 ====================
@@ -253,6 +388,15 @@ if [ $# -eq 0 ]; then
     echo "  $0 3        # 远程部署"
     echo "  $0 deploy   # 远程部署（别名）"
     echo "  $0 all      # 执行完整部署流程"
+    echo ""
+    echo "单服务全流程/分步:"
+    echo "  $0 single <service> [build|upload|deploy|all]"
+    echo "支持的 <service>：server-blog | server-auth | web-blog | web-auth | nginx"
+    echo "示例："
+    echo "  $0 single server-blog           # 单服务完整流程"
+    echo "  $0 single web-blog build        # 仅构建 web-blog"
+    echo "  $0 single server-auth upload    # 仅上传 server-auth"
+    echo "  $0 single nginx deploy          # 仅部署 nginx"
     exit 1
 fi
 
@@ -279,6 +423,38 @@ case ${STEP} in
         log_info "=========================================="
         log_info "完整部署流程执行完成！"
         log_info "=========================================="
+        ;;
+    single)
+        SERVICE="$2"
+        ACTION="$3"
+        if [ -z "${SERVICE}" ]; then
+            log_error "single 模式需要指定 <service>"
+            echo "用法：$0 single <service> [build|upload|deploy|all]"
+            exit 1
+        fi
+        if [ -z "${ACTION}" ]; then
+            ACTION="all"
+        fi
+        case "${ACTION}" in
+            build)
+                step_build_single_image "${SERVICE}"
+                ;;
+            upload)
+                step_save_and_upload_single "${SERVICE}"
+                ;;
+            deploy)
+                step_deploy_single "${SERVICE}"
+                ;;
+            all|ALL)
+                step_build_single_image "${SERVICE}"
+                step_save_and_upload_single "${SERVICE}"
+                step_deploy_single "${SERVICE}"
+                ;;
+            *)
+                log_error "未知动作: ${ACTION}，可选：build|upload|deploy|all"
+                exit 1
+                ;;
+        esac
         ;;
     *)
         log_error "未知步骤: ${STEP}"

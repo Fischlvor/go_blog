@@ -12,15 +12,16 @@ type RegisterRequest struct {
 
 // LoginRequest 登录请求
 type LoginRequest struct {
-	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required"`
-	AppID       string `json:"app_id" binding:"required"`
-	RedirectURI string `json:"redirect_uri" binding:"required"`
-	DeviceID    string `json:"device_id"`
-	DeviceName  string `json:"device_name"`
-	DeviceType  string `json:"device_type"`
-	CaptchaID   string `json:"captcha_id" binding:"required"`
-	Captcha     string `json:"captcha" binding:"required,len=6"`
+	Email            string `json:"email" binding:"required,email"`
+	Password         string `json:"password"`          // 密码登录时必填
+	VerificationCode string `json:"verification_code"` // 验证码登录时必填
+	AppID            string `json:"app_id" binding:"required"`
+	RedirectURI      string `json:"redirect_uri" binding:"required"`
+	DeviceID         string `json:"device_id"`
+	DeviceName       string `json:"device_name"`
+	DeviceType       string `json:"device_type"`
+	CaptchaID        string `json:"captcha_id"` // 密码登录时必填
+	Captcha          string `json:"captcha"`    // 密码登录时必填
 }
 
 // RefreshTokenRequest 刷新Token请求
@@ -53,4 +54,28 @@ type UpdateUserInfoRequest struct {
 	Avatar    string `json:"avatar"`
 	Address   string `json:"address"`
 	Signature string `json:"signature"`
+}
+
+// QQLoginRequest QQ登录请求
+type QQLoginRequest struct {
+	Code        string `json:"code" binding:"required"`         // QQ授权码
+	AppID       string `json:"app_id" binding:"required"`       // 应用ID
+	RedirectURI string `json:"redirect_uri" binding:"required"` // 回调URI
+	DeviceID    string `json:"device_id"`                       // 设备ID
+	DeviceName  string `json:"device_name"`                     // 设备名称
+	DeviceType  string `json:"device_type"`                     // 设备类型
+}
+
+// SendEmailVerificationCodeRequest 发送邮箱验证码请求
+type SendEmailVerificationCodeRequest struct {
+	Email     string `json:"email" binding:"required,email"`
+	CaptchaID string `json:"captcha_id" binding:"required"`
+	Captcha   string `json:"captcha" binding:"required,len=6"`
+}
+
+// ForgotPasswordRequest 忘记密码请求
+type ForgotPasswordRequest struct {
+	Email            string `json:"email" binding:"required,email"`
+	VerificationCode string `json:"verification_code" binding:"required,len=6"`
+	NewPassword      string `json:"new_password" binding:"required,min=8,max=20"`
 }

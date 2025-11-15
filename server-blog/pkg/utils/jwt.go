@@ -2,10 +2,11 @@ package utils
 
 import (
 	"errors"
-	"github.com/golang-jwt/jwt/v4"
-	"server/pkg/global"
 	"server/internal/model/request"
+	"server/pkg/global"
 	"time"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
 type JWT struct {
@@ -52,7 +53,7 @@ func (j *JWT) CreateAccessToken(claims request.JwtCustomClaims) (string, error) 
 func (j *JWT) CreateRefreshClaims(baseClaims request.BaseClaims) request.JwtCustomRefreshClaims {
 	ep, _ := ParseDuration(global.Config.Jwt.RefreshTokenExpiryTime) // 获取过期时间
 	claims := request.JwtCustomRefreshClaims{
-		UserID: baseClaims.UserID, // 用户 ID
+		UUID: baseClaims.UUID, // 使用 UUID
 		RegisteredClaims: jwt.RegisteredClaims{
 			Audience:  jwt.ClaimStrings{"TAP"},                // 受众
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(ep)), // 过期时间

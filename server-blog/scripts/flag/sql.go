@@ -3,6 +3,7 @@ package flag
 import (
 	"server/pkg/global"
 	"server/internal/model/database"
+	"server/internal/model"
 )
 
 // SQL 表结构迁移，如果表不存在，它会创建新表；如果表已经存在，它会根据结构更新表
@@ -20,5 +21,10 @@ func SQL() error {
 		&database.JwtBlacklist{},
 		&database.Login{},
 		&database.User{},
+		// Emoji相关表
+		&model.Emoji{},
+		&model.EmojiGroup{},
+		&model.EmojiSprite{},
+		&model.EmojiTask{},
 	)
 }

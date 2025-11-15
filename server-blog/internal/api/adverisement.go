@@ -1,11 +1,14 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-	"server/pkg/global"
+	"server/internal/model/database"
 	"server/internal/model/request"
 	"server/internal/model/response"
+	"server/pkg/global"
+	"server/pkg/utils"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type AdvertisementApi struct {
@@ -18,6 +21,10 @@ func (advertisementApi *AdvertisementApi) AdvertisementInfo(c *gin.Context) {
 		global.Log.Error("Failed to get advertisement information:", zap.Error(err))
 		response.FailWithMessage("Failed to get advertisement information", c)
 		return
+	}
+	// 拼接 AdImage 的对外 URL
+	for i := range list {
+		list[i].AdImage = utils.PublicURLFromDB(list[i].AdImage)
 	}
 	response.OkWithData(response.AdvertisementInfo{
 		List:  list,
@@ -93,6 +100,14 @@ func (advertisementApi *AdvertisementApi) AdvertisementList(c *gin.Context) {
 		global.Log.Error("Failed to get advertisement list:", zap.Error(err))
 		response.FailWithMessage("Failed to get advertisement list", c)
 		return
+	}
+	// 拼接 AdImage 的对外 URL
+	switch items := list.(type) {
+	case []database.Advertisement:
+		for i := range items {
+			items[i].AdImage = utils.PublicURLFromDB(items[i].AdImage)
+		}
+		list = items
 	}
 	response.OkWithData(response.PageResult{
 		List:  list,

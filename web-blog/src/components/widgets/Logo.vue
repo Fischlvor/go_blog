@@ -1,7 +1,7 @@
 <template>
   <div class="logo">
     <el-image
-        :src="websiteStore.state.websiteInfo.logo===''?'/image/logo.svg':websiteStore.state.websiteInfo.logo"
+        :src="websiteStore.state.websiteInfo.logo===''?'https://image.hsk423.cn/blog/96d6f2e7e1f705ab5e59c84a6dc009b2-20251111150013.svg':websiteStore.state.websiteInfo.logo"
         alt=""/>
     <div class="brand-info">
       <div>{{ websiteStore.state.websiteInfo.slogan }}</div>

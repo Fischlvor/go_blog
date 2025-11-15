@@ -12,7 +12,7 @@ import (
 // AuthorizationCode 授权码存储结构
 type AuthorizationCode struct {
 	Code         string
-	UserID       uint
+	UserUUID     string
 	AppID        string
 	RedirectURI  string
 	ExpiresAt    time.Time
@@ -20,8 +20,8 @@ type AuthorizationCode struct {
 	RefreshToken string
 }
 
-// GenerateAuthorizationCode 生成授权码
-func GenerateAuthorizationCode(userID uint, appID, redirectURI, accessToken, refreshToken string) (string, error) {
+// GenerateAuthorizationCodeByUUID 生成授权码（使用UUID）
+func GenerateAuthorizationCodeByUUID(userUUID, appID, redirectURI, accessToken, refreshToken string) (string, error) {
 	// 生成随机授权码
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
@@ -35,7 +35,7 @@ func GenerateAuthorizationCode(userID uint, appID, redirectURI, accessToken, ref
 	// ✅ 使用JSON序列化存储（支持特殊字符）
 	authCode := &AuthorizationCode{
 		Code:         code,
-		UserID:       userID,
+		UserUUID:     userUUID,
 		AppID:        appID,
 		RedirectURI:  redirectURI,
 		ExpiresAt:    time.Now().Add(5 * time.Minute),

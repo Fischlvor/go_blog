@@ -1,11 +1,11 @@
 package service
 
 import (
-	"server/pkg/global"
 	"server/internal/model/appTypes"
 	"server/internal/model/database"
 	"server/internal/model/other"
 	"server/internal/model/request"
+	"server/pkg/global"
 	"server/pkg/utils"
 )
 
@@ -41,11 +41,11 @@ func (websiteService *WebsiteService) WebsiteFooterLink() []database.FooterLink 
 }
 
 func (websiteService *WebsiteService) WebsiteAddCarousel(req request.WebsiteCarouselOperation) error {
-	return utils.ChangeImagesCategory(global.DB, []string{req.Url}, appTypes.Carousel)
+	return utils.ChangeImagesCategory(global.DB, []string{utils.DBURLFromPublic(req.Url)}, appTypes.Carousel)
 }
 
 func (websiteService *WebsiteService) WebsiteCancelCarousel(req request.WebsiteCarouselOperation) error {
-	return utils.InitImagesCategory(global.DB, []string{req.Url})
+	return utils.InitImagesCategory(global.DB, []string{utils.DBURLFromPublic(req.Url)})
 }
 
 func (websiteService *WebsiteService) WebsiteCreateFooterLink(req database.FooterLink) error {

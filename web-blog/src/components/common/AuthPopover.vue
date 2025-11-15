@@ -67,10 +67,13 @@ const handleStateChangePopover = () => {
 const handleClickOutside = (event: MouseEvent) => {
   const popover = document.querySelector('.el-popover');
   const reference = document.querySelector('.clickable-avatar');
+  const popoverContent = document.querySelector('.user-popover-content');
 
+  // 如果点击的是弹窗内容区域内的元素，不关闭弹窗
   if (popoverContainer.value &&
       !popover?.contains(event.target as Node) &&
-      !reference?.contains(event.target as Node)) {
+      !reference?.contains(event.target as Node) &&
+      !popoverContent?.contains(event.target as Node)) {
     layoutStore.hide('popoverVisible');
   }
 };
