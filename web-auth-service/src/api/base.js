@@ -1,21 +1,20 @@
-import axios from 'axios'
+import request from '../utils/request'
 
 // 获取验证码
 export const getCaptcha = () => {
-  return axios.get('/api/base/captcha')
+  return request.get('/base/captcha')
 }
 
 // 获取QQ登录URL
-export const getQQLoginURL = (appId, state) => {
-  const params = { app_id: appId }
+export const getQQLoginURL = (redirectURL, state) => {
+  const params = { redirect_url: redirectURL }
   if (state) {
     params.state = state
   }
-  return axios.get('/api/base/qqLoginURL', { params })
+  return request.get('/base/qqLoginURL', { params })
 }
 
 // 发送邮箱验证码
 export const sendEmailVerificationCode = (data) => {
-  return axios.post('/api/auth/sendEmailVerificationCode', data)
+  return request.post('/auth/sendEmailVerificationCode', data)
 }
-

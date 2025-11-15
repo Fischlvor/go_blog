@@ -31,9 +31,8 @@ class EmojiParser {
       await this.loadMapping()
       
       this.isInitialized = true
-      console.log('✅ EmojiParser 初始化完成')
     } catch (error) {
-      console.error('❌ EmojiParser 初始化失败:', error)
+      console.error('EmojiParser 初始化失败:', error)
       throw error
     }
   }
@@ -53,10 +52,8 @@ class EmojiParser {
       for (const [oldKey, newKey] of Object.entries(this.emojiMapping)) {
         this.reverseMapping[newKey] = oldKey
       }
-
-      console.log(`✅ 已加载 ${Object.keys(this.emojiMapping).length} 个emoji映射`)
     } catch (error) {
-      console.error('❌ 加载emoji映射失败:', error)
+      console.error('加载emoji映射失败:', error)
       throw error
     }
   }
@@ -261,17 +258,11 @@ class EmojiParser {
    */
   async hotUpdate(): Promise<boolean> {
     try {
-      console.log('🔄 检查emoji映射更新...')
-      
       // 重新加载映射表
       await this.loadMapping()
       
       // 触发样式管理器热更新
       const updated = await emojiStyleManager.hotUpdate()
-      
-      if (updated) {
-        console.log('✅ Emoji映射热更新完成')
-      }
       
       return updated
     } catch (error) {
