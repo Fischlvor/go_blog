@@ -1,0 +1,26 @@
+# 配置文件
+configs/config.yaml
+configs/config.prod.yaml
+
+# 日志文件
+log/
+
+# 上传文件
+uploads/
+
+# 可执行文件
+main
+
+# 密钥与证书
+keys/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
