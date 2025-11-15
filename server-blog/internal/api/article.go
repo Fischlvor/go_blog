@@ -1,12 +1,13 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-	"server/pkg/global"
 	"server/internal/model/request"
 	"server/internal/model/response"
+	"server/pkg/global"
 	"server/pkg/utils"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type ArticleApi struct {
@@ -82,7 +83,7 @@ func (articleApi *ArticleApi) ArticleLike(c *gin.Context) {
 		return
 	}
 
-	req.UserID = utils.GetUserID(c)
+	req.UserUUID = utils.GetUUID(c)
 	err = articleService.ArticleLike(req)
 	if err != nil {
 		global.Log.Error("Failed to complete the operation:", zap.Error(err))
@@ -101,7 +102,7 @@ func (articleApi *ArticleApi) ArticleIsLike(c *gin.Context) {
 		return
 	}
 
-	req.UserID = utils.GetUserID(c)
+	req.UserUUID = utils.GetUUID(c)
 	isLike, err := articleService.ArticleIsLike(req)
 	if err != nil {
 		global.Log.Error("Failed to get like status:", zap.Error(err))
@@ -120,7 +121,7 @@ func (articleApi *ArticleApi) ArticleLikesList(c *gin.Context) {
 		return
 	}
 
-	pageInfo.UserID = utils.GetUserID(c)
+	pageInfo.UserUUID = utils.GetUUID(c)
 	list, total, err := articleService.ArticleLikesList(pageInfo)
 	if err != nil {
 		global.Log.Error("Failed to get likes list:", zap.Error(err))

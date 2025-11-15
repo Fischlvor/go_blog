@@ -2,15 +2,16 @@ package service
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/gofrs/uuid"
-	"gorm.io/gorm"
-	"server/pkg/global"
 	"server/internal/model/appTypes"
 	"server/internal/model/database"
 	"server/internal/model/other"
 	"server/internal/model/request"
+	"server/pkg/global"
 	"server/pkg/utils"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
+	"gorm.io/gorm"
 )
 
 type CommentService struct {
@@ -31,6 +32,8 @@ func (commentService *CommentService) CommentInfoByArticleID(req request.Comment
 		if err := commentService.LoadChildren(&comments[i]); err != nil {
 			return nil, err
 		}
+		// 递归规范化头像 URL
+		commentService.normalizeCommentAvatars(&comments[i])
 	}
 
 	return comments, nil
@@ -43,6 +46,10 @@ func (commentService *CommentService) CommentNew() ([]database.Comment, error) {
 	}).Find(&comments).Error
 	if err != nil {
 		return nil, err
+	}
+	// 规范化顶层头像 URL（该接口不含子评论）
+	for i := range comments {
+		comments[i].User.Avatar = utils.PublicURLFromDB(comments[i].User.Avatar)
 	}
 	return comments, nil
 }
@@ -94,6 +101,8 @@ func (commentService *CommentService) CommentInfo(uuid uuid.UUID) ([]database.Co
 		if err := commentService.LoadChildren(&rawComments[i]); err != nil {
 			return nil, err
 		}
+		// 递归规范化头像 URL
+		commentService.normalizeCommentAvatars(&rawComments[i])
 	}
 
 	// 评论去重，如果当前评论的子评论存在且为你的评论，就去除子评论；或者说当前评论的父评论存在为你的评论，就去除当前评论

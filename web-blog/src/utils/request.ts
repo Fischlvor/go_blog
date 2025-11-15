@@ -147,6 +147,7 @@ export interface StreamRequestConfig {
     data?: any;
     headers?: Record<string, string>;
     timeout?: number; // 超时时间（毫秒）
+    autoContentType?: boolean; // 是否自动设置Content-Type，默认true
 }
 
 // 流式响应数据接口
@@ -161,6 +162,7 @@ export interface StreamCallbacks {
     onData?: (data: StreamResponseData) => void;
     onComplete?: (data: StreamResponseData) => void;
     onError?: (error: Error) => void;
+    onSSEEvent?: (event: string, data: any) => void; // SSE事件回调
 }
 
 // 通用流式请求方法 - 支持拦截器
@@ -188,13 +190,24 @@ export const streamRequest = (
         xhr.open(config.method?.toUpperCase() || 'POST', fullURL, true);
         
         // 设置默认头部（模拟拦截器行为）
-        xhr.setRequestHeader('Content-Type', 'application/json');
+        // 检查是否需要自动设置Content-Type
+        const isFormData = config.data instanceof FormData;
+        const shouldSetContentType = config.autoContentType !== false && !isFormData;
+        
+        if (shouldSetContentType) {
+            xhr.setRequestHeader('Content-Type', 'application/json');
+        }
+        
         // ✅ SSO模式：使用 Authorization: Bearer <token>
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         
         // 设置自定义头部
         if (config.headers) {
             Object.entries(config.headers).forEach(([key, value]) => {
+                // 如果是FormData且用户没有显式设置Content-Type，跳过设置
+                if (isFormData && key.toLowerCase() === 'content-type' && !value) {
+                    return;
+                }
                 xhr.setRequestHeader(key, value);
             });
         }
@@ -236,11 +249,55 @@ export const streamRequest = (
                 const newData = xhr.responseText.substring(buffer.length);
                 buffer = xhr.responseText;
                 
-                // 处理SSE数据
+                // 处理流式数据 - 支持两种格式
                 const lines = newData.split('\n');
+                let currentEvent = '';
                 
                 for (const line of lines) {
-                    if (line.startsWith('data: ')) {
+                    // SSE格式处理
+                    if (callbacks.onSSEEvent) {
+                        if (line.startsWith('event:')) {
+                            currentEvent = line.substring(6).trim();
+                        } else if (line.startsWith('data:')) {
+                            const jsonStr = line.substring(5).trim();
+                            if (!jsonStr) continue; // 跳过空数据行
+                            
+                            try {
+                                const data = JSON.parse(jsonStr);
+                                callbacks.onSSEEvent(currentEvent, data);
+                                
+                                // 检查是否是完成事件 - 只标记完成，不立即abort
+                                if (currentEvent === 'complete') {
+                                    if (timeoutId) clearTimeout(timeoutId);
+                                    callbacks.onComplete?.({ ...data, is_complete: true });
+                                    // 延迟abort，让complete事件在应用层处理完成
+                                    setTimeout(() => {
+                                        if (!isAborted) {
+                                            isAborted = true;
+                                            xhr.abort();
+                                            resolve();
+                                        }
+                                    }, 2000); // 增加延迟时间到2秒
+                                }
+                            } catch (e) {
+                                console.warn('解析SSE数据失败:', e, 'event:', currentEvent, 'data:', jsonStr);
+                                // 如果是complete事件解析失败，仍然尝试处理
+                                if (currentEvent === 'complete') {
+                                    console.log('complete事件解析失败，尝试强制完成');
+                                    if (timeoutId) clearTimeout(timeoutId);
+                                    isAborted = true;
+                                    callbacks.onComplete?.({ is_complete: true });
+                                    setTimeout(() => {
+                                        xhr.abort();
+                                        resolve();
+                                    }, 100);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    // 传统格式处理（向后兼容）
+                    else if (line.startsWith('data: ')) {
                         const data = line.slice(6); // 移除 'data: ' 前缀
                         
                         try {
@@ -249,10 +306,15 @@ export const streamRequest = (
                             // 检查是否是完成事件
                             if (parsed.event_id === 2 || parsed.is_complete) {
                                 if (timeoutId) clearTimeout(timeoutId);
-                                isAborted = true; // 标记为主动abort
                                 callbacks.onComplete?.(parsed);
-                                xhr.abort(); // 主动结束请求
-                                resolve();
+                                // 延迟abort，确保完成事件处理完成
+                                setTimeout(() => {
+                                    if (!isAborted) {
+                                        isAborted = true; // 标记为主动abort
+                                        xhr.abort(); // 主动结束请求
+                                        resolve();
+                                    }
+                                }, 2000);
                                 return;
                             } else {
                                 callbacks.onData?.(parsed);
@@ -303,7 +365,12 @@ export const streamRequest = (
 
         // 发送请求
         if (config.data) {
-            xhr.send(JSON.stringify(config.data));
+            // 如果是FormData，直接发送；否则JSON序列化
+            if (config.data instanceof FormData) {
+                xhr.send(config.data);
+            } else {
+                xhr.send(JSON.stringify(config.data));
+            }
         } else {
             xhr.send();
         }

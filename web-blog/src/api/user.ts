@@ -190,7 +190,7 @@ export interface UserLoginListRequest extends PageInfo {
 }
 
 export interface Login extends Model {
-    user_id: string;
+    user_uuid: string;
     user: User;
     login_method: string;
     ip: string;

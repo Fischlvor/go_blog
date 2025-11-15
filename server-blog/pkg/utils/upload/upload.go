@@ -2,8 +2,8 @@ package upload
 
 import (
 	"mime/multipart"
-	"server/pkg/global"
 	"server/internal/model/appTypes"
+	"server/pkg/global"
 )
 
 // WhiteImageList 定义一个白名单映射，包含支持的图片文件类型
@@ -21,6 +21,7 @@ var WhiteImageList = map[string]struct{}{
 // OSS 对象存储接口定义，规定了文件上传和删除方法
 type OSS interface {
 	UploadImage(file *multipart.FileHeader) (string, string, error)
+	UploadImageWithPrefix(file *multipart.FileHeader, pathPrefix string) (string, string, error)
 	DeleteImage(key string) error
 }
 

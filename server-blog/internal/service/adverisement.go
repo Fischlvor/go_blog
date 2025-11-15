@@ -1,13 +1,14 @@
 package service
 
 import (
-	"gorm.io/gorm"
-	"server/pkg/global"
 	"server/internal/model/appTypes"
 	"server/internal/model/database"
 	"server/internal/model/other"
 	"server/internal/model/request"
+	"server/pkg/global"
 	"server/pkg/utils"
+
+	"gorm.io/gorm"
 )
 
 type AdvertisementService struct {
@@ -23,7 +24,7 @@ func (advertisementService *AdvertisementService) AdvertisementInfo() (ads []dat
 
 func (advertisementService *AdvertisementService) AdvertisementCreate(req request.AdvertisementCreate) error {
 	advertisementToCreate := database.Advertisement{
-		AdImage: req.AdImage,
+		AdImage: utils.DBURLFromPublic(req.AdImage),
 		Link:    req.Link,
 		Title:   req.Title,
 		Content: req.Content,

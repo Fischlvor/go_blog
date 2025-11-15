@@ -1,11 +1,14 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-	"server/pkg/global"
+	"server/internal/model/database"
 	"server/internal/model/request"
 	"server/internal/model/response"
+	"server/pkg/global"
+	"server/pkg/utils"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type FriendLinkApi struct {
@@ -19,10 +22,15 @@ func (friendLinkApi *FriendLinkApi) FriendLinkInfo(c *gin.Context) {
 		response.FailWithMessage("Failed to get friend link information", c)
 		return
 	}
-	response.OkWithData(response.FriendLinkInfo{
+	// 拼接 Logo 的对外 URL
+	for i := range list {
+		list[i].Logo = utils.PublicURLFromDB(list[i].Logo)
+	}
+	resp := response.FriendLinkInfo{
 		List:  list,
 		Total: total,
-	}, c)
+	}
+	response.OkWithData(resp, c)
 }
 
 // FriendLinkCreate 创建友链
@@ -93,6 +101,14 @@ func (friendLinkApi *FriendLinkApi) FriendLinkList(c *gin.Context) {
 		global.Log.Error("Failed to get friend link list:", zap.Error(err))
 		response.FailWithMessage("Failed to get friend link list", c)
 		return
+	}
+	// 拼接 Logo 的对外 URL
+	switch items := list.(type) {
+	case []database.FriendLink:
+		for i := range items {
+			items[i].Logo = utils.PublicURLFromDB(items[i].Logo)
+		}
+		list = items
 	}
 	response.OkWithData(response.PageResult{
 		List:  list,

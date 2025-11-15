@@ -41,12 +41,22 @@
                       <el-avatar src="/emoji/s14.png" @click="changeEmojiListState"/>
                     </template>
                     <template #default>
-                      <div> <!-- 新增包裹容器 -->
-                        <el-image
-                            v-for="emoji in emojiList"
-                            :src="'/emoji/'+emoji"
+                      <div class="emoji-grid"> <!-- 新增包裹容器 -->
+                        <div
+                            v-for="emoji in visibleEmojis"
+                            :key="emoji.newKey"
+                            class="emoji-item"
+                            :class="[
+                              'emoji',
+                              `emoji-sprite-${emoji.spriteGroup}`,
+                              `emoji-${emoji.newKey}`
+                            ]"
+                            :title="`${emoji.oldKey} -> ${emoji.newKey}`"
                             @click="insertEmoji(emoji)"
-                        />
+                        ></div>
+                        <div v-if="hasMoreEmojis" @click="loadMoreEmojis" class="load-more-btn">
+                          加载更多...
+                        </div>
                       </div>
                     </template>
                   </el-popover>
@@ -106,6 +116,7 @@ import {articleIsLike, articleLike, type ArticleLikeRequest} from "@/api/article
 import {type Comment, commentCreate, type CommentCreateRequest, commentInfoByArticleID} from "@/api/comment";
 import {useLayoutStore} from "@/stores/layout";
 import {useUserStore} from "@/stores/user";
+import { parseEmojis, renderTextWithEmojisForText, getAllEmojis, type EmojiInfo } from '@/utils/emojiParser'
 
 const mdID = "md-id"
 
@@ -132,13 +143,20 @@ const articleID = computed(() => route.params.id)
 
 const layoutStore = useLayoutStore()
 
+// 将内容中的 :emoji: 标记解析并渲染为雪碧图 span
+const renderContentWithEmojis = async (text: string): Promise<string> => {
+  if (!text) return text
+  const parsed = await parseEmojis(text)
+  return await renderTextWithEmojisForText(parsed)
+}
+
 const openEmojiList = () => {
   layoutStore.show("emojiPopoverVisible") // 关闭表情弹框
   console.log(layoutStore.state.emojiPopoverVisible)
 }
 
-const insertEmoji = (emoji: string) => {
-  content.value = content.value + '![](' + '/emoji/' + emoji + ')'
+const insertEmoji = (emoji: EmojiInfo) => {
+  content.value = content.value + `:emoji:${emoji.newKey}:`
   layoutStore.hide("emojiPopoverVisible") // 关闭表情弹框
   console.log(layoutStore.state.emojiPopoverVisible)
 }
@@ -151,7 +169,9 @@ const changeEmojiListState = () => {
 const getArticleInfo = async () => {
   const res = await articleInfoByID(articleID.value as string)
   if (res.code === 0) {
-    articleInfo.value = res.data
+    const data = res.data
+    data.content = await renderContentWithEmojis(data.content || '')
+    articleInfo.value = data
   } else {
     await router.push({name: "404"})
   }
@@ -189,19 +209,47 @@ const handelLike = async () => {
 
 const content = ref('')
 
-const emojiList = ref<string[]>([]);
+const emojiList = ref<EmojiInfo[]>([]);
+const visibleEmojis = ref<EmojiInfo[]>([]);
+const currentPage = ref(0);
+const pageSize = 48;
+
 onMounted(async () => {
   try {
-    const response = await fetch('/emoji/emoji_cache.txt');
-    if (!response.ok) throw new Error('Failed to fetch emoji list');
-
-    const text = await response.text();
-    emojiList.value = text.split('\n').filter(line => line.trim() !== '');
+    // 使用新的emoji解析工具
+    emojiList.value = await getAllEmojis();
+    loadMoreEmojis();
   } catch (error) {
-    console.error('Error loading emoji cache:', error);
-    // Fallback to default numbers if needed
-    //emojiList.value = Array.from({ length: 349 }, (_, i) => `s${i}.png`);
+    console.error('Error loading emoji list:', error);
+    // 降级到旧方式
+    const response = await fetch('/emoji/emoji_cache.txt');
+    if (response.ok) {
+      const text = await response.text();
+      const oldEmojiList = text.split('\n').filter(line => line.trim() !== '');
+      // 转换为新格式（临时兼容）
+      emojiList.value = oldEmojiList.map((filename, index) => ({
+        oldKey: filename.replace('.png', ''),
+        newKey: `e${index}`,
+        spriteGroup: Math.floor(index / 128),
+        index: index % 128
+      }));
+      loadMoreEmojis();
+    }
   }
+});
+
+const loadMoreEmojis = () => {
+  const startIndex = currentPage.value * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, emojiList.value.length);
+  
+  const newEmojis = emojiList.value.slice(startIndex, endIndex);
+  visibleEmojis.value.push(...newEmojis);
+  
+  currentPage.value++;
+};
+
+const hasMoreEmojis = computed(() => {
+  return visibleEmojis.value.length < emojiList.value.length;
 });
 
 const submitComment = async () => {
@@ -220,11 +268,25 @@ const submitComment = async () => {
 
 const comments = ref<Comment[]>([])
 
+// 递归处理评论及其子评论中的 emoji 标记
+const transformCommentsWithEmojis = async (list: Comment[]): Promise<Comment[]> => {
+  const result: Comment[] = []
+  for (const item of list) {
+    const transformed: Comment = { ...item }
+    transformed.content = await renderContentWithEmojis(item.content || '')
+    if (item.children && item.children.length) {
+      transformed.children = await transformCommentsWithEmojis(item.children)
+    }
+    result.push(transformed)
+  }
+  return result
+}
+
 const getArticleCommentsInfo = async () => {
   comments.value = []
   const res = await commentInfoByArticleID(articleID.value as string)
   if (res.code === 0) {
-    comments.value = res.data
+    comments.value = await transformCommentsWithEmojis(res.data)
   }
 }
 
@@ -239,6 +301,49 @@ watch(() => layoutStore.state.shouldRefreshCommentList, (newVal) => {
   }
 })
 </script>
+
+<style scoped>
+/* Emoji选择器样式 */
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+  padding: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.emoji-item {
+  width: 32px !important;
+  height: 32px !important;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  /* background-size继承全局CSS */
+}
+
+.emoji-item:hover {
+  background-color: #f0f9ff;
+  transform: scale(1.2);
+}
+
+.load-more-btn {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 8px;
+  cursor: pointer;
+  color: #409eff;
+  border: 1px dashed #409eff;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.load-more-btn:hover {
+  background-color: #f0f9ff;
+}
+
+/* Emoji样式已全局导入，这里只保留组件特定样式 */
+</style>
 
 <style scoped lang="scss">
 .article {

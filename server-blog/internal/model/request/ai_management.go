@@ -10,8 +10,8 @@ type AIModelListRequest struct {
 // AISessionListRequest AI会话列表查询请求
 type AISessionListRequest struct {
 	PageInfo
-	UserID string `json:"user_id" form:"user_id"` // 用户ID
-	Model  string `json:"model" form:"model"`     // 模型名称
+	UserUUID string `json:"user_uuid" form:"user_uuid"` // 用户UUID
+	Model    string `json:"model" form:"model"`         // 模型名称
 }
 
 // AIMessageListRequest AI消息列表查询请求

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 )
 
 // AuthMiddleware JWT认证中间件
@@ -59,7 +60,6 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// 将用户信息存入context
-		c.Set("user_id", claims.UserID)
 		c.Set("user_uuid", claims.UserUUID)
 		c.Set("app_id", claims.AppID)
 		c.Set("device_id", claims.DeviceID)
@@ -68,12 +68,12 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-// GetUserID 从context获取用户ID
-func GetUserID(c *gin.Context) uint {
-	if userID, exists := c.Get("user_id"); exists {
-		return userID.(uint)
+// GetUserUUID 从context获取用户UUID
+func GetUserUUID(c *gin.Context) uuid.UUID {
+	if u, exists := c.Get("user_uuid"); exists {
+		return u.(uuid.UUID)
 	}
-	return 0
+	return uuid.Nil
 }
 
 // GetDeviceID 从context获取设备ID

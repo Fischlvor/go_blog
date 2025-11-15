@@ -2,16 +2,17 @@ package api
 
 import (
 	"errors"
+	"server/internal/model/database"
+	"server/internal/model/request"
+	"server/internal/model/response"
+	"server/pkg/global"
+	"server/pkg/utils"
+	"time"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"go.uber.org/zap"
-	"server/pkg/global"
-	"server/internal/model/database"
-	"server/internal/model/request"
-	"server/internal/model/response"
-	"server/pkg/utils"
-	"time"
 )
 
 type UserApi struct {
@@ -135,7 +136,6 @@ func (userApi *UserApi) TokenNext(c *gin.Context, user database.User) {
 	}
 
 	baseClaims := request.BaseClaims{
-		UserID: user.ID,
 		UUID:   user.UUID,
 		RoleID: user.RoleID,
 	}
@@ -164,9 +164,9 @@ func (userApi *UserApi) TokenNext(c *gin.Context, user database.User) {
 	//fmt.Println(errors.Is(err, redis.Nil), global.Config.System.UseMultipoint, "!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	// 是否开启了多地点登录拦截
 	if global.Config.System.UseMultipoint {
-		//// 设置刷新令牌并返回
+		//// 设置刷新令牌并返回（已改为使用 UUID）
 		//utils.SetRefreshToken(c, refreshToken, int(refreshClaims.ExpiresAt.Unix()-time.Now().Unix()))
-		//c.Set("user_id", user.ID)
+		//c.Set("user_uuid", user.UUID)
 		//response.OkWithDetailed(response.Login{
 		//	User:                 user,
 		//	AccessToken:          accessToken,
@@ -192,7 +192,7 @@ func (userApi *UserApi) TokenNext(c *gin.Context, user database.User) {
 
 		// 设置刷新令牌并返回
 		utils.SetRefreshToken(c, refreshToken, int(refreshClaims.ExpiresAt.Unix()-time.Now().Unix()))
-		c.Set("user_id", user.ID)
+		c.Set("user_uuid", user.UUID)
 		response.OkWithDetailed(response.Login{
 			User:                 user,
 			AccessToken:          accessToken,
@@ -221,7 +221,7 @@ func (userApi *UserApi) TokenNext(c *gin.Context, user database.User) {
 
 		// 设置刷新令牌并返回
 		utils.SetRefreshToken(c, refreshToken, int(refreshClaims.ExpiresAt.Unix()-time.Now().Unix()))
-		c.Set("user_id", user.ID)
+		c.Set("user_uuid", user.UUID)
 		response.OkWithDetailed(response.Login{
 			User:                 user,
 			AccessToken:          accessToken,
@@ -302,7 +302,7 @@ func (userApi *UserApi) UserResetPassword(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	req.UserID = utils.GetUserID(c)
+	req.UserUUID = utils.GetUUID(c)
 	err = userService.UserResetPassword(req)
 	if err != nil {
 		global.Log.Error("Failed to modify:", zap.Error(err))
@@ -315,13 +315,15 @@ func (userApi *UserApi) UserResetPassword(c *gin.Context) {
 
 // UserInfo 获取个人信息
 func (userApi *UserApi) UserInfo(c *gin.Context) {
-	userID := utils.GetUserID(c)
-	user, err := userService.UserInfo(userID)
+	userUUID := utils.GetUUID(c)
+	user, err := userService.UserInfoByUUID(userUUID)
 	if err != nil {
 		global.Log.Error("Failed to get user information:", zap.Error(err))
 		response.FailWithMessage("Failed to get user information", c)
 		return
 	}
+	// 拼接头像域名（qiniu 下）
+	user.Avatar = utils.PublicURLFromDB(user.Avatar)
 	response.OkWithData(user, c)
 }
 
@@ -333,7 +335,7 @@ func (userApi *UserApi) UserChangeInfo(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	req.UserID = utils.GetUserID(c)
+	req.UserUUID = utils.GetUUID(c)
 	err = userService.UserChangeInfo(req)
 	if err != nil {
 		global.Log.Error("Failed to change user information:", zap.Error(err))

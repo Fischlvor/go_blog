@@ -12,6 +12,8 @@ import 'element-plus/dist/index.css'
 import 'md-editor-v3/lib/style.css'
 import 'md-editor-v3/lib/preview.css'
 
+// Emoji样式现在通过动态加载管理
+
 const app = createApp(App)
 
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {

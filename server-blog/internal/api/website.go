@@ -1,14 +1,16 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"net/http"
-	"server/pkg/global"
 	"server/internal/model/database"
 	"server/internal/model/request"
 	"server/internal/model/response"
+	"server/pkg/global"
+	"server/pkg/utils"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type WebsiteApi struct {
@@ -36,7 +38,7 @@ func (website *WebsiteApi) WebsiteInfo(c *gin.Context) {
 // WebsiteCarousel 获取首页背景
 func (website *WebsiteApi) WebsiteCarousel(c *gin.Context) {
 	urls := websiteService.WebsiteCarousel()
-	response.OkWithData(urls, c)
+	response.OkWithData(utils.PublicURLSlice(urls), c)
 }
 
 // WebsiteNews 获取新闻

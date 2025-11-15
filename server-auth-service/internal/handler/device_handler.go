@@ -6,6 +6,7 @@ import (
 	"auth-service/pkg/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 )
 
 type DeviceHandler struct {
@@ -20,11 +21,15 @@ func NewDeviceHandler() *DeviceHandler {
 
 // GetDevices 获取设备列表
 func (h *DeviceHandler) GetDevices(c *gin.Context) {
-	userID := middleware.GetUserID(c)
+	userUUID := middleware.GetUserUUID(c)
 	currentDeviceID := middleware.GetDeviceID(c)
 	appID := c.Query("app_id") // 可选：指定应用ID
 
-	devices, err := h.deviceService.GetDevices(userID, appID, currentDeviceID)
+	if userUUID == uuid.Nil {
+		utils.Unauthorized(c, "未登录")
+		return
+	}
+	devices, err := h.deviceService.GetDevices(userUUID, appID, currentDeviceID)
 	if err != nil {
 		utils.Error(c, 2001, err.Error())
 		return
@@ -38,7 +43,7 @@ func (h *DeviceHandler) GetDevices(c *gin.Context) {
 
 // KickDevice 踢出设备
 func (h *DeviceHandler) KickDevice(c *gin.Context) {
-	userID := middleware.GetUserID(c)
+	userUUID := middleware.GetUserUUID(c)
 	currentDeviceID := middleware.GetDeviceID(c)
 	deviceID := c.Param("device_id")
 	appID := c.Query("app_id") // 可选：指定应用ID
@@ -48,7 +53,11 @@ func (h *DeviceHandler) KickDevice(c *gin.Context) {
 		return
 	}
 
-	if err := h.deviceService.KickDevice(userID, deviceID, appID, currentDeviceID); err != nil {
+	if userUUID == uuid.Nil {
+		utils.Unauthorized(c, "未登录")
+		return
+	}
+	if err := h.deviceService.KickDevice(userUUID, deviceID, appID, currentDeviceID); err != nil {
 		utils.Error(c, 2002, err.Error())
 		return
 	}

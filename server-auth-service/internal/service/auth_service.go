@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -57,7 +58,7 @@ func (s *AuthService) Register(req request.RegisterRequest) error {
 		PasswordHash:   passwordHash,
 		Email:          req.Email,
 		Nickname:       req.Nickname,
-		Avatar:         "https://image.hsk423.cn/aaca0f5eb4d2d98a6ce6dffa99f8254b-20251108151238.jpg",
+		Avatar:         "https://image.hsk423.cn/blog/aaca0f5eb4d2d98a6ce6dffa99f8254b-20251108151238.jpg",
 		Status:         1,
 		RegisterSource: types.Email, // ✅ 使用枚举
 		IsSuperAdmin:   false,
@@ -110,9 +111,26 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 		return nil, err
 	}
 
-	// 验证密码
-	if !crypto.CheckPassword(req.Password, user.PasswordHash) {
-		return nil, errors.New("邮箱或密码错误")
+	// 根据登录方式验证
+	if req.Password != "" {
+		// 密码登录：验证密码
+		if !crypto.CheckPassword(req.Password, user.PasswordHash) {
+			return nil, errors.New("邮箱或密码错误")
+		}
+	} else if req.VerificationCode != "" {
+		// 验证码登录：验证邮箱验证码
+		key := fmt.Sprintf("email_verification_code:%s", req.Email)
+		storedCode, err := global.Redis.Get(key).Result()
+		if err != nil {
+			return nil, errors.New("验证码已过期或不存在")
+		}
+		if storedCode != req.VerificationCode {
+			return nil, errors.New("验证码错误")
+		}
+		// 验证成功后删除验证码（一次性使用）
+		global.Redis.Del(key)
+	} else {
+		return nil, errors.New("请提供密码或邮箱验证码")
 	}
 
 	// 检查用户状态
@@ -150,14 +168,14 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 
 	// 检查该设备是否已存在（用户+应用+设备的组合唯一）
 	var existDevice entity.SSODevice
-	err = global.DB.Where("user_id = ? AND app_id = ? AND device_id = ?", user.ID, app.ID, deviceID).First(&existDevice).Error
+	err = global.DB.Where("user_uuid = ? AND app_id = ? AND device_id = ?", user.UUID, app.ID, deviceID).First(&existDevice).Error
 	isNewDevice := errors.Is(err, gorm.ErrRecordNotFound)
 
 	if isNewDevice {
 		// 新设备，检查设备数量
 		var deviceCount int64
 		global.DB.Model(&entity.SSODevice{}).
-			Where("user_id = ? AND app_id = ? AND status = 1", user.ID, app.ID).
+			Where("user_uuid = ? AND app_id = ? AND status = 1", user.UUID, app.ID).
 			Count(&deviceCount)
 
 		if int(deviceCount) >= app.MaxDevices {
@@ -166,7 +184,7 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 
 		// 创建新设备
 		device := entity.SSODevice{
-			UserID:       user.ID,
+			UserUUID:     user.UUID,
 			AppID:        app.ID,
 			DeviceID:     deviceID,
 			DeviceName:   req.DeviceName,
@@ -196,7 +214,6 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 	refreshTokenDuration, _ := utils.ParseDuration(global.Config.JWT.RefreshTokenExpiryTime)
 
 	accessToken, err := jwt.CreateAccessToken(
-		user.ID,
 		user.UUID,
 		req.AppID,
 		deviceID,
@@ -209,7 +226,7 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 	}
 
 	refreshToken, err := jwt.CreateRefreshToken(
-		user.ID,
+		user.UUID,
 		req.AppID,
 		deviceID,
 		refreshTokenDuration,
@@ -221,12 +238,12 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 	}
 
 	// 将RefreshToken存储到Redis（用于撤销检查）
-	refreshTokenKey := fmt.Sprintf("refresh_token:%d:%s", user.ID, deviceID)
+	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", user.UUID.String(), deviceID)
 	global.Redis.Set(refreshTokenKey, refreshToken, refreshTokenDuration)
 
 	// 记录登录日志
 	loginLog := entity.SSOLoginLog{
-		UserID:    user.ID,
+		UserUUID:  user.UUID,
 		AppID:     app.ID,
 		Action:    "login",
 		DeviceID:  deviceID,
@@ -243,7 +260,6 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 		TokenType:    "Bearer",
 		ExpiresIn:    int(accessTokenDuration.Seconds()),
 		UserInfo: &response.UserInfo{
-			UserID:    user.ID,
 			UUID:      user.UUID.String(),
 			Nickname:  user.Nickname,
 			Avatar:    user.Avatar,
@@ -275,7 +291,7 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 	}
 
 	// 检查Redis中是否存在（未被撤销）
-	refreshTokenKey := fmt.Sprintf("refresh_token:%d:%s", claims.UserID, claims.DeviceID)
+	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", claims.UserUUID.String(), claims.DeviceID)
 	storedToken, err := global.Redis.Get(refreshTokenKey).Result()
 	if err != nil || storedToken != req.RefreshToken {
 		return nil, errors.New("refresh_token已被撤销，请重新登录")
@@ -283,7 +299,7 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 
 	// 检查用户状态
 	var user entity.SSOUser
-	if err := global.DB.First(&user, claims.UserID).Error; err != nil {
+	if err := global.DB.Where("uuid = ?", claims.UserUUID).First(&user).Error; err != nil {
 		return nil, errors.New("用户不存在")
 	}
 	if user.Status != 1 {
@@ -292,7 +308,7 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 
 	// 检查设备状态
 	var device entity.SSODevice
-	err = global.DB.Where("user_id = ? AND device_id = ?", claims.UserID, claims.DeviceID).First(&device).Error
+	err = global.DB.Where("user_uuid = ? AND device_id = ?", user.UUID, claims.DeviceID).First(&device).Error
 	if err != nil || device.Status != 1 {
 		return nil, errors.New("设备已被移除")
 	}
@@ -300,7 +316,6 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 	// 生成新的AccessToken
 	accessTokenDuration, _ := utils.ParseDuration(global.Config.JWT.AccessTokenExpiryTime)
 	accessToken, err := jwt.CreateAccessToken(
-		user.ID,
 		user.UUID,
 		claims.AppID,
 		claims.DeviceID,
@@ -315,7 +330,7 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 	// Token轮换：生成新的RefreshToken（可选，更安全）
 	refreshTokenDuration, _ := utils.ParseDuration(global.Config.JWT.RefreshTokenExpiryTime)
 	newRefreshToken, err := jwt.CreateRefreshToken(
-		user.ID,
+		user.UUID,
 		claims.AppID,
 		claims.DeviceID,
 		refreshTokenDuration,
@@ -357,12 +372,12 @@ func (s *AuthService) Logout(accessToken string) error {
 	}
 
 	// 删除RefreshToken
-	refreshTokenKey := fmt.Sprintf("refresh_token:%d:%s", claims.UserID, claims.DeviceID)
+	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", claims.UserUUID.String(), claims.DeviceID)
 	global.Redis.Del(refreshTokenKey)
 
-	// 更新设备状态
+	// 更新设备状态（基于 UUID）
 	global.DB.Model(&entity.SSODevice{}).
-		Where("user_id = ? AND device_id = ?", claims.UserID, claims.DeviceID).
+		Where("user_uuid = ? AND device_id = ?", claims.UserUUID, claims.DeviceID).
 		Update("status", 0)
 
 	// 查询应用ID（用于日志）
@@ -373,7 +388,7 @@ func (s *AuthService) Logout(accessToken string) error {
 
 	// 记录登出日志
 	loginLog := entity.SSOLoginLog{
-		UserID:   claims.UserID,
+		UserUUID: claims.UserUUID,
 		AppID:    logAppID,
 		Action:   "logout",
 		DeviceID: claims.DeviceID,
@@ -385,27 +400,25 @@ func (s *AuthService) Logout(accessToken string) error {
 	return nil
 }
 
-// GetUserInfo 获取用户信息
-func (s *AuthService) GetUserInfo(userID uint) (*response.UserInfo, error) {
+// GetUserInfoByUUID 根据UUID获取用户信息
+func (s *AuthService) GetUserInfoByUUID(userUUID uuid.UUID) (*response.UserInfo, error) {
 	var user entity.SSOUser
-	if err := global.DB.First(&user, userID).Error; err != nil {
+	if err := global.DB.Where("uuid = ?", userUUID).First(&user).Error; err != nil {
 		return nil, errors.New("用户不存在")
 	}
-
 	return &response.UserInfo{
-		UserID:         user.ID,
 		UUID:           user.UUID.String(),
 		Nickname:       user.Nickname,
 		Avatar:         user.Avatar,
 		Email:          user.Email,
 		Address:        user.Address,
 		Signature:      user.Signature,
-		RegisterSource: int(user.RegisterSource), // 注册来源
+		RegisterSource: int(user.RegisterSource),
 	}, nil
 }
 
-// UpdateUserInfo 更新用户信息
-func (s *AuthService) UpdateUserInfo(userID uint, req request.UpdateUserInfoRequest) error {
+// UpdateUserInfoByUUID 更新用户信息
+func (s *AuthService) UpdateUserInfoByUUID(userUUID uuid.UUID, req request.UpdateUserInfoRequest) error {
 	updates := make(map[string]interface{})
 	if req.Nickname != "" {
 		updates["nickname"] = req.Nickname
@@ -424,13 +437,13 @@ func (s *AuthService) UpdateUserInfo(userID uint, req request.UpdateUserInfoRequ
 		return errors.New("没有需要更新的内容")
 	}
 
-	return global.DB.Model(&entity.SSOUser{}).Where("id = ?", userID).Updates(updates).Error
+	return global.DB.Model(&entity.SSOUser{}).Where("uuid = ?", userUUID).Updates(updates).Error
 }
 
-// UpdatePassword 修改密码
-func (s *AuthService) UpdatePassword(userID uint, req request.UpdatePasswordRequest) error {
+// UpdatePasswordByUUID 修改密码
+func (s *AuthService) UpdatePasswordByUUID(userUUID uuid.UUID, req request.UpdatePasswordRequest) error {
 	var user entity.SSOUser
-	if err := global.DB.First(&user, userID).Error; err != nil {
+	if err := global.DB.Where("uuid = ?", userUUID).First(&user).Error; err != nil {
 		return errors.New("用户不存在")
 	}
 
@@ -467,7 +480,6 @@ func (s *AuthService) GetUserByUUID(userUUIDStr string) (*response.UserInfo, err
 	}
 
 	return &response.UserInfo{
-		UserID:         user.ID,
 		UUID:           user.UUID.String(),
 		Nickname:       user.Nickname,
 		Avatar:         user.Avatar,
@@ -476,4 +488,125 @@ func (s *AuthService) GetUserByUUID(userUUIDStr string) (*response.UserInfo, err
 		Signature:      user.Signature,
 		RegisterSource: int(user.RegisterSource), // 注册来源
 	}, nil
+}
+
+// QQLogin QQ登录
+func (s *AuthService) QQLogin(req request.QQLoginRequest, ipAddress, userAgent string) (*response.TokenResponse, error) {
+	// 获取QQ access token
+	qqService := &QQService{}
+	accessTokenResp, err := qqService.GetAccessTokenByCode(req.Code)
+	if err != nil || accessTokenResp.Openid == "" {
+		return nil, errors.New("获取QQ授权失败")
+	}
+
+	// 获取QQ用户信息
+	qqUserInfoResp, err := qqService.GetUserInfoByAccessTokenAndOpenid(accessTokenResp.AccessToken, accessTokenResp.Openid)
+	if err != nil {
+		return nil, errors.New("获取QQ用户信息失败")
+	}
+
+	// 将QQ用户信息转换为map
+	qqUserInfo := map[string]interface{}{
+		"nickname":       qqUserInfoResp.Nickname,
+		"figureurl_qq_2": qqUserInfoResp.FigureurlQQ2,
+	}
+
+	// 调用QQ登录服务
+	deviceID := req.DeviceID
+	if deviceID == "" {
+		deviceID = uuid.Must(uuid.NewV4()).String()
+	}
+
+	return qqService.QQLogin(
+		accessTokenResp.Openid,
+		req.AppID,
+		deviceID,
+		req.DeviceName,
+		req.DeviceType,
+		ipAddress,
+		userAgent,
+		qqUserInfo,
+	)
+}
+
+// SendEmailVerificationCode 发送邮箱验证码
+func (s *AuthService) SendEmailVerificationCode(email string) error {
+	// 生成6位验证码
+	verificationCode := utils.GenerateVerificationCode(6)
+	expireTime := 5 * time.Minute
+
+	// 存储到Redis，key格式：email_verification_code:{email}
+	key := fmt.Sprintf("email_verification_code:%s", email)
+	if err := global.Redis.Set(key, verificationCode, expireTime).Err(); err != nil {
+		return fmt.Errorf("存储验证码失败: %w", err)
+	}
+
+	// 发送邮件
+	subject := "您的邮箱验证码"
+	body := fmt.Sprintf(`<html>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+	<div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+		<h2 style="color: #667eea;">邮箱验证码</h2>
+		<p>亲爱的用户，</p>
+		<p>您正在使用邮箱验证码功能，验证码如下：</p>
+		<div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+			<strong style="font-size: 24px; color: #667eea; letter-spacing: 4px;">%s</strong>
+		</div>
+		<p>该验证码在 <strong>5 分钟</strong>内有效，请尽快使用。</p>
+		<p>如果您没有请求此验证码，请忽略此邮件。</p>
+		<hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+		<p style="color: #999; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
+	</div>
+</body>
+</html>`, verificationCode)
+
+	if err := utils.SendEmail(email, subject, body); err != nil {
+		// 即使邮件发送失败，验证码已经存储到Redis，记录错误但不返回错误
+		// 这样用户仍然可以使用验证码（如果邮件发送成功的话）
+		global.Log.Warn("发送邮件失败", zap.Error(err))
+		// 可以选择是否返回错误，这里选择不返回，因为验证码已经存储
+		// return fmt.Errorf("发送邮件失败: %w", err)
+	}
+
+	return nil
+}
+
+// ForgotPassword 忘记密码
+func (s *AuthService) ForgotPassword(req request.ForgotPasswordRequest) error {
+	// 从Redis获取验证码
+	key := fmt.Sprintf("email_verification_code:%s", req.Email)
+	storedCode, err := global.Redis.Get(key).Result()
+	if err != nil {
+		return errors.New("验证码已过期或不存在")
+	}
+
+	// 验证验证码
+	if storedCode != req.VerificationCode {
+		return errors.New("验证码错误")
+	}
+
+	// 查询用户
+	var user entity.SSOUser
+	if err := global.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("邮箱不存在")
+		}
+		return err
+	}
+
+	// 哈希新密码
+	newPasswordHash, err := crypto.HashPassword(req.NewPassword)
+	if err != nil {
+		return fmt.Errorf("密码加密失败: %w", err)
+	}
+
+	// 更新密码
+	if err := global.DB.Model(&user).Update("password_hash", newPasswordHash).Error; err != nil {
+		return fmt.Errorf("更新密码失败: %w", err)
+	}
+
+	// 删除验证码
+	global.Redis.Del(key)
+
+	return nil
 }

@@ -57,22 +57,22 @@ const newsTypeList: newsTypeItem[] = [
   {
     name: "baidu",
     label: "百度热搜",
-    src: "/image/baidu.png"
+    src: "https://image.hsk423.cn/blog/bfe279945c6109d067bcd295b5189d86-20251111150011.png"
   },
   {
     name: "zhihu",
     label: "知乎热榜",
-    src: "/image/zhihu.png"
+    src: "https://image.hsk423.cn/blog/d2a8a977c944ea7bf717f54255f62c9a-20251111150014.png"
   },
   {
     name: "kuaishou",
     label: "快手热榜",
-    src: "/image/kuaishou.png"
+    src: "https://image.hsk423.cn/blog/e54df970bc4d3c2ab62cf1dfa4b78559-20251111150013.png"
   },
   {
     name: "toutiao",
     label: "头条热榜",
-    src: "/image/toutiao.png"
+    src: "https://image.hsk423.cn/blog/90f456b81afce808c1fcfbd3f5761f65-20251111150014.png"
   }
 ]
 

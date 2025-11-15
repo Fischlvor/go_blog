@@ -44,10 +44,12 @@ func InitRouter() *gin.Engine {
 
 	adminGroup := Router.Group(global.Config.System.RouterPrefix)
 	adminGroup.Use(middleware.SSOJWTAuth()).Use(middleware.AdminAuth())
+
 	// 基础 路由
 	{
 		routerGroup.InitBaseRouter(publicGroup)
 		routerGroup.InitAuthRouter(publicGroup)
+		routerGroup.InitPublicEmojiRouter(publicGroup)
 	}
 	// 功能 路由
 	{
@@ -65,6 +67,7 @@ func InitRouter() *gin.Engine {
 		routerGroup.InitWebsiteRouter(adminGroup, publicGroup)
 		routerGroup.InitConfigRouter(adminGroup)
 		routerGroup.InitAIManagementRouter(adminGroup)
+		routerGroup.InitEmojiRouter(adminGroup)
 	}
 	return Router
 }

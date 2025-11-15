@@ -42,12 +42,22 @@
                 <el-avatar src="/emoji/s14.png" @click="changeEmojiListState"/>
               </template>
               <template #default>
-                <div> <!-- 新增包裹容器 -->
-                  <el-image
-                      v-for="emoji in emojiList"
-                      :src="'/emoji/'+emoji"
+                <div class="emoji-grid"> <!-- 新增包裹容器 -->
+                  <div
+                      v-for="emoji in visibleEmojis"
+                      :key="emoji.newKey"
+                      class="emoji-item"
+                      :class="[
+                        'emoji',
+                        `emoji-sprite-${emoji.spriteGroup}`,
+                        `emoji-${emoji.newKey}`
+                      ]"
+                      :title="`${emoji.oldKey} -> ${emoji.newKey}`"
                       @click="insertEmoji(emoji)"
-                  />
+                  ></div>
+                  <div v-if="hasMoreEmojis" @click="loadMoreEmojis" class="load-more-btn">
+                    加载更多...
+                  </div>
                 </div>
               </template>
             </el-popover>
@@ -73,7 +83,7 @@ import {userCard} from "@/api/user";
 import UserCard from "@/components/widgets/UserCard.vue";
 import {useUserStore} from "@/stores/user";
 import {MdPreview} from "md-editor-v3";
-import {ref, onMounted } from "vue";
+import {ref, onMounted, computed } from "vue";
 import {useLayoutStore} from "@/stores/layout";
 
 defineProps<{
@@ -89,19 +99,34 @@ const getTime = (date: Date): string => {
 const replyFlag = ref(0)
 const content = ref('')
 
-const emojiList = ref<string[]>([]);
+import { getAllEmojis, type EmojiInfo } from '@/utils/emojiParser'
+
+const emojiList = ref<EmojiInfo[]>([]);
+const visibleEmojis = ref<EmojiInfo[]>([]);
+const currentPage = ref(0);
+const pageSize = 48;
+
 onMounted(async () => {
   try {
-    const response = await fetch('/emoji/emoji_cache.txt');
-    if (!response.ok) throw new Error('Failed to fetch emoji list');
-
-    const text = await response.text();
-    emojiList.value = text.split('\n').filter(line => line.trim() !== '');
+    emojiList.value = await getAllEmojis();
+    loadMoreEmojis();
   } catch (error) {
-    console.error('Error loading emoji cache:', error);
-    // Fallback to default numbers if needed
-    //emojiList.value = Array.from({ length: 349 }, (_, i) => `s${i}.png`);
+    console.error('Error loading emoji list:', error);
   }
+});
+
+const loadMoreEmojis = () => {
+  const startIndex = currentPage.value * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, emojiList.value.length);
+  
+  const newEmojis = emojiList.value.slice(startIndex, endIndex);
+  visibleEmojis.value.push(...newEmojis);
+  
+  currentPage.value++;
+};
+
+const hasMoreEmojis = computed(() => {
+  return visibleEmojis.value.length < emojiList.value.length;
 });
 //console.log(emojiList)
 
@@ -112,8 +137,8 @@ const openEmojiList = () => {
   console.log(layoutStore.state.emojiPopoverVisible)
 }
 
-const insertEmoji = (emoji: string) => {
-  content.value = content.value + '![](' + '/emoji/' + emoji + ')'
+const insertEmoji = (emoji: EmojiInfo) => {
+  content.value = content.value + `:emoji:${emoji.newKey}:`
   layoutStore.hide("emojiPopoverVisible") // 关闭表情弹框
   console.log(layoutStore.state.emojiPopoverVisible)
 }
@@ -235,5 +260,46 @@ const handleDelete = async (id: number) => {
     }
   }
 }
+
+/* Emoji选择器样式 */
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+  padding: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.emoji-item {
+  width: 32px !important;
+  height: 32px !important;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  /* background-size继承全局CSS */
+}
+
+.emoji-item:hover {
+  background-color: #f0f9ff;
+  transform: scale(1.2);
+}
+
+.load-more-btn {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 8px;
+  cursor: pointer;
+  color: #409eff;
+  border: 1px dashed #409eff;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.load-more-btn:hover {
+  background-color: #f0f9ff;
+}
+
+/* Emoji样式已全局导入 */
 
 </style>

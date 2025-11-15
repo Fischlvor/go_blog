@@ -215,6 +215,40 @@ const routes = [
         ]
       },
       {
+        path: "emoji",
+        name: "emoji",
+        meta: {
+          title: "表情管理",
+          requiresAdmin: true
+        },
+        children: [
+          {
+            path: "emoji-list",
+            name: "emoji-list",
+            component: () => import('@/views/dashboard/emoji/emoji-list.vue'),
+            meta: {
+              title: "表情列表"
+            }
+          },
+          {
+            path: "emoji-groups",
+            name: "emoji-groups",
+            component: () => import('@/views/dashboard/emoji/emoji-groups.vue'),
+            meta: {
+              title: "表情组管理"
+            }
+          },
+          {
+            path: "emoji-sprites",
+            name: "emoji-sprites",
+            component: () => import('@/views/dashboard/emoji/emoji-sprites.vue'),
+            meta: {
+              title: "雪碧图管理"
+            }
+          }
+        ]
+      },
+      {
         path: "system",
         name: "system",
         meta: {

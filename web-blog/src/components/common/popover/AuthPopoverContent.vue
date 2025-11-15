@@ -1,79 +1,65 @@
 <template>
-  <div class="user-popover-content">
+  <div class="user-popover-content" @click.stop>
     <div class="title">
       <el-row>请登录以获取完整的功能体验。</el-row>
     </div>
     <div class="auth-button">
       <div class="button-item">
-        <el-button class="login" icon="User" @click="layoutStore.show('loginVisible')"/>
+        <el-button class="login" icon="User" @click.stop="redirectToSSO('login')"/>
         登录
-        <el-dialog
-            v-model="layoutStore.state.loginVisible"
-            width="500"
-            destroy-on-close
-            align-center
-            class="login-dialog"
-        >
-        <template #header>登录</template>
-        <login-form/>
-        </el-dialog>
       </div>
 
       <div class="button-item">
-        <el-button class="register" icon="Edit" @click="layoutStore.show('registerVisible')"/>
+        <el-button class="register" icon="Edit" @click.stop="redirectToSSO('register')"/>
         注册
-        <el-dialog
-            v-model="layoutStore.state.registerVisible"
-            width="640"
-            destroy-on-close
-            align-center
-            class="register-dialog"
-        >
-        <template #header>注册</template>
-        <register-form/>
-        </el-dialog>
       </div>
 
       <div class="button-item">
-        <el-button class="forgot-password" icon="Unlock" @click="layoutStore.show('forgotPasswordVisible')"/>
+        <el-button class="forgot-password" icon="Unlock" @click.stop="redirectToSSO('forgot-password')"/>
         找回密码
-        <el-dialog
-            v-model="layoutStore.state.forgotPasswordVisible"
-            width="570"
-            destroy-on-close
-            align-center
-            class="forgot-password-dialog"
-        >
-        <template #header>找回密码</template>
-        <forgot-password-form/>
-        </el-dialog>
-      </div>
-    </div>
-    <div class="container">
-      <el-divider>快速登录</el-divider>
-      <div class="oauth-login">
-        <div class="login-item">
-          <el-image class="qq-login" src="/image/qq_symbol.jpg" alt="" @click="qqLogin"/>
-          QQ登录
-        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import LoginForm from "@/components/forms/LoginForm.vue";
-import RegisterForm from "@/components/forms/RegisterForm.vue";
-import ForgotPasswordForm from "@/components/forms/ForgotPasswordForm.vue";
 import { useLayoutStore } from "@/stores/layout";
-import { qqLoginURL } from "@/api/base";
+import axios from "axios";
+import { ElMessage } from "element-plus";
 
 const layoutStore = useLayoutStore();
 
-const qqLogin = async () => {
-  const res = await qqLoginURL();
-  if (res.code === 0) {
-    window.location.href = res.data;
+// 跳转到SSO登录/注册/找回密码
+const redirectToSSO = async (action: 'login' | 'register' | 'forgot-password') => {
+  try {
+    // 关闭弹窗
+    layoutStore.hide('popoverVisible');
+    
+    // 构建回调地址
+    const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback');
+    
+    // 获取SSO登录URL
+    const response = await axios.get(`/api/auth/sso_login_url?redirect_uri=${redirectUri}`);
+    
+    if (response.data.code === 0) {
+      // 构建完整的SSO URL，根据action添加不同的路径
+      let ssoURL = response.data.data.sso_login_url;
+      
+      // 根据action修改URL路径
+      if (action === 'register') {
+        ssoURL = ssoURL.replace('/login', '/register');
+      } else if (action === 'forgot-password') {
+        ssoURL = ssoURL.replace('/login', '/forgot-password');
+      }
+      
+      // 跳转到SSO页面
+      window.location.href = ssoURL;
+    } else {
+      ElMessage.error(response.data.message || '获取登录地址失败');
+    }
+  } catch (error: any) {
+    console.error('获取SSO登录URL失败:', error);
+    ElMessage.error(error.response?.data?.message || '登录服务异常，请稍后重试');
   }
 };
 </script>
@@ -109,30 +95,5 @@ const qqLogin = async () => {
     }
   }
 
-  .container {
-    background-color: white;
-
-    .el-divider {
-      --el-bg-color: transparent;
-    }
-
-    .oauth-login {
-      display: flex;
-      justify-content: center;
-
-      .login-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 80px;
-        margin-top: auto;
-
-        .el-image {
-          height: 32px;
-          margin-bottom: 8px;
-        }
-      }
-    }
-  }
 }
 </style>

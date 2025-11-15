@@ -156,6 +156,29 @@ const menuList: MenuItem[] = [
     ]
   },
   {
+    title: "表情管理",
+    name: "emoji",
+    icon: "Sunny",
+    admin_role:true,
+    subItems: [
+      {
+        title: "表情列表",
+        name: "emoji-list",
+        icon: "Picture"
+      },
+      {
+        title: "表情组管理",
+        name: "emoji-groups",
+        icon: "Collection"
+      },
+      {
+        title: "雪碧图管理",
+        name: "emoji-sprites",
+        icon: "Grid"
+      }
+    ]
+  },
+  {
     title: "系统管理",
     name: "system",
     icon: "Coin",

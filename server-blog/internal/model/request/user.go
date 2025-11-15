@@ -1,5 +1,7 @@
 package request
 
+import "github.com/gofrs/uuid"
+
 type Register struct {
 	Username         string `json:"username" binding:"required,max=20"`
 	Password         string `json:"password" binding:"required,min=8,max=16"`
@@ -25,16 +27,16 @@ type UserCard struct {
 }
 
 type UserResetPassword struct {
-	UserID      uint   `json:"-"`
-	Password    string `json:"password" binding:"required,min=8,max=16"`
-	NewPassword string `json:"new_password" binding:"required,min=8,max=16"`
+	UserUUID    uuid.UUID `json:"-"`
+	Password    string    `json:"password" binding:"required,min=8,max=16"`
+	NewPassword string    `json:"new_password" binding:"required,min=8,max=16"`
 }
 
 type UserChangeInfo struct {
-	UserID    uint   `json:"-"`
-	Username  string `json:"username" binding:"required,max=20"`
-	Address   string `json:"address" binding:"max=200"`
-	Signature string `json:"signature" binding:"max=320"`
+	UserUUID  uuid.UUID `json:"-"`
+	Username  string    `json:"username" binding:"required,max=20"`
+	Address   string    `json:"address" binding:"max=200"`
+	Signature string    `json:"signature" binding:"max=320"`
 }
 
 type UserChart struct {

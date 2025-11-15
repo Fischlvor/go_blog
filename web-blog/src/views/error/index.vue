@@ -4,7 +4,7 @@
       <web-navbar :noScroll="true"/>
     </el-header>
     <el-main>
-      <el-image src="/image/404.jpg" alt=""/>
+      <el-image src="https://image.hsk423.cn/blog/4f4adcbf8c6f66dcfc8a3282ac2bf10a-20251111150010.jpg" alt=""/>
     </el-main>
     <el-footer>
       <web-footer/>

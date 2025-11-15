@@ -44,6 +44,10 @@ var (
 		Name:  "ai",
 		Usage: "Initializes AI-related database tables and default models.",
 	}
+	emojiFlag = &cli.BoolFlag{
+		Name:  "emoji",
+		Usage: "Initializes emoji-related database tables and default groups.",
+	}
 )
 
 // Run 执行基于命令行标志的相应操作
@@ -112,6 +116,12 @@ func Run(c *cli.Context) {
 		} else {
 			global.Log.Info("Successfully initialized AI tables and models")
 		}
+	case c.Bool(emojiFlag.Name):
+		if err := Emoji(); err != nil {
+			global.Log.Error("Failed to initialize emoji tables and groups:", zap.Error(err))
+		} else {
+			global.Log.Info("Successfully initialized emoji tables and groups")
+		}
 	default:
 		err := cli.NewExitError("unknown command", 1)
 		global.Log.Error(err.Error(), zap.Error(err))
@@ -131,6 +141,7 @@ func NewApp() *cli.App {
 		esImportFlag,
 		adminFlag,
 		aiFlag,
+		emojiFlag,
 	}
 	app.Action = Run
 	return app

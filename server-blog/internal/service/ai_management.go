@@ -1,9 +1,9 @@
 package service
 
 import (
-	"server/pkg/global"
 	"server/internal/model/database"
 	"server/internal/model/request"
+	"server/pkg/global"
 
 	"gorm.io/gorm"
 )
@@ -66,8 +66,8 @@ func (s *AIManagementService) GetAISessionList(info request.AISessionListRequest
 	db := global.DB.Model(&database.AIChatSession{})
 
 	// 添加查询条件
-	if info.UserID != "" {
-		db = db.Where("user_id = ?", info.UserID)
+	if info.UserUUID != "" {
+		db = db.Where("user_uuid = ?", info.UserUUID)
 	}
 	if info.Model != "" {
 		db = db.Where("model = ?", info.Model)

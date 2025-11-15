@@ -1,13 +1,14 @@
 package service
 
 import (
-	"gorm.io/gorm"
-	"server/pkg/global"
 	"server/internal/model/appTypes"
 	"server/internal/model/database"
 	"server/internal/model/other"
 	"server/internal/model/request"
+	"server/pkg/global"
 	"server/pkg/utils"
+
+	"gorm.io/gorm"
 )
 
 type FriendLinkService struct {
@@ -23,7 +24,7 @@ func (friendLinkService *FriendLinkService) FriendLinkInfo() (friendLinks []data
 
 func (friendLinkService *FriendLinkService) FriendLinkCreate(req request.FriendLinkCreate) error {
 	friendLinkToCreate := database.FriendLink{
-		Logo:        req.Logo,
+		Logo:        utils.DBURLFromPublic(req.Logo),
 		Link:        req.Link,
 		Name:        req.Name,
 		Description: req.Description,
@@ -73,7 +74,7 @@ func (friendLinkService *FriendLinkService) FriendLinkUpdate(req request.FriendL
 
 	// 只有当 Logo 不为空时才设置
 	if req.Logo != "" {
-		updates.Logo = req.Logo
+		updates.Logo = utils.DBURLFromPublic(req.Logo)
 	}
 
 	return global.DB.Transaction(func(tx *gorm.DB) error {
@@ -82,7 +83,7 @@ func (friendLinkService *FriendLinkService) FriendLinkUpdate(req request.FriendL
 				return err
 			}
 
-			if err := utils.InitImagesCategory(tx, []string{req.OldLogo}); err != nil {
+			if err := utils.InitImagesCategory(tx, []string{utils.DBURLFromPublic(req.OldLogo)}); err != nil {
 				return err
 			}
 		}

@@ -15,7 +15,6 @@ type TokenResponse struct {
 
 // UserInfo 用户信息
 type UserInfo struct {
-	UserID         uint   `json:"user_id"`
 	UUID           string `json:"uuid"`
 	Nickname       string `json:"nickname"`
 	Avatar         string `json:"avatar"`

@@ -4,7 +4,7 @@
 
       <div class="footer-left">
         <div class="full-logo">
-          <el-image :src="websiteStore.state.websiteInfo.full_logo===''?'/image/full_logo.svg':websiteStore.state.websiteInfo.full_logo" alt=""/>
+          <el-image :src="websiteStore.state.websiteInfo.full_logo===''?cdn('blog/673f145a3a3e86e5a18e064c8c4a089a-20251111150012.svg'):websiteStore.state.websiteInfo.full_logo" alt=""/>
           <el-text>{{ websiteStore.state.websiteInfo.description }}</el-text>
         </div>
         </div>
@@ -22,7 +22,7 @@
           </el-space>
         </div>
         <div class="filing">
-          <el-image src="/image/filing.png" alt=""/>
+          <el-image :src="cdn('blog/b218165a9322ab0aef974bdbc0a0ce60-20251111150012.png')" alt=""/>
           <el-link href="https://beian.miit.gov.cn/#/Integrated/index" :underline="false">
             {{ websiteStore.state.websiteInfo.icp_filing }}
           </el-link>
@@ -102,19 +102,20 @@
   initializeTimer();
 
   const publicSecurityFilingLink = computed(() => "http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=" + websiteStore.state.websiteInfo.public_security_filing.match(/\d+/))
+  import { cdn } from "@/utils/cdn";
   const socialLinks = computed(() => [
     {
-      src: "/image/bilibili.png",
+      src: cdn("blog/130e29f351572e58c49fd4c910d7beb0-20251111150012.png"),
       alt: "",
       url: websiteStore.state.websiteInfo.bilibili_url
     },
     {
-      src: "/image/github.png",
+      src: cdn("blog/bf215181b5140522137b3d4f6b73544a-20251111150012.png"),
       alt: "",
       url: websiteStore.state.websiteInfo.github_url
     },
     {
-      src: "/image/steam.png",
+      src: cdn("blog/75eec5a819fd971e63a55c466a36211c-20251111150013.png"),
       alt: "",
       url: websiteStore.state.websiteInfo.steam_url
     },

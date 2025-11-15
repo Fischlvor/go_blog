@@ -3,10 +3,15 @@ package handler
 import (
 	"auth-service/internal/model/request"
 	"auth-service/internal/service"
+	"auth-service/pkg/global"
 	"auth-service/pkg/middleware"
 	"auth-service/pkg/utils"
+	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/mojocn/base64Captcha"
 )
 
@@ -54,9 +59,23 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 验证验证码
-	if !h.store.Verify(req.CaptchaID, req.Captcha, true) {
-		utils.Error(c, 1000, "验证码错误")
+	// 判断登录方式：密码登录或验证码登录
+	if req.Password != "" {
+		// 密码登录：需要图片验证码
+		if req.CaptchaID == "" || req.Captcha == "" {
+			utils.BadRequest(c, "密码登录需要图片验证码")
+			return
+		}
+		// 验证图片验证码
+		if !h.store.Verify(req.CaptchaID, req.Captcha, true) {
+			utils.Error(c, 1000, "验证码错误")
+			return
+		}
+	} else if req.VerificationCode != "" {
+		// 验证码登录：不需要图片验证码
+		// 验证码验证在service层进行
+	} else {
+		utils.BadRequest(c, "请提供密码或邮箱验证码")
 		return
 	}
 
@@ -71,8 +90,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// ✅ OAuth 2.0: 生成授权码
-	code, err := service.GenerateAuthorizationCode(resp.UserInfo.UserID, req.AppID, req.RedirectURI, resp.AccessToken, resp.RefreshToken)
+	// ✅ OAuth 2.0: 生成授权码（使用UUID）
+	code, err := service.GenerateAuthorizationCodeByUUID(resp.UserInfo.UUID, req.AppID, req.RedirectURI, resp.AccessToken, resp.RefreshToken)
 	if err != nil {
 		utils.Error(c, 1003, "生成授权码失败")
 		return
@@ -152,13 +171,13 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 // GetUserInfo 获取用户信息
 func (h *AuthHandler) GetUserInfo(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == 0 {
+	userUUID := middleware.GetUserUUID(c)
+	if userUUID == uuid.Nil {
 		utils.Unauthorized(c, "未登录")
 		return
 	}
 
-	userInfo, err := h.authService.GetUserInfo(userID)
+	userInfo, err := h.authService.GetUserInfoByUUID(userUUID)
 	if err != nil {
 		utils.Error(c, 1005, err.Error())
 		return
@@ -169,8 +188,8 @@ func (h *AuthHandler) GetUserInfo(c *gin.Context) {
 
 // UpdateUserInfo 更新用户信息
 func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == 0 {
+	userUUID := middleware.GetUserUUID(c)
+	if userUUID == uuid.Nil {
 		utils.Unauthorized(c, "未登录")
 		return
 	}
@@ -181,7 +200,7 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.UpdateUserInfo(userID, req); err != nil {
+	if err := h.authService.UpdateUserInfoByUUID(userUUID, req); err != nil {
 		utils.Error(c, 1006, err.Error())
 		return
 	}
@@ -191,8 +210,8 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 
 // UpdatePassword 修改密码
 func (h *AuthHandler) UpdatePassword(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	if userID == 0 {
+	userUUID := middleware.GetUserUUID(c)
+	if userUUID == uuid.Nil {
 		utils.Unauthorized(c, "未登录")
 		return
 	}
@@ -203,7 +222,7 @@ func (h *AuthHandler) UpdatePassword(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.UpdatePassword(userID, req); err != nil {
+	if err := h.authService.UpdatePasswordByUUID(userUUID, req); err != nil {
 		utils.Error(c, 1007, err.Error())
 		return
 	}
@@ -226,4 +245,224 @@ func (h *AuthHandler) GetUserByUUID(c *gin.Context) {
 	}
 
 	utils.Success(c, userInfo)
+}
+
+// QQLogin QQ登录
+func (h *AuthHandler) QQLogin(c *gin.Context) {
+	var req request.QQLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "参数错误: "+err.Error())
+		return
+	}
+
+	// 获取客户端信息
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+
+	// 调用QQ登录服务
+	resp, err := h.authService.QQLogin(req, ipAddress, userAgent)
+	if err != nil {
+		utils.Error(c, 1009, err.Error())
+		return
+	}
+
+	// ✅ OAuth 2.0: 生成授权码（使用UUID）
+	code, err := service.GenerateAuthorizationCodeByUUID(resp.UserInfo.UUID, req.AppID, req.RedirectURI, resp.AccessToken, resp.RefreshToken)
+	if err != nil {
+		utils.Error(c, 1003, "生成授权码失败")
+		return
+	}
+
+	utils.Success(c, gin.H{
+		"code":         code,
+		"redirect_uri": req.RedirectURI,
+	})
+}
+
+// QQCallback QQ授权回调（GET方式，QQ服务端回调）
+func (h *AuthHandler) QQCallback(c *gin.Context) {
+	code := c.Query("code")
+	appID := c.Query("app_id")
+	state := c.Query("state") // 从state参数中获取设备ID等信息
+	if code == "" {
+		utils.BadRequest(c, "缺少code")
+		return
+	}
+	if strings.TrimSpace(appID) == "" {
+		utils.BadRequest(c, "缺少app_id")
+		return
+	}
+	// 完全由后端决定回跳地址：直接使用应用的 redirect_uris 字段（数据库仅存单一地址），否则回退到配置
+	redirectURI := ""
+	var app struct{ RedirectURIs string }
+	if err := global.DB.
+		Table("sso_applications").
+		Select("redirect_uris").
+		Where("app_key = ? AND status = 1", appID).
+		First(&app).Error; err == nil {
+		redirectURI = strings.TrimSpace(app.RedirectURIs)
+	}
+
+	// 客户端信息
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+
+	// 从 User-Agent 解析设备名称
+	deviceName := parseDeviceNameFromUserAgent(userAgent)
+
+	// 从state参数中解析设备ID（state格式：device_id:xxx 或直接是设备ID）
+	deviceID := ""
+	if state != "" {
+		// state可能包含设备ID，格式为 "device_id:xxx" 或直接是设备ID
+		if strings.HasPrefix(state, "device_id:") {
+			deviceID = strings.TrimPrefix(state, "device_id:")
+		} else {
+			// 如果state就是设备ID（兼容旧格式）
+			deviceID = state
+		}
+	}
+
+	// 组装请求
+	req := request.QQLoginRequest{
+		Code:        code,
+		AppID:       appID,
+		RedirectURI: redirectURI,
+		DeviceID:    deviceID, // 传递设备ID
+		DeviceType:  "web",
+		DeviceName:  deviceName,
+	}
+
+	// 调用服务登录
+	resp, err := h.authService.QQLogin(req, ipAddress, userAgent)
+	if err != nil {
+		utils.Error(c, 1009, err.Error())
+		return
+	}
+
+	// 生成授权码并重定向到 redirect_uri?code=...
+	authCode, err := service.GenerateAuthorizationCodeByUUID(resp.UserInfo.UUID, req.AppID, req.RedirectURI, resp.AccessToken, resp.RefreshToken)
+	if err != nil {
+		utils.Error(c, 1003, "生成授权码失败")
+		return
+	}
+	// 保持state参数传递
+	redirectURL := fmt.Sprintf("%s?code=%s", redirectURI, authCode)
+	if state != "" {
+		redirectURL = redirectURL + "&state=" + url.QueryEscape(state)
+	}
+	c.Redirect(302, redirectURL)
+}
+
+// SendEmailVerificationCode 发送邮箱验证码
+func (h *AuthHandler) SendEmailVerificationCode(c *gin.Context) {
+	var req request.SendEmailVerificationCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "参数错误: "+err.Error())
+		return
+	}
+
+	// 验证图片验证码
+	if !h.store.Verify(req.CaptchaID, req.Captcha, true) {
+		utils.Error(c, 1000, "验证码错误")
+		return
+	}
+
+	// 发送邮箱验证码
+	if err := h.authService.SendEmailVerificationCode(req.Email); err != nil {
+		utils.Error(c, 1010, err.Error())
+		return
+	}
+
+	utils.SuccessMsg(c, "验证码已发送", nil)
+}
+
+// ForgotPassword 忘记密码
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req request.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "参数错误: "+err.Error())
+		return
+	}
+
+	// 验证邮箱验证码
+	if err := h.authService.ForgotPassword(req); err != nil {
+		utils.Error(c, 1011, err.Error())
+		return
+	}
+
+	utils.SuccessMsg(c, "密码重置成功", nil)
+}
+
+// QQLoginURL 获取QQ登录URL
+func (h *AuthHandler) QQLoginURL(c *gin.Context) {
+	if !global.Config.QQ.Enable {
+		utils.Error(c, 1012, "QQ登录未启用")
+		return
+	}
+	// 允许前端传入 app_id，拼接到 redirect_uri，确保 QQ 回调时可携带 app_id
+	appID := c.Query("app_id")
+	if strings.TrimSpace(appID) == "" {
+		utils.BadRequest(c, "缺少app_id")
+		return
+	}
+	// 支持state参数传递（用于传递设备ID等信息）
+	state := c.Query("state")
+
+	redirectURI := global.Config.QQ.RedirectURI
+	redirectURI = redirectURI + "?app_id=" + url.QueryEscape(appID)
+
+	authURL := "https://graph.qq.com/oauth2.0/authorize?" +
+		"response_type=code&" +
+		"client_id=" + global.Config.QQ.AppID + "&" +
+		"redirect_uri=" + url.QueryEscape(redirectURI)
+	// state参数只需要在授权URL中传递一次，QQ会原样返回
+	if state != "" {
+		authURL = authURL + "&state=" + url.QueryEscape(state)
+	}
+	utils.Success(c, gin.H{"url": authURL})
+}
+
+// parseDeviceNameFromUserAgent 从 User-Agent 解析设备名称
+func parseDeviceNameFromUserAgent(userAgent string) string {
+	if userAgent == "" {
+		return "未知设备"
+	}
+
+	ua := strings.ToLower(userAgent)
+
+	// 检测操作系统
+	os := "未知系统"
+	if strings.Contains(ua, "windows") {
+		if strings.Contains(ua, "windows nt 10.0") || strings.Contains(ua, "windows nt 6.3") {
+			os = "Windows"
+		} else if strings.Contains(ua, "windows nt 6.1") {
+			os = "Windows 7"
+		} else {
+			os = "Windows"
+		}
+	} else if strings.Contains(ua, "mac os x") || strings.Contains(ua, "macintosh") {
+		os = "macOS"
+	} else if strings.Contains(ua, "linux") {
+		os = "Linux"
+	} else if strings.Contains(ua, "android") {
+		os = "Android"
+	} else if strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad") || strings.Contains(ua, "ipod") {
+		os = "iOS"
+	}
+
+	// 检测浏览器
+	browser := "未知浏览器"
+	if strings.Contains(ua, "edg/") {
+		browser = "Edge"
+	} else if strings.Contains(ua, "chrome/") && !strings.Contains(ua, "edg/") {
+		browser = "Chrome"
+	} else if strings.Contains(ua, "firefox/") {
+		browser = "Firefox"
+	} else if strings.Contains(ua, "safari/") && !strings.Contains(ua, "chrome/") {
+		browser = "Safari"
+	} else if strings.Contains(ua, "opera/") || strings.Contains(ua, "opr/") {
+		browser = "Opera"
+	}
+
+	return fmt.Sprintf("%s - %s", os, browser)
 }

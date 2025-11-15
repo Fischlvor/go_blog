@@ -1,13 +1,14 @@
 package utils
 
 import (
+	"net"
+	"server/internal/model/appTypes"
+	"server/internal/model/request"
+	"server/pkg/global"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"go.uber.org/zap"
-	"net"
-	"server/pkg/global"
-	"server/internal/model/appTypes"
-	"server/internal/model/request"
 )
 
 // SetRefreshToken 设置Refresh Token的cookie
@@ -104,25 +105,6 @@ func GetUserInfo(c *gin.Context) *request.JwtCustomClaims {
 		// 如果已存在claims，则直接返回
 		waitUse := claims.(*request.JwtCustomClaims)
 		return waitUse
-	}
-}
-
-// GetUserID 从Gin的Context中获取JWT解析出来的用户ID
-func GetUserID(c *gin.Context) uint {
-	// 首先尝试从Context中获取"claims"
-	if claims, exists := c.Get("claims"); !exists {
-		// 如果不存在，则重新解析Access Token
-		if cl, err := GetClaims(c); err != nil {
-			// 如果解析失败，返回0
-			return 0
-		} else {
-			// 返回解析出来的用户ID
-			return cl.UserID
-		}
-	} else {
-		// 如果已存在claims，则直接返回用户ID
-		waitUse := claims.(*request.JwtCustomClaims)
-		return waitUse.UserID
 	}
 }
 

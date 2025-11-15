@@ -2,11 +2,11 @@ package middleware
 
 import (
 	"errors"
-	"server/pkg/global"
 	"server/internal/model/database"
 	"server/internal/model/request"
 	"server/internal/model/response"
 	"server/internal/service"
+	"server/pkg/global"
 	"server/pkg/utils"
 	"strconv"
 
@@ -48,9 +48,9 @@ func JWTAuth() gin.HandlerFunc {
 					return
 				}
 
-				// 如果Refresh Token有效，通过其UserID获取用户信息
+				// 如果Refresh Token有效，通过其UUID获取用户信息
 				var user database.User
-				if err := global.DB.Select("uuid", "role_id").Take(&user, refreshClaims.UserID).Error; err != nil {
+				if err := global.DB.Select("uuid", "role_id").Where("uuid = ?", refreshClaims.UUID).First(&user).Error; err != nil {
 					// 如果没有找到该用户，清除Refresh Token并返回未授权错误
 					utils.ClearRefreshToken(c)
 					response.NoAuth("The user does not exist", c)
@@ -60,7 +60,6 @@ func JWTAuth() gin.HandlerFunc {
 
 				// 使用Refresh Token的用户信息创建一个新的Access Token的Claims
 				newAccessClaims := j.CreateAccessClaims(request.BaseClaims{
-					UserID: refreshClaims.UserID,
 					UUID:   user.UUID,
 					RoleID: user.RoleID,
 				})
