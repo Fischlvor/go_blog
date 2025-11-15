@@ -2,7 +2,9 @@
 FROM node:22-alpine AS builder
 # 写入前端构建所需环境变量（可被 --build-arg 覆盖）
 ARG VITE_CDN_BASE=https://image.hsk423.cn
+ARG VITE_BASE_API=/api
 ENV VITE_CDN_BASE=$VITE_CDN_BASE
+ENV VITE_BASE_API=$VITE_BASE_API
 
 # 设置工作目录
 WORKDIR /app

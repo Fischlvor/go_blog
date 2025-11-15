@@ -71,10 +71,9 @@ export class EmojiStyleManager {
         mapping: apiConfig.mapping as Record<string, string> | undefined
       }
 
-      console.log(`✅ Emoji配置加载成功: ${this.config.version} (${this.config.total_emojis} emojis)`)
       return this.config
     } catch (error) {
-      console.error('❌ 加载emoji配置失败:', error)
+      console.error('加载emoji配置失败:', error)
       throw error
     }
   }
@@ -200,8 +199,6 @@ export class EmojiStyleManager {
 
     // 应用样式
     this.applyStyles(fullCSS)
-    
-    console.log(`✅ 已加载 ${this.config.sprites.length} 个雪碧图的样式`)
   }
 
   /**
@@ -227,8 +224,6 @@ export class EmojiStyleManager {
       this.config.total_emojis += newSprites.reduce((sum, sprite) => 
         sum + (sprite.range[1] - sprite.range[0] + 1), 0)
     }
-
-    console.log(`✅ 已加载 ${newSprites.length} 个新雪碧图的样式`)
   }
 
   /**
@@ -348,13 +343,9 @@ export class EmojiStyleManager {
       const hasUpdate = await this.checkForUpdates()
       if (!hasUpdate) return false
 
-      console.log('🔄 检测到emoji更新，正在热更新...')
-      
       // 重新加载配置和样式
       await this.loadConfig()
       await this.loadAllStyles()
-      
-      console.log('✅ Emoji热更新完成')
       return true
     } catch (error) {
       console.error('❌ 热更新失败:', error)

@@ -1,5 +1,8 @@
 # 第一阶段：构建阶段
 FROM node:22-alpine AS builder
+# 写入前端构建所需环境变量
+ARG VITE_BASE_API=/api
+ENV VITE_BASE_API=$VITE_BASE_API
 
 # 设置工作目录
 WORKDIR /app

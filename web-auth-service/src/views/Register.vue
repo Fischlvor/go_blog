@@ -160,7 +160,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import request from '../utils/request'
 
 const router = useRouter()
 
@@ -196,7 +196,7 @@ function getAppName(appId) {
 
 async function refreshCaptcha() {
   try {
-    const response = await axios.get('/api/base/captcha')
+    const response = await request.get('/base/captcha')
     if (response.data.code === 0) {
       form.value.captcha_id = response.data.data.captcha_id
       captchaImage.value = response.data.data.pic_path
@@ -216,7 +216,7 @@ async function handleRegister() {
   loading.value = true
 
   try {
-    const response = await axios.post('/api/auth/register', {
+    const response = await request.post('/auth/register', {
       email: form.value.email,
       nickname: form.value.nickname,
       password: form.value.password,
