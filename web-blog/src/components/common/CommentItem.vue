@@ -33,13 +33,14 @@
                     placeholder="在这里输入您的回复..." maxlength="320"/>
           <div class="comment-tool">
             <el-popover
-                :visible="layoutStore.state.emojiPopoverVisible"
+                v-model:visible="layoutStore.state.emojiPopoverVisible"
                 width="502"
                 trigger="click"
                 placement="right"
+                :hide-after="0"
             >
               <template #reference>
-                <el-avatar src="/emoji/s14.png" @click="changeEmojiListState"/>
+                <el-avatar :src="cdn('emoji/system_1_base/df512b9cb3e7d8de7206c647590b6de0-20251115164531.png')" style="cursor: pointer;" />
               </template>
               <template #default>
                 <div class="emoji-grid"> <!-- 新增包裹容器 -->
@@ -85,6 +86,7 @@ import {useUserStore} from "@/stores/user";
 import {MdPreview} from "md-editor-v3";
 import {ref, onMounted, computed } from "vue";
 import {useLayoutStore} from "@/stores/layout";
+import { cdn } from '@/utils/cdn';
 
 defineProps<{
   comments: Comment[];
@@ -190,8 +192,6 @@ const handleDelete = async (id: number) => {
     .title {
       display: flex;
       padding-bottom: 5px;
-
-      .el-avatar{}
 
       .name {
         padding-left: 10px;

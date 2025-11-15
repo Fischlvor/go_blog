@@ -7,6 +7,9 @@ ENV VITE_CDN_BASE=$VITE_CDN_BASE
 # 设置工作目录
 WORKDIR /app
 
+# 设置 npm 国内镜像源
+RUN npm config set registry https://registry.npmmirror.com
+
 # 复制package文件
 COPY package*.json ./
 

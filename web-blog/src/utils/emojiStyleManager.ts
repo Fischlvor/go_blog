@@ -145,17 +145,18 @@ export class EmojiStyleManager {
     
     for (const sprite of sprites) {
       const [rangeStart, rangeEnd] = sprite.range
+      const totalEmojis = rangeEnd - rangeStart + 1
+      const cols = 16
+      const rows = Math.ceil(totalEmojis / cols)
       
       for (let i = rangeStart; i <= rangeEnd; i++) {
         const posInSprite = i - rangeStart
-        const cols = 16
         const row = Math.floor(posInSprite / cols)
         const col = posInSprite % cols
 
         // 使用后端下发的 size 动态计算每个格子的宽高
         const cellWidth = sprite.size[0] / cols
-        // 对应 128 / 16 = 8 行，这里按 8 行切分
-        const cellHeight = sprite.size[1] / 8
+        const cellHeight = sprite.size[1] / rows
 
         const x = col * cellWidth
         const y = row * cellHeight

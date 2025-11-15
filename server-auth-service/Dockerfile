@@ -4,8 +4,9 @@ FROM golang:1.23.0-alpine AS builder
 # 设置工作目录
 WORKDIR /app
 
-# 安装必要的系统依赖
-RUN apk add --no-cache git ca-certificates tzdata
+# 使用国内镜像源加速,并安装必要的系统依赖
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk add --no-cache ca-certificates tzdata
 
 # 设置Go代理（加速下载）
 ENV GOPROXY=https://goproxy.cn,direct
@@ -26,13 +27,14 @@ ENV GOOS=linux
 ENV GOARCH=amd64
 
 # 构建应用
-RUN go build -a -installsuffix cgo -o main .
+RUN go build -ldflags="-s -w" -o main .
 
 # 第二阶段：运行阶段
 FROM alpine:latest
 
-# 安装必要的运行时依赖并清理，同时创建必要的目录
-RUN apk --no-cache add ca-certificates tzdata && \
+# 使用国内镜像源加速,安装运行时依赖并清理,同时创建必要的目录
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk --no-cache add ca-certificates tzdata && \
     rm -rf /var/cache/apk/* /tmp/* /var/tmp/* && \
     mkdir -p /app/configs /app/log /app/keys
 

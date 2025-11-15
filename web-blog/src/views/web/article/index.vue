@@ -32,13 +32,14 @@
               <el-text>tip:请登录后再进行反馈!</el-text>
               <div class="operation">
                 <div class="comment-tool">
-                  <el-popover :visible="layoutStore.state.emojiPopoverVisible"
+                  <el-popover v-model:visible="layoutStore.state.emojiPopoverVisible"
                               width="502"
                               trigger="click"
                               placement="right"
+                              :hide-after="0"
                   >
                     <template #reference>
-                      <el-avatar src="/emoji/s14.png" @click="changeEmojiListState"/>
+                      <el-avatar :src="cdn('emoji/system_1_base/df512b9cb3e7d8de7206c647590b6de0-20251115164531.png')" style="cursor: pointer;" />
                     </template>
                     <template #default>
                       <div class="emoji-grid"> <!-- 新增包裹容器 -->
@@ -115,6 +116,7 @@ import CommentItem from "@/components/common/CommentItem.vue";
 import {articleIsLike, articleLike, type ArticleLikeRequest} from "@/api/article";
 import {type Comment, commentCreate, type CommentCreateRequest, commentInfoByArticleID} from "@/api/comment";
 import {useLayoutStore} from "@/stores/layout";
+import { cdn } from '@/utils/cdn';
 import {useUserStore} from "@/stores/user";
 import { parseEmojis, renderTextWithEmojisForText, getAllEmojis, type EmojiInfo } from '@/utils/emojiParser'
 

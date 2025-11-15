@@ -1,47 +1,16 @@
-# 构建产物
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
-
-# IDE/项目设置
+# IDE
+.vscode/
+.idea/
 .settings/
+*.swp
+*.swo
+*~
 
-# 可执行产物包
-*.swf
-*.air
-*.ipa
-*.apk
+# 操作系统
+.DS_Store
+Thumbs.db
 
-# 前端
-web-auth-service/pkg/
-web-auth-service/node_modules/
-web-auth-service/public/image/
-
-web-blog/pkg/
-web-blog/node_modules/
-web-blog/public/image/
-web-blog/public/emoji/
-
-# 配置（后端 Blog）
-server-blog/configs/config.yaml
-# 配置（后端 Auth Service）
-server-auth-service/configs/config.yaml
-
-# 日志（后端 Blog）
-server-blog/log/
-# 日志（后端 Auth Service）
-server-auth-service/log/
-
-# 运行数据与可执行文件（后端 Blog）
-server-blog/uploads/
-server-blog/main
-
-# 生产敏感配置（不要提交真实值）
-server-blog/configs/config.prod.yaml
-server-auth-service/configs/config.prod.yaml
-
-# 密钥与证书目录
-server-blog/keys/
-server-auth-service/keys/
-
+# 临时文件
+*.tmp
+*.bak
+*.cache

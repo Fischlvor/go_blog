@@ -1,5 +1,35 @@
-node_modules
-dist
-.DS_Store
-*.log
+# 依赖
+node_modules/
 
+# 构建产物
+dist/
+pkg/
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 环境变量
+*.local
+.env.local
+.env.*.local
+
+# 静态资源（由服务端生成）
+public/image/
