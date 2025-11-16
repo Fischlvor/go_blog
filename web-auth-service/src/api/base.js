@@ -6,8 +6,8 @@ export const getCaptcha = () => {
 }
 
 // 获取QQ登录URL
-export const getQQLoginURL = (redirectURL, state) => {
-  const params = { redirect_url: redirectURL }
+export const getQQLoginURL = (appId, state) => {
+  const params = { app_id: appId }
   if (state) {
     params.state = state
   }
