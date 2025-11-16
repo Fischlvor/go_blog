@@ -165,7 +165,7 @@ main() {
                 echo "选项:"
                 echo "  --all, -a           推送所有分支"
                 echo "  --branch, -b BRANCH 推送指定分支"
-                echo "  --sync, -s          增量同步（只推送 GitHub 缺失的分支）"
+                echo "  --sync, -s          增量同步（推送缺失分支和新提交）"
                 echo "  --help, -h          显示帮助信息"
                 echo ""
                 echo "示例:"
@@ -185,7 +185,7 @@ main() {
     
     # 增量同步模式
     if [ "$SYNC_MODE" = true ]; then
-        log_info "模式: 增量同步（只推送 GitHub 缺失的分支）"
+        log_info "模式: 增量同步（推送缺失分支和新提交）"
         echo ""
         
         # 检查代理
@@ -206,35 +206,14 @@ main() {
             <(git branch -r | grep "${GITEE_REMOTE}/" | sed "s/${GITEE_REMOTE}\///" | grep -v 'HEAD' | sort) \
             <(git branch -r | grep "${GITHUB_REMOTE}/" | sed "s/${GITHUB_REMOTE}\///" | sort))
         
-        if [ -z "$MISSING_BRANCHES" ]; then
-            log_success "GitHub 已包含所有分支，无需同步"
-            
-            # 检查现有分支是否有新提交
-            log_info "检查现有分支的新提交..."
-            HAS_NEW_COMMITS=false
-            for branch in $(git branch -r | grep "${GITEE_REMOTE}/" | sed "s/${GITEE_REMOTE}\///" | grep -v 'HEAD'); do
-                if git rev-list ${GITHUB_REMOTE}/${branch}..${GITEE_REMOTE}/${branch} &>/dev/null | grep -q .; then
-                    log_info "分支 ${branch} 有新提交需要同步"
-                    HAS_NEW_COMMITS=true
-                    if timeout 30 git push ${GITHUB_REMOTE} refs/remotes/${GITEE_REMOTE}/${branch}:refs/heads/${branch} 2>&1; then
-                        log_success "GitHub: 分支 ${branch} 更新成功"
-                    else
-                        log_warning "GitHub: 分支 ${branch} 更新失败"
-                    fi
-                fi
-            done
-            
-            if [ "$HAS_NEW_COMMITS" = false ]; then
-                log_success "所有分支都是最新的"
-            fi
-        else
+        # 推送缺失的分支
+        if [ -n "$MISSING_BRANCHES" ]; then
             log_info "发现 GitHub 缺失的分支:"
             echo "$MISSING_BRANCHES" | while read branch; do
                 echo "  - $branch"
             done
             echo ""
             
-            # 推送缺失的分支
             echo "$MISSING_BRANCHES" | while read branch; do
                 log_info "推送分支: ${branch}"
                 if timeout 30 git push ${GITHUB_REMOTE} refs/remotes/${GITEE_REMOTE}/${branch}:refs/heads/${branch} 2>&1; then
@@ -243,6 +222,30 @@ main() {
                     log_warning "GitHub: 分支 ${branch} 推送失败"
                 fi
             done
+            echo ""
+        fi
+        
+        # 检查现有分支是否有新提交
+        log_info "检查现有分支的新提交..."
+        HAS_NEW_COMMITS=false
+        for branch in $(git branch -r | grep "${GITEE_REMOTE}/" | sed "s/${GITEE_REMOTE}\///" | grep -v 'HEAD'); do
+            # 检查 GitHub 是否有这个分支
+            if git rev-parse --verify ${GITHUB_REMOTE}/${branch} &>/dev/null; then
+                # 检查是否有新提交
+                if git rev-list ${GITHUB_REMOTE}/${branch}..${GITEE_REMOTE}/${branch} 2>/dev/null | grep -q .; then
+                    log_info "分支 ${branch} 有新提交需要同步"
+                    HAS_NEW_COMMITS=true
+                    if timeout 30 git push ${GITHUB_REMOTE} refs/remotes/${GITEE_REMOTE}/${branch}:refs/heads/${branch} 2>&1; then
+                        log_success "GitHub: 分支 ${branch} 更新成功"
+                    else
+                        log_warning "GitHub: 分支 ${branch} 更新失败"
+                    fi
+                fi
+            fi
+        done
+        
+        if [ "$HAS_NEW_COMMITS" = false ] && [ -z "$MISSING_BRANCHES" ]; then
+            log_success "所有分支都是最新的，无需同步"
         fi
         
         # 同步 tags
