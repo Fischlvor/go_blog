@@ -34,7 +34,7 @@ FROM alpine:latest
 
 # 使用国内镜像源加速,安装运行时依赖并清理,同时创建必要的目录
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
-    apk --no-cache add ca-certificates tzdata wget && \
+    apk --no-cache add ca-certificates tzdata && \
     rm -rf /var/cache/apk/* /tmp/* /var/tmp/* && \
     mkdir -p /app/configs /app/uploads /app/log /app/keys
 
@@ -46,10 +46,6 @@ COPY --from=builder /app/main .
 
 # 暴露端口
 EXPOSE 8081
-
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/health || exit 1
 
 # 启动应用
 CMD ["./main"] 
