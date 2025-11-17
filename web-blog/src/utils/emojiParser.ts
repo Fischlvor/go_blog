@@ -5,15 +5,13 @@
 import { emojiStyleManager, type EmojiConfig } from './emojiStyleManager'
 
 export interface EmojiInfo {
-  oldKey: string    // 原始键名 如 's1'
-  newKey: string    // 新键名 如 'e1'
+  key: string          // emoji键名 如 'e1'
   spriteGroup: number  // 雪碧图组号
-  index: number     // 在组内的索引
+  index: number        // 全局索引
 }
 
 class EmojiParser {
-  private emojiMapping: Record<string, string> = {}
-  private reverseMapping: Record<string, string> = {}
+  private emojiList: EmojiInfo[] = []
   private isInitialized = false
 
   /**
@@ -23,12 +21,22 @@ class EmojiParser {
     if (this.isInitialized) return
 
     try {
-      // 加载emoji配置
-      await emojiStyleManager.loadConfig()
+      // 加载emoji配置（只调用一次）
+      const config = await emojiStyleManager.loadConfig()
       await emojiStyleManager.loadAllStyles()
 
-      // 加载映射表
-      await this.loadMapping()
+      // 从 sprites 的 range 生成 emoji 列表
+      this.emojiList = []
+      for (const sprite of config.sprites) {
+        const [start, end] = sprite.range
+        for (let i = start; i <= end; i++) {
+          this.emojiList.push({
+            key: `e${i}`,
+            spriteGroup: sprite.id,
+            index: i
+          })
+        }
+      }
       
       this.isInitialized = true
     } catch (error) {
@@ -37,26 +45,6 @@ class EmojiParser {
     }
   }
 
-  /**
-   * 加载映射表
-   * 直接复用 EmojiStyleManager 中的配置，不再单独拉静态 JSON
-   */
-  private async loadMapping(): Promise<void> {
-    try {
-      const config = await emojiStyleManager.loadConfig()
-
-      this.emojiMapping = config.mapping || {}
-
-      // 创建反向映射
-      this.reverseMapping = {}
-      for (const [oldKey, newKey] of Object.entries(this.emojiMapping)) {
-        this.reverseMapping[newKey] = oldKey
-      }
-    } catch (error) {
-      console.error('加载emoji映射失败:', error)
-      throw error
-    }
-  }
 
   /**
    * 确保已初始化
@@ -68,40 +56,12 @@ class EmojiParser {
   }
 
   /**
-   * 解析emoji字符串，支持多种格式
+   * 解析emoji字符串（现在只是直接返回，因为已经是 e123 格式）
    */
   async parseEmojis(text: string): Promise<string> {
     await this.ensureInitialized()
-
-    // 支持的格式：
-    // 1. :emoji:s123: -> :emoji:e456:
-    // 2. ![](/emoji/s123.png) -> :emoji:e456:
-    // 3. ![](emoji/s123.png) -> :emoji:e456:
-    
-    let result = text
-
-    // 格式1: :emoji:s123:
-    result = result.replace(/:emoji:s(\d+):/g, (match, num) => {
-      const oldKey = `s${num}`
-      const newKey = this.emojiMapping[oldKey]
-      return newKey ? `:emoji:${newKey}:` : match
-    })
-
-    // 格式2: ![](/emoji/s123.png)
-    result = result.replace(/!\[\]\(\/emoji\/s(\d+)\.png\)/g, (match, num) => {
-      const oldKey = `s${num}`
-      const newKey = this.emojiMapping[oldKey]
-      return newKey ? `:emoji:${newKey}:` : match
-    })
-
-    // 格式3: ![](emoji/s123.png)
-    result = result.replace(/!\[\]\(emoji\/s(\d+)\.png\)/g, (match, num) => {
-      const oldKey = `s${num}`
-      const newKey = this.emojiMapping[oldKey]
-      return newKey ? `:emoji:${newKey}:` : match
-    })
-
-    return result
+    // 数据库中已经是 :emoji:e123: 格式，不需要转换
+    return text
   }
 
   /**
@@ -109,33 +69,7 @@ class EmojiParser {
    */
   async getAllEmojis(): Promise<EmojiInfo[]> {
     await this.ensureInitialized()
-
-    const emojis: EmojiInfo[] = []
-    
-    for (const [oldKey, newKey] of Object.entries(this.emojiMapping)) {
-      // 解析新键获取索引 (e123 -> 123)
-      const match = newKey.match(/^e(\d+)$/)
-      if (!match) continue
-
-      const index = parseInt(match[1])
-      const spriteGroup = Math.floor(index / 128)
-
-      emojis.push({
-        oldKey,
-        newKey,
-        spriteGroup,
-        index
-      })
-    }
-
-    // 按新键排序
-    emojis.sort((a, b) => {
-      const aIndex = parseInt(a.newKey.substring(1))
-      const bIndex = parseInt(b.newKey.substring(1))
-      return aIndex - bIndex
-    })
-
-    return emojis
+    return this.emojiList
   }
 
   /**
@@ -144,14 +78,9 @@ class EmojiParser {
   async isValidEmojiKey(key: string): Promise<boolean> {
     await this.ensureInitialized()
     
-    // 检查是否是有效的新键
+    // 检查是否是有效的键
     if (key.startsWith('e') && /^e\d+$/.test(key)) {
-      return Object.values(this.emojiMapping).includes(key)
-    }
-    
-    // 检查是否是有效的旧键
-    if (key.startsWith('s') && /^s\d+$/.test(key)) {
-      return key in this.emojiMapping
+      return this.emojiList.some(emoji => emoji.key === key)
     }
     
     return false
@@ -163,51 +92,13 @@ class EmojiParser {
   async getEmojiInfo(key: string): Promise<EmojiInfo | null> {
     await this.ensureInitialized()
 
-    let oldKey: string
-    let newKey: string
-
-    if (key.startsWith('s')) {
-      oldKey = key
-      newKey = this.emojiMapping[key]
-      if (!newKey) return null
-    } else if (key.startsWith('e')) {
-      newKey = key
-      oldKey = this.reverseMapping[key]
-      if (!oldKey) return null
-    } else {
+    if (!key.startsWith('e')) {
       return null
     }
 
-    // 解析索引
-    const match = newKey.match(/^e(\d+)$/)
-    if (!match) return null
-
-    const index = parseInt(match[1])
-    const spriteGroup = Math.floor(index / 128)
-
-    return {
-      oldKey,
-      newKey,
-      spriteGroup,
-      index
-    }
+    return this.emojiList.find(emoji => emoji.key === key) || null
   }
 
-  /**
-   * 转换旧格式到新格式
-   */
-  async convertOldToNew(oldKey: string): Promise<string | null> {
-    await this.ensureInitialized()
-    return this.emojiMapping[oldKey] || null
-  }
-
-  /**
-   * 转换新格式到旧格式
-   */
-  async convertNewToOld(newKey: string): Promise<string | null> {
-    await this.ensureInitialized()
-    return this.reverseMapping[newKey] || null
-  }
 
   /**
    * 渲染emoji为HTML
@@ -216,7 +107,7 @@ class EmojiParser {
     const info = await this.getEmojiInfo(emojiKey)
     if (!info) return emojiKey
 
-    return `<span class="emoji emoji-sprite-${info.spriteGroup} emoji-${info.newKey}" title="${info.oldKey} -> ${info.newKey}"></span>`
+    return `<span class="emoji emoji-sprite-${info.spriteGroup} emoji-${info.key}" title="${info.key}"></span>`
   }
 
   /**
@@ -235,7 +126,7 @@ class EmojiParser {
   }
 
   /**
-   * 获取映射统计信息
+   * 获取统计信息
    */
   async getStats(): Promise<{
     totalEmojis: number
@@ -247,26 +138,29 @@ class EmojiParser {
     const config = emojiStyleManager.getConfig()
     
     return {
-      totalEmojis: Object.keys(this.emojiMapping).length,
+      totalEmojis: this.emojiList.length,
       version: config?.version || 'unknown',
       spriteCount: config?.sprites.length || 0
     }
   }
 
   /**
-   * 热更新映射表
+   * 热更新
    */
   async hotUpdate(): Promise<boolean> {
     try {
-      // 重新加载映射表
-      await this.loadMapping()
+      // 重置初始化状态
+      this.isInitialized = false
+      
+      // 重新初始化
+      await this.initialize()
       
       // 触发样式管理器热更新
       const updated = await emojiStyleManager.hotUpdate()
       
       return updated
     } catch (error) {
-      console.error('❌ Emoji映射热更新失败:', error)
+      console.error('❌ Emoji热更新失败:', error)
       return false
     }
   }
@@ -275,8 +169,7 @@ class EmojiParser {
    * 清理资源
    */
   cleanup(): void {
-    this.emojiMapping = {}
-    this.reverseMapping = {}
+    this.emojiList = []
     this.isInitialized = false
     emojiStyleManager.cleanup()
   }
