@@ -113,16 +113,17 @@
               maxlength="6"
               required
               class="form-input"
+              @focus="loadCaptchaIfNeeded"
             />
-            <div class="captcha-wrapper" @click="refreshCaptcha">
+            <div class="captcha-wrapper" @click="handleCaptchaClick">
               <img
                 v-if="captchaImage"
                 :src="captchaImage"
                 class="captcha-image"
                 alt="验证码"
               />
-              <div v-else class="captcha-loading">
-                <div class="loading-spinner"></div>
+              <div v-else class="captcha-placeholder">
+                <span>点击加载</span>
               </div>
             </div>
           </div>
@@ -137,7 +138,7 @@
         </button>
 
         <div class="links">
-          <router-link :to="{ path: '/login', query: { app_id: appId, redirect_uri: redirectUri, state: state } }" class="link-item">
+          <router-link :to="{ path: '/login', query: { app_id: appId, redirect_uri: redirectUri, return_url: returnUrl } }" class="link-item">
             已有账号？立即登录
           </router-link>
         </div>
@@ -180,11 +181,11 @@ const captchaImage = ref('')
 const urlParams = new URLSearchParams(window.location.search)
 const appId = urlParams.get('app_id') || 'blog'
 const redirectUri = urlParams.get('redirect_uri') || 'http://localhost:3000/sso-callback'
-const state = urlParams.get('state') || ''
+const returnUrl = urlParams.get('return_url') || '/'
 
 onMounted(() => {
   appName.value = getAppName(appId)
-  refreshCaptcha()
+  // 不再自动加载验证码，改为懒加载
 })
 
 function getAppName(appId) {
@@ -194,16 +195,31 @@ function getAppName(appId) {
   return appNames[appId] || '应用'
 }
 
+// 懒加载验证码
+const captchaLoaded = ref(false)
+
+async function loadCaptchaIfNeeded() {
+  if (!captchaLoaded.value) {
+    await refreshCaptcha()
+  }
+}
+
+async function handleCaptchaClick() {
+  // 如果还没加载过，先加载；否则刷新
+  await refreshCaptcha()
+}
+
 async function refreshCaptcha() {
   try {
     const response = await request.get('/base/captcha')
     if (response.data.code === 0) {
       form.value.captcha_id = response.data.data.captcha_id
       captchaImage.value = response.data.data.pic_path
+      captchaLoaded.value = true
     }
   } catch (err) {
     console.error('获取验证码失败:', err)
-    ElMessage.error('获取验证码失败，请刷新页面')
+    ElMessage.error('获取验证码失败，请重试')
   }
 }
 
@@ -234,7 +250,7 @@ async function handleRegister() {
           query: {
             app_id: appId,
             redirect_uri: redirectUri,
-            state: state
+            return_url: returnUrl
           }
         })
       }, 2000)
@@ -485,7 +501,6 @@ async function handleRegister() {
 
 .captcha-wrapper:hover {
   border-color: #667eea;
-  transform: scale(1.02);
 }
 
 .captcha-image {
@@ -493,6 +508,22 @@ async function handleRegister() {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.captcha-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #f5f7fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.captcha-placeholder span {
+  color: #999;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .captcha-loading {

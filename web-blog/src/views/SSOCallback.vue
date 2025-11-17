@@ -24,7 +24,7 @@ onMounted(async () => {
     // 获取URL参数
     const urlParams = new URLSearchParams(window.location.search)
     const code = urlParams.get('code')
-    const state = urlParams.get('state')
+    const returnUrl = urlParams.get('return_url') || '/'
 
     if (!code) {
       ElMessage.error('登录失败：未获取到授权码')
@@ -33,7 +33,7 @@ onMounted(async () => {
     }
 
     // ✅ OAuth 2.0: 用code向应用后端换取token
-    const response = await fetch(`/api/auth/callback?code=${code}&state=${state}&redirect_uri=${encodeURIComponent(window.location.origin + '/sso-callback')}`)
+    const response = await fetch(`/api/auth/callback?code=${code}&redirect_uri=${encodeURIComponent(window.location.origin + '/sso-callback')}`)
     const data = await response.json()
 
     if (data.code !== 0) {
@@ -54,24 +54,7 @@ onMounted(async () => {
 
     ElMessage.success('登录成功')
     
-    // ✅ 使用state从sessionStorage读取返回路径
-    let returnUrl = '/'
-    if (state) {
-      const stateKey = `oauth_state_${state}`
-      const stateData = sessionStorage.getItem(stateKey)
-      
-      if (stateData) {
-        try {
-          const parsed = JSON.parse(stateData)
-          returnUrl = parsed.returnUrl || '/'
-          sessionStorage.removeItem(stateKey) // 清除已使用的state数据
-        } catch (e) {
-          console.error('解析state数据失败:', e)
-        }
-      }
-    }
-    
-    // 跳转到返回页面或首页
+    // 跳转到return_url指定的页面
     router.push(returnUrl)
   } catch (error) {
     console.error('SSO回调处理失败:', error)

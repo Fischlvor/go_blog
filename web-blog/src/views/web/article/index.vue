@@ -192,19 +192,14 @@ const redirectToLogin = async () => {
   try {
     // 构建回调地址 - 使用 /sso-callback 统一处理
     const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback');
+    // 获取完整路径（包含查询参数）
+    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
     
-    // 获取SSO登录URL（后端会生成state）
-    const response = await fetch(`/api/auth/sso_login_url?redirect_uri=${redirectUri}`);
+    // 获取SSO登录URL
+    const response = await fetch(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
     const data = await response.json();
     
     if (data.code === 0) {
-      // 使用state作为key，存储返回URL到sessionStorage
-      const state = data.data.state;
-      sessionStorage.setItem(`oauth_state_${state}`, JSON.stringify({
-        returnUrl: window.location.pathname,
-        timestamp: Date.now()
-      }));
-      
       // 跳转到SSO登录页面
       window.location.href = data.data.sso_login_url;
     } else {

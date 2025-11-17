@@ -437,17 +437,12 @@ router.beforeEach((to, from, next) => {
               // 直接跳转到SSO登录页面
               try {
                 const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback');
-                const response = await fetch(`/api/auth/sso_login_url?redirect_uri=${redirectUri}`);
+                // 获取完整路径（包含查询参数）
+                const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                const response = await fetch(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
                 const data = await response.json();
                 
                 if (data.code === 0) {
-                  // 使用state作为key，存储返回URL到sessionStorage
-                  const state = data.data.state;
-                  sessionStorage.setItem(`oauth_state_${state}`, JSON.stringify({
-                    returnUrl: window.location.pathname,
-                    timestamp: Date.now()
-                  }));
-                  
                   window.location.href = data.data.sso_login_url;
                 } else {
                   ElMessage.error(data.message || '获取登录地址失败');

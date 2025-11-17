@@ -1,5 +1,5 @@
 <template>
-  <div class="logo">
+  <div class="logo" @click="goToHome">
     <el-image
         :src="websiteStore.state.websiteInfo.logo===''?'https://image.hsk423.cn/blog/96d6f2e7e1f705ab5e59c84a6dc009b2-20251111150013.svg':websiteStore.state.websiteInfo.logo"
         alt=""/>
@@ -13,8 +13,14 @@
 
 <script setup lang="ts">
 import {useWebsiteStore} from "@/stores/website";
+import {useRouter} from "vue-router";
 
 const websiteStore = useWebsiteStore()
+const router = useRouter()
+
+const goToHome = () => {
+  router.push('/')
+}
 </script>
 
 <style scoped lang="scss">
@@ -60,6 +66,12 @@ const websiteStore = useWebsiteStore()
 
 .web-navbar .logo {
   display: flex;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+
+  &:hover {
+    opacity: 0.8;
+  }
 
   .el-image {
     //padding: 5px;
