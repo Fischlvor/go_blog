@@ -2,7 +2,6 @@ package router
 
 import (
 	"server/internal/api"
-	"server/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,7 +10,7 @@ type AIChatRouter struct {
 }
 
 func (a *AIChatRouter) InitAIChatRouter(Router *gin.RouterGroup, PublicRouter *gin.RouterGroup, AdminRouter *gin.RouterGroup) {
-	aiChatRouter := Router.Group("ai-chat").Use(middleware.JWTAuth())
+	aiChatRouter := Router.Group("ai-chat")
 	aiChatPublicRouter := PublicRouter.Group("ai-chat")
 	// aiChatAdminRouter := AdminRouter.Group("ai-chat") // 暂时注释，后续需要时再启用
 	aiChatApi := api.ApiGroupApp.AIChatApi

@@ -61,7 +61,8 @@ const routes = [
         name: "ai-assistant",
         component: () => import('@/views/web/ai-assistant/index.vue'),
         meta: {
-          title: "AI助手"
+          title: "AI助手",
+          requiresAuth: true
         }
       }
 
@@ -419,20 +420,22 @@ router.beforeEach((to, from, next) => {
     const isAdmin = userStore.isAdmin // 检查用户是否为管理员的逻辑
     if (to.matched.some(record => record.meta.requiresAuth)) {
       if (!isAuthenticated) {
-        ElMessageBox.confirm(
-            '登录已过期，需要重新登录，是否跳转到主页？', 'Warning', {
+        // 根据目标页面显示不同的提示信息
+        const pageName = to.meta.title || '该页面'
+        const message = to.name === 'ai-assistant' 
+          ? '✨ AI助手需要登录后才能使用哦！登录后即可开启智能对话体验～'
+          : `${pageName}需要登录后才能访问，是否前往登录？`
+        
+        ElMessageBox.confirm(message, '需要登录', {
               cancelButtonText: '取消',
-              confirmButtonText: '确定',
-              type: 'warning',
+              confirmButtonText: '立即登录',
+              type: 'info',
+              center: true
             })
             .then(() => {
               router.push({name: 'index', replace: true}).then(() => {
                 layoutStore.show('popoverVisible')
                 layoutStore.show('loginVisible')
-                //layoutStore.show('popoverVisible')
-                //layoutStore.show('loginVisible')
-                //layoutStore.state.popoverVisible = true;
-                //layoutStore.state.loginVisible = true;
               });
             })
             .catch(() => {
