@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"server/internal/model/appTypes"
 	"server/internal/model/database"
@@ -23,6 +24,22 @@ import (
 type ArticleService struct {
 }
 
+// processCoverURLs 处理ES查询结果中的封面URL，将相对路径转换为完整URL
+func (articleService *ArticleService) processCoverURLs(hits []types.Hit) {
+	for i := range hits {
+		var source map[string]interface{}
+		if err := json.Unmarshal(hits[i].Source_, &source); err == nil {
+			if cover, exists := source["cover"].(string); exists {
+				source["cover"] = utils.PublicURLFromDB(cover)
+				// 重新序列化回去
+				if newSource, err := json.Marshal(source); err == nil {
+					hits[i].Source_ = newSource
+				}
+			}
+		}
+	}
+}
+
 func (articleService *ArticleService) ArticleInfoByID(id string) (elasticsearch.Article, error) {
 	article, err := articleService.Get(id)
 	if err != nil {
@@ -37,6 +54,8 @@ func (articleService *ArticleService) ArticleInfoByID(id string) (elasticsearch.
 	go func() {
 		_ = ArticleFieldCache.Add("views", id)
 	}()
+	// 拼接封面URL
+	article.Cover = utils.PublicURLFromDB(article.Cover)
 	return article, nil
 }
 
@@ -125,7 +144,13 @@ func (articleService *ArticleService) ArticleSearch(info request.ArticleSearch) 
 		Request:        req,
 		SourceIncludes: []string{"created_at", "cover", "title", "abstract", "category", "tags", "views", "comments", "likes", "score"},
 	}
-	return utils.EsPagination(context.TODO(), option)
+	list, total, err := utils.EsPagination(context.TODO(), option)
+	if err != nil {
+		return nil, 0, err
+	}
+	// 拼接封面URL
+	articleService.processCoverURLs(list)
+	return list, total, nil
 }
 
 func (articleService *ArticleService) ArticleCategory() ([]database.ArticleCategory, error) {
@@ -198,6 +223,8 @@ func (articleService *ArticleService) ArticleLikesList(info request.ArticleLikes
 		article.UpdatedAt = ""
 		article.Keyword = ""
 		article.Content = ""
+		// 拼接封面URL
+		article.Cover = utils.PublicURLFromDB(article.Cover)
 		list = append(list, struct {
 			Id_     string                `json:"_id"`
 			Source_ elasticsearch.Article `json:"_source"`
@@ -222,7 +249,7 @@ func (articleService *ArticleService) ArticleCreate(req request.ArticleCreate) e
 	articleToCreate := elasticsearch.Article{
 		CreatedAt: now,
 		UpdatedAt: now,
-		Cover:     req.Cover,
+		Cover:     dbCover,
 		Title:     req.Title,
 		Keyword:   req.Title,
 		Category:  req.Category,
@@ -323,7 +350,7 @@ func (articleService *ArticleService) ArticleUpdate(req request.ArticleUpdate) e
 		Content   string   `json:"content"`
 	}{
 		UpdatedAt: now,
-		Cover:     req.Cover,
+		Cover:     utils.DBURLFromPublic(req.Cover),
 		Title:     req.Title,
 		Keyword:   req.Title,
 		Category:  req.Category,
@@ -383,7 +410,7 @@ func (articleService *ArticleService) ArticleUpdate(req request.ArticleUpdate) e
 	})
 }
 
-func (articleService *ArticleService) ArticleList(info request.ArticleList) (list interface{}, total int64, err error) {
+func (articleService *ArticleService) ArticleList(info request.ArticleList) (interface{}, int64, error) {
 	req := &search.Request{
 		Query: &types.Query{},
 	}
@@ -430,5 +457,11 @@ func (articleService *ArticleService) ArticleList(info request.ArticleList) (lis
 		Index:    elasticsearch.ArticleIndex(),
 		Request:  req,
 	}
-	return utils.EsPagination(context.TODO(), option)
+	list, total, err := utils.EsPagination(context.TODO(), option)
+	if err != nil {
+		return nil, 0, err
+	}
+	// 拼接封面URL
+	articleService.processCoverURLs(list)
+	return list, total, nil
 }

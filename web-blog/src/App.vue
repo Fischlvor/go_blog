@@ -9,10 +9,11 @@
 <script setup lang="ts">
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { cdn } from "@/utils/cdn"
-import { computed } from "vue"
+import { computed, onMounted } from "vue"
+import { preloadEmojiConfig } from "@/utils/emojiGlobalInit"
 
 const appStyle = computed(() => ({
-  backgroundImage: `url('${cdn("blog/5523c88dd347d1b7cc617f632b7efdb7-20251111150011.png")}')`,
+  backgroundImage: `url('${cdn("blog/5523c88dd347d1b7cc617f632b7efdb7-20251111150011.webp")}')`,
   backgroundSize: "cover",
   backgroundPosition: "center",
   backgroundRepeat: "no-repeat",
@@ -22,6 +23,11 @@ const appStyle = computed(() => ({
   margin: "0",
   padding: "0"
 }))
+
+// 应用启动时预加载 emoji 配置
+onMounted(() => {
+  preloadEmojiConfig()
+})
 </script>
 
 <style>

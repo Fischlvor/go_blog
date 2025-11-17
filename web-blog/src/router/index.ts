@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import {useUserStore} from "@/stores/user";
 import {useLayoutStore} from "@/stores/layout";
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 const routes = [
   {
@@ -432,11 +433,31 @@ router.beforeEach((to, from, next) => {
               type: 'info',
               center: true
             })
-            .then(() => {
-              router.push({name: 'index', replace: true}).then(() => {
-                layoutStore.show('popoverVisible')
-                layoutStore.show('loginVisible')
-              });
+            .then(async () => {
+              // 直接跳转到SSO登录页面
+              try {
+                const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback');
+                const response = await fetch(`/api/auth/sso_login_url?redirect_uri=${redirectUri}`);
+                const data = await response.json();
+                
+                if (data.code === 0) {
+                  // 使用state作为key，存储返回URL到sessionStorage
+                  const state = data.data.state;
+                  sessionStorage.setItem(`oauth_state_${state}`, JSON.stringify({
+                    returnUrl: window.location.pathname,
+                    timestamp: Date.now()
+                  }));
+                  
+                  window.location.href = data.data.sso_login_url;
+                } else {
+                  ElMessage.error(data.message || '获取登录地址失败');
+                  router.push({name: 'index', replace: true});
+                }
+              } catch (error) {
+                console.error('获取SSO登录URL失败:', error);
+                ElMessage.error('登录服务异常，请稍后重试');
+                router.push({name: 'index', replace: true});
+              }
             })
             .catch(() => {
               router.push({name: from.name as string}).then();

@@ -28,6 +28,7 @@ export class EmojiStyleManager {
   private config: EmojiConfig | null = null
   private loadedStyles = new Set<string>()
   private styleElement: HTMLStyleElement | null = null
+  private loadingPromise: Promise<EmojiConfig> | null = null // Promise 缓存
 
   private constructor() {
     this.createStyleElement()
@@ -51,31 +52,53 @@ export class EmojiStyleManager {
 
   /**
    * 加载emoji配置（通过统一的 API 模块）
+   * 使用 Promise 缓存确保全局只请求一次
    */
   async loadConfig(): Promise<EmojiConfig> {
-    if (this.config) return this.config
-
-    try {
-      const res = await getEmojiConfig()
-      if (res.code !== 0 || !res.data) {
-        throw new Error(res.msg || '获取emoji配置失败')
-      }
-
-      const apiConfig = res.data as ApiEmojiConfig
-
-      this.config = {
-        version: apiConfig.version,
-        total_emojis: apiConfig.total_emojis,
-        updated_at: apiConfig.updated_at,
-        sprites: (apiConfig.sprites || []) as unknown as SpriteInfo[],
-        mapping: apiConfig.mapping as Record<string, string> | undefined
-      }
-
+    // 如果已经有配置，直接返回
+    if (this.config) {
+      console.log('✅ 复用已缓存的 emoji 配置')
       return this.config
-    } catch (error) {
-      console.error('加载emoji配置失败:', error)
-      throw error
     }
+
+    // 如果正在加载中，返回同一个 Promise
+    if (this.loadingPromise) {
+      console.log('⏳ 等待正在进行的 emoji 配置请求')
+      return this.loadingPromise
+    }
+
+    // 创建新的加载 Promise
+    console.log('🚀 发起 emoji 配置请求')
+    this.loadingPromise = (async () => {
+      try {
+        const res = await getEmojiConfig()
+        if (res.code !== 0 || !res.data) {
+          throw new Error(res.msg || '获取emoji配置失败')
+        }
+
+        const apiConfig = res.data as ApiEmojiConfig
+
+        this.config = {
+          version: apiConfig.version,
+          total_emojis: apiConfig.total_emojis,
+          updated_at: apiConfig.updated_at,
+          sprites: (apiConfig.sprites || []) as unknown as SpriteInfo[],
+          mapping: apiConfig.mapping as Record<string, string> | undefined
+        }
+
+        console.log('✅ emoji 配置加载成功，共', this.config.total_emojis, '个表情')
+        return this.config
+      } catch (error) {
+        console.error('❌ 加载emoji配置失败:', error)
+        this.loadingPromise = null // 失败时清除 Promise 缓存，允许重试
+        throw error
+      } finally {
+        // 成功后也清除 Promise 引用（但保留 config 缓存）
+        this.loadingPromise = null
+      }
+    })()
+
+    return this.loadingPromise
   }
 
   /**

@@ -30,14 +30,14 @@
       <div v-else class="emoji-grid" ref="emojiGrid">
         <div 
           v-for="emoji in visibleEmojis" 
-          :key="emoji.newKey"
+          :key="emoji.key"
           class="emoji-item"
           :class="[
             'emoji',
             `emoji-sprite-${emoji.spriteGroup}`,
-            `emoji-${emoji.newKey}`
+            `emoji-${emoji.key}`
           ]"
-          :title="`${emoji.oldKey} -> ${emoji.newKey}`"
+          :title="emoji.key"
           @click="selectEmoji(emoji)"
         ></div>
         
@@ -175,7 +175,7 @@ const cleanupIntersectionObserver = () => {
 
 // 选择emoji
 const selectEmoji = (emoji: EmojiInfo) => {
-  const emojiText = `:emoji:${emoji.newKey}:`
+  const emojiText = `:emoji:${emoji.key}:`
   emit('update:modelValue', (props.modelValue || '') + emojiText)
   emit('select', emoji)
   closePicker()

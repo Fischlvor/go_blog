@@ -42,6 +42,13 @@ const redirectToSSO = async (action: 'login' | 'register' | 'forgot-password') =
     const response = await axios.get(`/api/auth/sso_login_url?redirect_uri=${redirectUri}`);
     
     if (response.data.code === 0) {
+      // 使用state作为key，存储返回URL到sessionStorage
+      const state = response.data.data.state;
+      sessionStorage.setItem(`oauth_state_${state}`, JSON.stringify({
+        returnUrl: window.location.pathname,
+        timestamp: Date.now()
+      }));
+      
       // 构建完整的SSO URL，根据action添加不同的路径
       let ssoURL = response.data.data.sso_login_url;
       

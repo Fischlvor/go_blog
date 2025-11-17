@@ -46,14 +46,14 @@
                 <div class="emoji-grid"> <!-- 新增包裹容器 -->
                   <div
                       v-for="emoji in visibleEmojis"
-                      :key="emoji.newKey"
+                      :key="emoji.key"
                       class="emoji-item"
                       :class="[
                         'emoji',
                         `emoji-sprite-${emoji.spriteGroup}`,
-                        `emoji-${emoji.newKey}`
+                        `emoji-${emoji.key}`
                       ]"
-                      :title="`${emoji.oldKey} -> ${emoji.newKey}`"
+                      :title="emoji.key"
                       @click="insertEmoji(emoji)"
                   ></div>
                   <div v-if="hasMoreEmojis" @click="loadMoreEmojis" class="load-more-btn">
@@ -140,7 +140,7 @@ const openEmojiList = () => {
 }
 
 const insertEmoji = (emoji: EmojiInfo) => {
-  content.value = content.value + `:emoji:${emoji.newKey}:`
+  content.value = content.value + `:emoji:${emoji.key}:`
   layoutStore.hide("emojiPopoverVisible") // 关闭表情弹框
   console.log(layoutStore.state.emojiPopoverVisible)
 }

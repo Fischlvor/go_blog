@@ -58,7 +58,7 @@ export interface EmojiConfig {
     version: string;
     total_emojis: number;
     sprites: EmojiSprite[] | null;
-    mapping: Record<string, any>;
+    mapping?: Record<string, any> | null; // 已废弃，保留用于兼容
     updated_at: string;
 }
 

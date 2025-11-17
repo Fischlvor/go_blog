@@ -27,46 +27,63 @@
           <!-- 下部容器：包含评论相关内容 -->
           <div class="lower-container">
             <div class="comment" id="comment">
-              <el-input v-model="content" :autosize="{ minRows: 4, maxRows: 8 }" type="textarea"
-                        placeholder="喜欢这篇文章吗？在这里与大家分享您的想法！" maxlength="320"/>
-              <el-text>tip:请登录后再进行反馈!</el-text>
-              <div class="operation">
-                <div class="comment-tool">
-                  <el-popover v-model:visible="layoutStore.state.emojiPopoverVisible"
-                              width="502"
-                              trigger="click"
-                              placement="right"
-                              :hide-after="0"
-                  >
-                    <template #reference>
-                      <el-avatar :src="cdn('emoji/system_1_base/df512b9cb3e7d8de7206c647590b6de0-20251115164531.png')" style="cursor: pointer;" />
-                    </template>
-                    <template #default>
-                      <div class="emoji-grid"> <!-- 新增包裹容器 -->
-                        <div
-                            v-for="emoji in visibleEmojis"
-                            :key="emoji.newKey"
-                            class="emoji-item"
-                            :class="[
-                              'emoji',
-                              `emoji-sprite-${emoji.spriteGroup}`,
-                              `emoji-${emoji.newKey}`
-                            ]"
-                            :title="`${emoji.oldKey} -> ${emoji.newKey}`"
-                            @click="insertEmoji(emoji)"
-                        ></div>
-                        <div v-if="hasMoreEmojis" @click="loadMoreEmojis" class="load-more-btn">
-                          加载更多...
-                        </div>
-                      </div>
-                    </template>
-                  </el-popover>
-                </div>
-                <div class="button-group">
-                  <el-button size="large" type="primary" @click="submitComment">发表</el-button>
-                  <el-button size="large" @click="content=''">取消</el-button>
-                </div>
+              <!-- 未登录状态：显示登录提示 -->
+              <div v-if="!userStore.isLoggedIn" class="login-tip">
+                <el-alert
+                  type="info"
+                  :closable="false"
+                  center
+                >
+                  <template #default>
+                    <div class="tip-content">
+                      <span><span class="login-link" @click="redirectToLogin">登录</span>后，说说你的看法</span>
+                    </div>
+                  </template>
+                </el-alert>
               </div>
+              
+              <!-- 已登录状态：显示评论输入框 -->
+              <template v-else>
+                <el-input v-model="content" :autosize="{ minRows: 4, maxRows: 8 }" type="textarea"
+                          placeholder="喜欢这篇文章吗？在这里与大家分享您的想法！" maxlength="320"/>
+                <div class="operation">
+                  <div class="comment-tool">
+                    <el-popover v-model:visible="layoutStore.state.emojiPopoverVisible"
+                                width="502"
+                                trigger="click"
+                                placement="right"
+                                :hide-after="0"
+                    >
+                      <template #reference>
+                        <el-avatar :src="cdn('emoji/system_1_base/df512b9cb3e7d8de7206c647590b6de0-20251115164531.png')" style="cursor: pointer;" />
+                      </template>
+                      <template #default>
+                        <div class="emoji-grid"> <!-- 新增包裹容器 -->
+                          <div
+                              v-for="emoji in visibleEmojis"
+                              :key="emoji.key"
+                              class="emoji-item"
+                              :class="[
+                                'emoji',
+                                `emoji-sprite-${emoji.spriteGroup}`,
+                                `emoji-${emoji.key}`
+                              ]"
+                              :title="emoji.key"
+                              @click="insertEmoji(emoji)"
+                          ></div>
+                          <div v-if="hasMoreEmojis" @click="loadMoreEmojis" class="load-more-btn">
+                            加载更多...
+                          </div>
+                        </div>
+                      </template>
+                    </el-popover>
+                  </div>
+                  <div class="button-group">
+                    <el-button size="large" type="primary" @click="submitComment">发表</el-button>
+                    <el-button size="large" @click="content=''">取消</el-button>
+                  </div>
+                </div>
+              </template>
             </div>
             <div class="comment-list">
               <el-row class="title">评论</el-row>
@@ -119,6 +136,7 @@ import {useLayoutStore} from "@/stores/layout";
 import { cdn } from '@/utils/cdn';
 import {useUserStore} from "@/stores/user";
 import { parseEmojis, renderTextWithEmojisForText, getAllEmojis, type EmojiInfo } from '@/utils/emojiParser'
+import { ElMessage } from 'element-plus'
 
 const mdID = "md-id"
 
@@ -144,6 +162,7 @@ const route = useRoute()
 const articleID = computed(() => route.params.id)
 
 const layoutStore = useLayoutStore()
+const userStore = useUserStore()
 
 // 将内容中的 :emoji: 标记解析并渲染为雪碧图 span
 const renderContentWithEmojis = async (text: string): Promise<string> => {
@@ -158,7 +177,7 @@ const openEmojiList = () => {
 }
 
 const insertEmoji = (emoji: EmojiInfo) => {
-  content.value = content.value + `:emoji:${emoji.newKey}:`
+  content.value = content.value + `:emoji:${emoji.key}:`
   layoutStore.hide("emojiPopoverVisible") // 关闭表情弹框
   console.log(layoutStore.state.emojiPopoverVisible)
 }
@@ -166,6 +185,35 @@ const insertEmoji = (emoji: EmojiInfo) => {
 const changeEmojiListState = () => {
   layoutStore.stateChange("emojiPopoverVisible") // 关闭表情弹框
   console.log(layoutStore.state.emojiPopoverVisible)
+}
+
+// 跳转到登录页面
+const redirectToLogin = async () => {
+  try {
+    // 构建回调地址 - 使用 /sso-callback 统一处理
+    const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback');
+    
+    // 获取SSO登录URL（后端会生成state）
+    const response = await fetch(`/api/auth/sso_login_url?redirect_uri=${redirectUri}`);
+    const data = await response.json();
+    
+    if (data.code === 0) {
+      // 使用state作为key，存储返回URL到sessionStorage
+      const state = data.data.state;
+      sessionStorage.setItem(`oauth_state_${state}`, JSON.stringify({
+        returnUrl: window.location.pathname,
+        timestamp: Date.now()
+      }));
+      
+      // 跳转到SSO登录页面
+      window.location.href = data.data.sso_login_url;
+    } else {
+      ElMessage.error(data.message || '获取登录地址失败');
+    }
+  } catch (error: any) {
+    console.error('获取SSO登录URL失败:', error);
+    ElMessage.error('登录服务异常，请稍后重试');
+  }
 }
 
 const getArticleInfo = async () => {
@@ -230,10 +278,9 @@ onMounted(async () => {
       const oldEmojiList = text.split('\n').filter(line => line.trim() !== '');
       // 转换为新格式（临时兼容）
       emojiList.value = oldEmojiList.map((filename, index) => ({
-        oldKey: filename.replace('.png', ''),
-        newKey: `e${index}`,
+        key: `e${index}`,
         spriteGroup: Math.floor(index / 128),
-        index: index % 128
+        index: index
       }));
       loadMoreEmojis();
     }
@@ -411,6 +458,29 @@ watch(() => layoutStore.state.shouldRefreshCommentList, (newVal) => {
           .comment {
             border-top: 1px solid #DCDFE6;
             padding-top: 20px;
+
+            .login-tip {
+              margin-bottom: 20px;
+
+              .tip-content {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                .login-link {
+                  color: #409eff;
+                  cursor: pointer;
+                  font-weight: 600;
+                  text-decoration: underline;
+                  transition: all 0.3s;
+
+                  &:hover {
+                    color: #66b1ff;
+                    text-decoration: none;
+                  }
+                }
+              }
+            }
 
             .operation {
               margin-top: 20px;

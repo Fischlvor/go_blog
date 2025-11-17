@@ -73,7 +73,7 @@ func (a *AuthApi) SSOCallback(c *gin.Context) {
 		return
 	}
 
-	// ✅ 只返回access_token给前端
+	// ✅ 返回access_token给前端，state用于前端获取返回URL
 	response.OkWithData(gin.H{
 		"access_token": tokenResp.AccessToken,
 		"token_type":   tokenResp.TokenType,

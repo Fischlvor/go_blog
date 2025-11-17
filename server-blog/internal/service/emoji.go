@@ -189,15 +189,6 @@ func (s *EmojiService) GetEmojiConfig() (*model.EmojiConfigResponse, error) {
 		return nil, err
 	}
 
-	// 构建映射表
-	mapping := make(map[string]string)
-	for _, emoji := range emojis {
-		// 生成旧格式key (假设从s0开始)
-		keyNum, _ := strconv.Atoi(strings.TrimPrefix(emoji.Key, "e"))
-		oldKey := fmt.Sprintf("s%d", keyNum)
-		mapping[oldKey] = emoji.Key
-	}
-
 	// 构建雪碧图信息
 	var spriteInfos []model.EmojiSpriteInfo
 	for _, sprite := range sprites {
@@ -219,7 +210,7 @@ func (s *EmojiService) GetEmojiConfig() (*model.EmojiConfigResponse, error) {
 		Version:     fmt.Sprintf("v1.%d", time.Now().Unix()),
 		TotalEmojis: int64(len(emojis)),
 		Sprites:     spriteInfos,
-		Mapping:     mapping,
+		Mapping:     nil, // 不再需要 mapping，前端直接使用 e123 格式
 		UpdatedAt:   time.Now(),
 	}, nil
 }

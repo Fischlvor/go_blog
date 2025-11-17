@@ -54,8 +54,25 @@ onMounted(async () => {
 
     ElMessage.success('登录成功')
     
-    // 跳转回首页
-    router.push({ name: 'index' })
+    // ✅ 使用state从sessionStorage读取返回路径
+    let returnUrl = '/'
+    if (state) {
+      const stateKey = `oauth_state_${state}`
+      const stateData = sessionStorage.getItem(stateKey)
+      
+      if (stateData) {
+        try {
+          const parsed = JSON.parse(stateData)
+          returnUrl = parsed.returnUrl || '/'
+          sessionStorage.removeItem(stateKey) // 清除已使用的state数据
+        } catch (e) {
+          console.error('解析state数据失败:', e)
+        }
+      }
+    }
+    
+    // 跳转到返回页面或首页
+    router.push(returnUrl)
   } catch (error) {
     console.error('SSO回调处理失败:', error)
     ElMessage.error('登录处理失败，请重试')

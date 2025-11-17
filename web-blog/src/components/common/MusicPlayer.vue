@@ -62,10 +62,10 @@
     </div>
 
     <audio ref="audioPlayer"
-           :src="currentSongUrl"
            @play="isPlaying = true"
            @pause="isPlaying = false"
-           @ended="playNext"></audio>
+           @ended="playNext"
+           preload="none"></audio>
   </div>
 </template>
 
@@ -114,6 +114,10 @@ function togglePlay() {
   if (isPlaying.value) {
     audioPlayer.value.pause();
   } else {
+    // 懒加载：只有在播放时才设置src并下载歌曲
+    if (!audioPlayer.value.src || audioPlayer.value.src !== currentSongUrl.value) {
+      audioPlayer.value.src = currentSongUrl.value;
+    }
     audioPlayer.value.play().catch(error => {
       console.error('播放失败:', error);
     });
@@ -137,6 +141,8 @@ function playSong(index: number) {
 
   nextTick(() => {
     if (audioPlayer.value) {
+      // 懒加载：切换歌曲时才设置新的src
+      audioPlayer.value.src = currentSongUrl.value;
       audioPlayer.value.currentTime = 0;
       audioPlayer.value.play().catch(error => {
         console.error('播放失败:', error);
