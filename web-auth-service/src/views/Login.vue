@@ -93,16 +93,17 @@
                 maxlength="6"
                 required
                 class="form-input"
+                @focus="loadCaptchaIfNeeded"
               />
-              <div class="captcha-wrapper" @click="refreshCaptcha">
+              <div class="captcha-wrapper" @click="handleCaptchaClick">
                 <img
                   v-if="captchaImage"
                   :src="captchaImage"
                   class="captcha-image"
                   alt="验证码"
                 />
-                <div v-else class="captcha-loading">
-                  <div class="loading-spinner"></div>
+                <div v-else class="captcha-placeholder">
+                  <span>点击加载</span>
                 </div>
               </div>
             </div>
@@ -202,6 +203,7 @@ import { ElMessage } from 'element-plus'
 import { getCaptcha, getQQLoginURL, sendEmailVerificationCode } from '@/api/base'
 import { login } from '@/api/auth'
 import { getDeviceId, getBrowserName } from '@/utils/device'
+import { encodeState, generateNonce } from '@/utils/state'
 import { computed } from 'vue'
 import CaptchaDialog from '@/components/CaptchaDialog.vue'
 
@@ -231,12 +233,12 @@ const canSendEmailCode = computed(() => {
 // 从URL获取参数
 const urlParams = new URLSearchParams(window.location.search)
 const appId = urlParams.get('app_id') || 'blog'
-const redirectUri = urlParams.get('redirect_uri') || 'http://localhost:3000/callback'
-const state = urlParams.get('state') || ''
+const redirectUri = urlParams.get('redirect_uri') || 'http://localhost:3000/sso-callback'
+const returnUrl = urlParams.get('return_url') || '/'
 
 onMounted(() => {
   appName.value = getAppName(appId)
-  refreshCaptcha()
+  // 不再自动加载验证码，改为懒加载
 })
 
 function getAppName(appId) {
@@ -249,16 +251,31 @@ function getAppName(appId) {
 const router = useRouter()
 const route = useRoute()
 
+// 懒加载验证码
+const captchaLoaded = ref(false)
+
+async function loadCaptchaIfNeeded() {
+  if (!captchaLoaded.value) {
+    await refreshCaptcha()
+  }
+}
+
+async function handleCaptchaClick() {
+  // 如果还没加载过，先加载；否则刷新
+  await refreshCaptcha()
+}
+
 async function refreshCaptcha() {
   try {
     const response = await getCaptcha()
     if (response.data.code === 0) {
       form.value.captcha_id = response.data.data.captcha_id
       captchaImage.value = response.data.data.pic_path
+      captchaLoaded.value = true
     }
   } catch (err) {
     console.error('获取验证码失败:', err)
-    ElMessage.error('获取验证码失败，请刷新页面')
+    ElMessage.error('获取验证码失败，请重试')
   }
 }
 
@@ -297,6 +314,16 @@ async function handleLogin() {
   loading.value = true
 
   try {
+    // 生成state参数
+    const stateData = {
+      nonce: generateNonce(),
+      app_id: appId,
+      device_id: getDeviceId(),
+      redirect_uri: redirectUri,
+      return_url: returnUrl
+    }
+    const encodedState = encodeState(stateData)
+
     let response
     if (loginType.value === 'password') {
       // 密码登录
@@ -305,9 +332,7 @@ async function handleLogin() {
         password: form.value.password,
         captcha: form.value.captcha,
         captcha_id: form.value.captcha_id,
-        app_id: appId,
-        redirect_uri: redirectUri,
-        device_id: getDeviceId(),
+        state: encodedState,
         device_name: getBrowserName(),
         device_type: 'web'
       })
@@ -316,9 +341,7 @@ async function handleLogin() {
       response = await login({
         email: form.value.email,
         verification_code: form.value.emailCode,
-        app_id: appId,
-        redirect_uri: redirectUri,
-        device_id: getDeviceId(),
+        state: encodedState,
         device_name: getBrowserName(),
         device_type: 'web'
       })
@@ -326,10 +349,12 @@ async function handleLogin() {
 
     if (response.data.code === 0) {
       const data = response.data.data
-      // ✅ 标准OAuth 2.0: 返回授权码
-      window.location.href = `${data.redirect_uri}?` +
-        `code=${data.code}&` +
-        `state=${state}`
+      // ✅ OAuth 2.0: 回调时携带code和return_url
+      let callbackUrl = `${data.redirect_uri}?code=${data.code}`
+      if (data.return_url) {
+        callbackUrl += `&return_url=${encodeURIComponent(data.return_url)}`
+      }
+      window.location.href = callbackUrl
     } else {
       ElMessage.error(response.data.message || '登录失败')
       if (loginType.value === 'password') {
@@ -350,9 +375,15 @@ async function handleLogin() {
 
 async function qqLogin() {
   try {
-    // 获取设备ID并编码到state参数中
-    const deviceId = getDeviceId()
-    const stateParam = `device_id:${deviceId}`
+    // 生成state参数
+    const stateData = {
+      nonce: generateNonce(),
+      app_id: appId,
+      device_id: getDeviceId(),
+      redirect_uri: redirectUri,
+      return_url: returnUrl
+    }
+    const stateParam = encodeState(stateData)
     
     const response = await getQQLoginURL(appId, stateParam)
     if (response.data.code === 0) {
@@ -691,7 +722,6 @@ async function qqLogin() {
 
 .captcha-wrapper:hover {
   border-color: #667eea;
-  transform: scale(1.02);
 }
 
 .captcha-image {
@@ -699,6 +729,22 @@ async function qqLogin() {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.captcha-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #f5f7fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.captcha-placeholder span {
+  color: #999;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .captcha-loading {

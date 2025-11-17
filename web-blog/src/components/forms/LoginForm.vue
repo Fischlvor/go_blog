@@ -28,7 +28,9 @@ const redirectToSSO = async () => {
   try {
     // 获取SSO登录URL
     const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback')
-    const response = await axios.get(`/api/auth/sso_login_url?redirect_uri=${redirectUri}`)
+    // 获取完整路径（包含查询参数）
+    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
+    const response = await axios.get(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`)
     
     if (response.data.code === 0) {
       // 关闭登录弹窗

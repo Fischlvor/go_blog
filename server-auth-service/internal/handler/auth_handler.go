@@ -59,6 +59,18 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// 验证state参数
+	stateData, err := utils.ValidateState(req.State)
+	if err != nil {
+		utils.BadRequest(c, "state验证失败: "+err.Error())
+		return
+	}
+
+	// 从state中提取参数
+	req.AppID = stateData.AppID
+	req.DeviceID = stateData.DeviceID
+	req.RedirectURI = stateData.RedirectURI
+
 	// 判断登录方式：密码登录或验证码登录
 	if req.Password != "" {
 		// 密码登录：需要图片验证码
@@ -99,7 +111,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	utils.Success(c, gin.H{
 		"code":         code,
-		"redirect_uri": req.RedirectURI,
+		"redirect_uri": stateData.RedirectURI,
+		"return_url":   stateData.ReturnURL,
 	})
 }
 
@@ -283,7 +296,7 @@ func (h *AuthHandler) QQLogin(c *gin.Context) {
 func (h *AuthHandler) QQCallback(c *gin.Context) {
 	code := c.Query("code")
 	appID := c.Query("app_id")
-	state := c.Query("state") // 从state参数中获取设备ID等信息
+	state := c.Query("state")
 	if code == "" {
 		utils.BadRequest(c, "缺少code")
 		return
@@ -292,15 +305,22 @@ func (h *AuthHandler) QQCallback(c *gin.Context) {
 		utils.BadRequest(c, "缺少app_id")
 		return
 	}
-	// 完全由后端决定回跳地址：直接使用应用的 redirect_uris 字段（数据库仅存单一地址），否则回退到配置
-	redirectURI := ""
-	var app struct{ RedirectURIs string }
-	if err := global.DB.
-		Table("sso_applications").
-		Select("redirect_uris").
-		Where("app_key = ? AND status = 1", appID).
-		First(&app).Error; err == nil {
-		redirectURI = strings.TrimSpace(app.RedirectURIs)
+	if state == "" {
+		utils.BadRequest(c, "缺少state参数")
+		return
+	}
+
+	// 验证state参数
+	stateData, err := utils.ValidateState(state)
+	if err != nil {
+		utils.BadRequest(c, "state验证失败: "+err.Error())
+		return
+	}
+
+	// 验证app_id是否匹配
+	if stateData.AppID != appID {
+		utils.BadRequest(c, "app_id不匹配")
+		return
 	}
 
 	// 客户端信息
@@ -310,24 +330,12 @@ func (h *AuthHandler) QQCallback(c *gin.Context) {
 	// 从 User-Agent 解析设备名称
 	deviceName := parseDeviceNameFromUserAgent(userAgent)
 
-	// 从state参数中解析设备ID（state格式：device_id:xxx 或直接是设备ID）
-	deviceID := ""
-	if state != "" {
-		// state可能包含设备ID，格式为 "device_id:xxx" 或直接是设备ID
-		if strings.HasPrefix(state, "device_id:") {
-			deviceID = strings.TrimPrefix(state, "device_id:")
-		} else {
-			// 如果state就是设备ID（兼容旧格式）
-			deviceID = state
-		}
-	}
-
 	// 组装请求
 	req := request.QQLoginRequest{
 		Code:        code,
-		AppID:       appID,
-		RedirectURI: redirectURI,
-		DeviceID:    deviceID, // 传递设备ID
+		AppID:       stateData.AppID,
+		RedirectURI: stateData.RedirectURI,
+		DeviceID:    stateData.DeviceID,
 		DeviceType:  "web",
 		DeviceName:  deviceName,
 	}
@@ -345,10 +353,10 @@ func (h *AuthHandler) QQCallback(c *gin.Context) {
 		utils.Error(c, 1003, "生成授权码失败")
 		return
 	}
-	// 保持state参数传递
-	redirectURL := fmt.Sprintf("%s?code=%s", redirectURI, authCode)
-	if state != "" {
-		redirectURL = redirectURL + "&state=" + url.QueryEscape(state)
+	// 重定向到回调地址，携带code和return_url
+	redirectURL := fmt.Sprintf("%s?code=%s", stateData.RedirectURI, authCode)
+	if stateData.ReturnURL != "" {
+		redirectURL = redirectURL + "&return_url=" + url.QueryEscape(stateData.ReturnURL)
 	}
 	c.Redirect(302, redirectURL)
 }

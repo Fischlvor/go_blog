@@ -126,7 +126,7 @@
         </button>
 
         <div class="links">
-          <router-link :to="{ path: '/login', query: { app_id: appId, redirect_uri: redirectUri, state: state } }" class="link-item">
+          <router-link :to="{ path: '/login', query: { app_id: appId, redirect_uri: redirectUri, return_url: returnUrl } }" class="link-item">
             返回登录
           </router-link>
         </div>
@@ -166,7 +166,8 @@ const route = useRoute()
 const urlParams = new URLSearchParams(window.location.search)
 const appId = urlParams.get('app_id') || 'blog'
 const redirectUri = urlParams.get('redirect_uri') || ''
-const state = urlParams.get('state') || ''
+// 忘记密码不需要记录return_url，重置后直接去首页
+const returnUrl = '/'
 
 const form = ref({
   email: '',
@@ -241,7 +242,7 @@ async function handleSubmit() {
     if (response.data.code === 0) {
       ElMessage.success('密码重置成功，请重新登录')
       setTimeout(() => {
-        router.push({ path: '/login', query: { app_id: appId, redirect_uri: redirectUri, state: state } })
+        router.push({ path: '/login', query: { app_id: appId, redirect_uri: redirectUri, return_url: returnUrl } })
       }, 2000)
     } else {
       ElMessage.error(response.data.message || '密码重置失败')

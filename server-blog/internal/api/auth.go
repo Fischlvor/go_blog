@@ -20,26 +20,28 @@ type AuthApi struct{}
 
 // GetSSOLoginURL 获取SSO登录地址
 func (a *AuthApi) GetSSOLoginURL(c *gin.Context) {
-	// 生成state用于防CSRF
-	state := generateState()
-
 	// 构建SSO登录URL
 	redirectURI := c.Query("redirect_uri")
 	if redirectURI == "" {
-		redirectURI = fmt.Sprintf("http://localhost:%d/callback", global.Config.System.Port) // 默认值使用当前服务端口
+		redirectURI = fmt.Sprintf("http://localhost:%d/sso-callback", global.Config.System.Port) // 默认值使用当前服务端口
+	}
+
+	// 获取return_url参数（用户想访问的页面）
+	returnURL := c.Query("return_url")
+	if returnURL == "" {
+		returnURL = "/" // 默认返回首页
 	}
 
 	// ✅ 从配置文件读取SSO前端地址
-	ssoLoginURL := fmt.Sprintf("%s/login?app_id=%s&redirect_uri=%s&state=%s",
+	ssoLoginURL := fmt.Sprintf("%s/login?app_id=%s&redirect_uri=%s&return_url=%s",
 		global.Config.SSO.WebURL,
 		global.Config.SSO.ClientID,
 		url.QueryEscape(redirectURI),
-		state,
+		url.QueryEscape(returnURL),
 	)
 
 	response.OkWithData(gin.H{
 		"sso_login_url": ssoLoginURL,
-		"state":         state,
 	}, c)
 }
 
