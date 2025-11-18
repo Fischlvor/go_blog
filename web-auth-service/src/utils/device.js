@@ -18,36 +18,33 @@ function hashString(str) {
 function collectBrowserFingerprint() {
   const features = []
   
-  // 1. User-Agent
+  // 1. User-Agent（稳定）
   features.push(navigator.userAgent || '')
   
-  // 2. 屏幕分辨率
+  // 2. 屏幕分辨率（稳定）
   features.push(`${screen.width}x${screen.height}`)
   features.push(`${screen.availWidth}x${screen.availHeight}`)
   
-  // 3. 时区
+  // 3. 颜色深度（稳定）
+  features.push(screen.colorDepth || '')
+  
+  // 4. 时区（稳定）
   features.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '')
   
-  // 4. 语言
+  // 5. 语言（稳定）
   features.push(navigator.language || '')
   features.push((navigator.languages || []).join(','))
   
-  // 5. 硬件并发数
+  // 6. 硬件并发数（稳定）
   features.push(navigator.hardwareConcurrency || '')
   
-  // 6. 设备内存（如果可用）
-  if (navigator.deviceMemory) {
-    features.push(navigator.deviceMemory.toString())
-  }
-  
-  // 7. 平台信息
+  // 7. 平台信息（稳定）
   features.push(navigator.platform || '')
   
-  // 8. Cookie是否启用
-  features.push(navigator.cookieEnabled ? '1' : '0')
-  
-  // 9. 是否在线
-  features.push(navigator.onLine ? '1' : '0')
+  // 注意：以下特征已移除，因为在不同环境可能不一致
+  // - deviceMemory: 不同环境支持不一致
+  // - onLine: 在线状态会变化
+  // - cookieEnabled: 区分度低
   
   // 10. Canvas指纹（简化版，不实际绘制）
   if (typeof document !== 'undefined') {
