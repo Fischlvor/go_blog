@@ -1,0 +1,129 @@
+# 博客服务配置文件示例
+# 使用说明：复制此文件为 config.yaml 并根据实际情况修改配置
+
+# 验证码配置
+captcha:
+    height: 80
+    width: 240
+    length: 6
+    max_skew: 0.7
+    dot_count: 80
+
+# 邮件配置
+email:
+    host: smtp.example.com      # SMTP服务器地址
+    port: 465                    # SMTP端口
+    from: your_email@example.com # 发件人邮箱
+    nickname: admin              # 发件人昵称
+    secret: your_email_password  # 邮箱授权码
+    is_ssl: true                 # 是否使用SSL
+
+# Elasticsearch配置
+es:
+    url: http://localhost:9200   # ES服务地址
+    username: ""                 # ES用户名（可选）
+    password: ""                 # ES密码（可选）
+    is_console_print: true       # 是否打印ES日志
+
+# 高德地图配置（IP定位）
+gaode:
+    enable: true                 # 是否启用
+    key: your_gaode_api_key      # 高德地图API Key
+
+# JWT配置
+jwt:
+    access_token_secret: your_access_token_secret_here    # 访问令牌密钥（建议使用随机生成的Base64字符串）
+    refresh_token_secret: your_refresh_token_secret_here  # 刷新令牌密钥
+    access_token_expiry_time: 2h                          # 访问令牌过期时间
+    refresh_token_expiry_time: 7d                         # 刷新令牌过期时间
+    issuer: go_blog                                       # 签发者
+
+# MySQL数据库配置
+mysql:
+    host: localhost              # 数据库主机
+    port: 3306                   # 数据库端口
+    config: charset=utf8mb4&parseTime=True&loc=Local
+    db_name: blog_db             # 数据库名
+    username: your_db_username   # 数据库用户名
+    password: your_db_password   # 数据库密码
+    max_idle_conns: 10           # 最大空闲连接数
+    max_open_conns: 100          # 最大打开连接数
+    log_mode: info               # 日志模式: silent/error/warn/info
+
+# 七牛云存储配置
+qiniu:
+    zone: z2                     # 存储区域: z0华东 z1华北 z2华南 na0北美 as0东南亚
+    bucket: your_bucket_name     # 存储空间名称
+    img_path: https://your-cdn-domain.com/  # CDN访问域名
+    access_key: your_access_key  # AccessKey
+    secret_key: your_secret_key  # SecretKey
+    use_https: true              # 是否使用HTTPS
+    use_cdn_domains: true        # 是否使用CDN加速
+
+# QQ登录配置
+qq:
+    enable: true                 # 是否启用QQ登录
+    app_id: "your_qq_app_id"     # QQ互联应用ID
+    app_key: your_qq_app_key     # QQ互联应用Key
+    redirect_uri: https://your-domain.com/login?flag=qq  # 回调地址
+
+# Redis配置
+redis:
+    address: localhost:6379      # Redis地址
+    password: ""                 # Redis密码（如无密码留空）
+    db: 0                        # Redis数据库索引
+
+# SSO单点登录配置
+sso:
+    service_url: http://localhost:8000      # SSO服务地址
+    web_url: http://localhost:3000          # SSO前端地址
+    client_id: blog                         # 客户端ID
+    client_secret: your_client_secret       # 客户端密钥
+    callback_url: http://localhost:8080/api/auth/callback  # 回调地址
+    public_key_path: ./keys/public.pem      # SSO公钥路径
+
+# 系统配置
+system:
+    host: 0.0.0.0                # 监听地址
+    port: 8080                   # 服务端口
+    env: debug                   # 运行环境: debug/release
+    router_prefix: api           # 路由前缀
+    use_multipoint: false        # 是否支持多点登录
+    sessions_secret: your_sessions_secret_here  # Session密钥
+    oss_type: qiniu              # 对象存储类型: local/qiniu
+
+# 文件上传配置
+upload:
+    size: 20                     # 最大上传大小(MB)
+    path: uploads                # 本地上传路径
+
+# 网站配置
+website:
+    logo: https://your-cdn.com/logo.svg           # 网站Logo
+    full_logo: https://your-cdn.com/full-logo.svg # 完整Logo
+    title: 你的博客标题                            # 网站标题
+    slogan: 你的标语                               # 标语
+    slogan_en: Your Slogan                         # 英文标语
+    description: 网站描述                          # 网站描述
+    version: 1.0.0                                 # 版本号
+    created_at: "2025-01-01"                       # 创建时间
+    icp_filing: 你的ICP备案号                      # ICP备案号
+    public_security_filing: 你的公安备案号         # 公安备案号
+    bilibili_url: https://space.bilibili.com/your_uid  # B站主页
+    github_url: https://github.com/your_username       # GitHub主页
+    steam_url: https://steamcommunity.com/id/your_id   # Steam主页
+    name: 你的名字                                 # 作者名称
+    job: 你的职业                                  # 职业
+    address: 你的地址                              # 地址
+    email: your_email@example.com                  # 联系邮箱
+    qq_image: ""                                   # QQ二维码
+    wechat_image: ""                               # 微信二维码
+
+# 日志配置
+zap:
+    level: info                  # 日志级别: debug/info/warn/error
+    filename: log/go_blog.log    # 日志文件路径
+    max_size: 200                # 单个日志文件最大大小(MB)
+    max_backups: 30              # 保留的旧日志文件最大数量
+    max_age: 5                   # 保留旧日志文件的最大天数
+    is_console_print: true       # 是否同时输出到控制台

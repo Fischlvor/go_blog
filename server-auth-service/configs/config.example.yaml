@@ -1,0 +1,77 @@
+# SSO认证服务配置文件示例
+# 使用说明：复制此文件为 config.yaml 并根据实际情况修改配置
+
+# 验证码配置
+captcha:
+    height: 80
+    width: 240
+    length: 6
+    max_skew: 0.7
+    dot_count: 80
+
+# JWT配置（使用RSA非对称加密）
+jwt:
+    algorithm: RS256                      # 加密算法
+    private_key_path: ./keys/private.pem  # RSA私钥路径（用于签发JWT）
+    public_key_path: ./keys/public.pem    # RSA公钥路径（用于验证JWT）
+    access_token_expiry_time: 2h          # 访问令牌过期时间
+    refresh_token_expiry_time: 7d         # 刷新令牌过期时间
+    issuer: go_blog_sso                   # 签发者
+
+# MySQL数据库配置
+mysql:
+    host: localhost                       # 数据库主机
+    port: 3306                            # 数据库端口
+    config: charset=utf8mb4&parseTime=True&loc=Local
+    db_name: sso_db                       # 数据库名
+    username: your_db_username            # 数据库用户名
+    password: your_db_password            # 数据库密码
+    max_idle_conns: 10                    # 最大空闲连接数
+    max_open_conns: 100                   # 最大打开连接数
+    log_mode: warn                        # 日志模式: silent/error/warn/info
+
+# Redis配置
+redis:
+    address: localhost:6379               # Redis地址
+    password: ""                          # Redis密码（如无密码留空）
+    db: 1                                 # Redis数据库索引（与博客服务使用不同的db）
+
+# QQ登录配置
+qq:
+    enable: true                          # 是否启用QQ登录
+    app_id: "your_qq_app_id"              # QQ互联应用ID
+    app_key: your_qq_app_key              # QQ互联应用Key
+    redirect_uri: http://localhost:8000/api/auth/oauth/qq/callback  # 回调地址
+
+# 邮件配置（用于发送验证码、找回密码等）
+email:
+    host: smtp.example.com                # SMTP服务器地址
+    port: 465                             # SMTP端口
+    from: your_email@example.com          # 发件人邮箱
+    nickname: SSO系统                     # 发件人昵称
+    secret: your_email_password           # 邮箱授权码
+    is_ssl: true                          # 是否使用SSL
+
+# 服务器配置
+server:
+    host: 0.0.0.0                         # 监听地址
+    port: 8000                            # 服务端口
+    mode: debug                           # 运行模式: debug/release
+
+# 系统配置
+system:
+    router_prefix: /api                   # 路由前缀
+    allow_all_origins: false              # 是否允许所有跨域请求
+    allowed_origins:                      # 允许的跨域来源列表
+        - http://localhost:3000           # 本地开发前端地址
+        - http://localhost:5173           # Vite开发服务器地址
+        - https://your-domain.com         # 生产环境域名
+
+# 日志配置
+zap:
+    level: info                           # 日志级别: debug/info/warn/error
+    filename: log/auth_service.log        # 日志文件路径
+    max_size: 200                         # 单个日志文件最大大小(MB)
+    max_backups: 30                       # 保留的旧日志文件最大数量
+    max_age: 5                            # 保留旧日志文件的最大天数
+    is_console_print: true                # 是否同时输出到控制台
