@@ -153,11 +153,11 @@
         </button>
 
         <div class="links">
-          <router-link :to="{ path: '/register', query: { app_id: appId, redirect_uri: redirectUri, state: state } }" class="link-item">
+          <router-link :to="{ path: '/register', query: { app_id: appId, redirect_uri: redirectUri, return_url: returnUrl, state: state } }" class="link-item">
             注册账号
           </router-link>
           <span class="divider-dot">·</span>
-          <router-link :to="{ path: '/forgot-password', query: { app_id: appId, redirect_uri: redirectUri, state: state } }" class="link-item">
+          <router-link :to="{ path: '/forgot-password', query: { app_id: appId, redirect_uri: redirectUri, return_url: returnUrl, state: state } }" class="link-item">
             忘记密码?
           </router-link>
         </div>
@@ -235,6 +235,7 @@ const urlParams = new URLSearchParams(window.location.search)
 const appId = urlParams.get('app_id') || 'blog'
 const redirectUri = urlParams.get('redirect_uri') || 'http://localhost:3000/sso-callback'
 const returnUrl = urlParams.get('return_url') || '/'
+const state = urlParams.get('state') || ''
 
 onMounted(() => {
   appName.value = getAppName(appId)
