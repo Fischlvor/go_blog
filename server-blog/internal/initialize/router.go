@@ -20,6 +20,9 @@ func InitRouter() *gin.Engine {
 	// 使用日志记录中间件
 	Router.Use(middleware.GinLogger(), middleware.GinRecovery(true))
 
+	// 使用限流中间件
+	Router.Use(middleware.RateLimitMiddleware(global.RateLimiter))
+
 	// 使用gin会话路由
 	var store = cookie.NewStore([]byte(global.Config.System.SessionsSecret))
 	Router.Use(sessions.Sessions("session", store))

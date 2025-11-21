@@ -25,6 +25,7 @@ func main() {
 	global.DB = initialize.InitGorm()
 	global.Redis = initialize.ConnectRedis()
 	global.ESClient = initialize.ConnectEs()
+	global.RateLimiter = initialize.InitRateLimiter()
 
 	// 初始化AI聊天服务（在数据库初始化完成后）
 	api.InitAIChatService()
