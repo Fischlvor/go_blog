@@ -3,7 +3,7 @@ module server
 go 1.23.0
 
 require (
-	github.com/Fischlvor/go-ratelimiter v0.3.0
+	github.com/Fischlvor/go-ratelimiter v0.3.1
 	github.com/elastic/elastic-transport-go/v8 v8.6.0
 	github.com/elastic/go-elasticsearch/v8 v8.17.0
 	github.com/fvbock/endless v0.0.0-20170109170031-447134032cb6

@@ -193,6 +193,14 @@ EOF
         log_warn "server-blog 正式环境配置文件不存在于本地: ${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml"
     fi
     
+    # 上传 server-blog 限流配置文件
+    if [ -f "${LOCAL_PROJECT_DIR}/server-blog/configs/rate_limit.yaml" ]; then
+        log_info "上传 server-blog 限流配置文件..."
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-blog/configs/rate_limit.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/configs/ || log_warn "上传限流配置文件失败"
+    else
+        log_warn "server-blog 限流配置文件不存在于本地: ${LOCAL_PROJECT_DIR}/server-blog/configs/rate_limit.yaml"
+    fi
+    
     # 复制 server-auth 正式环境配置文件到挂载位置
     if [ -f "${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml" ]; then
         log_info "上传 server-auth 正式环境配置文件..."
@@ -265,6 +273,9 @@ EOF
     # 上传必要配置与密钥（尽量幂等）
     if [ -f "${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml" ]; then
         scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/configs/ 2>/dev/null || true
+    fi
+    if [ -f "${LOCAL_PROJECT_DIR}/server-blog/configs/rate_limit.yaml" ]; then
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-blog/configs/rate_limit.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/configs/ 2>/dev/null || true
     fi
     if [ -f "${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml" ]; then
         scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-auth/configs/ 2>/dev/null || true
