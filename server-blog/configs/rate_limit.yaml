@@ -1,0 +1,88 @@
+# server-blog 限流配置
+
+# 默认配置
+default:
+  algorithm: fixed_window  # 默认算法
+  enabled: true            # 是否启用限流
+
+# 全局限流（可选）
+# 全局限流配置（对所有请求生效）
+global:
+  by: user                       # 按用户/设备限流（无设备ID时降级到IP）
+  algorithm: sliding_window
+  params: ["1000", "1s"]        # 每个用户/IP每秒钟最多1000次请求
+
+# 限流规则列表
+rules:
+  # ==================== 认证接口 ====================
+  
+  # 登录接口 - 按设备限流（未登录用户）
+  - name: "登录限流"
+    path: /api/user/login
+    method: POST
+    by: user                     # 优先UUID，其次设备ID
+    algorithm: sliding_window
+    params: ["5", "1m"]          # 单个设备每分钟5次
+    record_violation: true
+    violation_weight: 3
+
+  # 注册接口 - 按设备限流
+  - name: "注册限流"
+    path: /api/user/register
+    method: POST
+    by: user                     # 设备ID
+    algorithm: sliding_window
+    params: ["3", "5m"]          # 5分钟3次
+    record_violation: true
+    violation_weight: 3
+
+  # 发送邮箱验证码 - 按设备限流
+  - name: "验证码限流"
+    path: /api/sendEmailVerificationCode
+    method: POST
+    by: user                     # 设备ID
+    algorithm: sliding_window
+    params: ["3", "1m"]          # 每分钟3次
+    record_violation: true
+    violation_weight: 2
+
+  # SSO登录URL获取 - 按IP限流
+  - name: "SSO登录URL限流"
+    path: /api/sso_login_url
+    method: GET
+    by: ip
+    algorithm: sliding_window
+    params: ["10", "1m"]         # 每分钟10次
+    record_violation: false
+    violation_weight: 1
+
+# 白名单配置
+whitelist:
+  # IP白名单（这些IP不受限流限制）
+  ips:
+    # - 127.0.0.1      # 本地开发（测试时临时注释）
+    # - ::1            # IPv6本地
+
+  # 用户白名单（这些用户不受限流限制）
+  users:
+    - 37395c61-a2ec-464e-9567-ce6fa92630f7    # 管理员用户UUID
+
+# 黑名单配置
+blacklist:
+  # IP黑名单（这些IP直接拒绝）
+  ips:
+    # - 192.168.1.100  # 恶意IP
+
+  # 用户黑名单（这些用户直接拒绝）
+  users:
+    # - banned-user-uuid   # 封禁用户
+
+# 自动拉黑配置
+auto_ban:
+  enabled: true                  # 是否启用自动拉黑
+  dimensions:
+    - ip                         # 按IP自动拉黑
+    - user                       # 按用户/设备自动拉黑
+  violation_threshold: 15        # 违规分数阈值（15分）
+  violation_window: 5m           # 5分钟内累计
+  ban_duration: 30m              # 封禁30分钟

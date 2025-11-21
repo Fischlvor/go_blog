@@ -3,6 +3,7 @@ import type {AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequest
 import {useUserStore} from '@/stores/user';
 import router from '@/router/index';
 import {useLayoutStore} from "@/stores/layout";
+import {getDeviceId} from './deviceId';
 
 const service = axios.create({
     baseURL: import.meta.env.VITE_BASE_API,
@@ -22,6 +23,8 @@ service.interceptors.request.use(
             'Content-Type': 'application/json',
             // ✅ SSO模式：使用 Authorization: Bearer <token>
             'Authorization': userStore.state.accessToken ? `Bearer ${userStore.state.accessToken}` : '',
+            // ✅ 添加设备ID用于限流
+            'X-Device-Id': getDeviceId(),
             ...config.headers,
         }
         return config as InternalAxiosRequestConfig
@@ -200,6 +203,9 @@ export const streamRequest = (
         
         // ✅ SSO模式：使用 Authorization: Bearer <token>
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        
+        // ✅ 添加设备ID用于限流
+        xhr.setRequestHeader('X-Device-Id', getDeviceId());
         
         // 设置自定义头部
         if (config.headers) {
