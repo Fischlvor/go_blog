@@ -89,5 +89,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	modernc.org/fileutil v1.0.0 // indirect
 )
-
-replace github.com/Fischlvor/go-ratelimiter => ../../go-ratelimiter
