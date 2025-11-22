@@ -1,8 +1,11 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"server/internal/model/appTypes"
 	"server/internal/model/database"
 	"server/internal/model/other"
@@ -14,6 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -104,11 +108,23 @@ func (userService *UserService) UserCard(req request.UserCard) (response.UserCar
 }
 
 func (userService *UserService) Logout(c *gin.Context) {
-	uuid := utils.GetUUID(c)
-	jwtStr := utils.GetRefreshToken(c)
+	// 1. 获取 SSO AccessToken
+	token := c.GetHeader("Authorization")
+	if len(token) > 7 && token[:7] == "Bearer " {
+		token = token[7:]
+	}
+
+	// 2. 调用 SSO 登出接口
+	if token != "" {
+		if err := userService.callSSOLogout(token); err != nil {
+			global.Log.Error("SSO logout failed", zap.Error(err))
+			// 降级：继续执行本地清理，不阻止用户登出
+		}
+	}
+
+	// 3. 清除本地状态
 	utils.ClearRefreshToken(c)
-	global.Redis.Del(uuid.String())
-	_ = ServiceGroupApp.JwtService.JoinInBlacklist(database.JwtBlacklist{Jwt: jwtStr})
+	// 注意：不再需要手动操作 Redis 和黑名单，由 SSO 统一管理
 }
 
 func (userService *UserService) UserResetPassword(req request.UserResetPassword) error {
@@ -220,6 +236,48 @@ func (userService *UserService) UserFreeze(req request.UserOperation) error {
 		_ = ServiceGroupApp.JwtService.JoinInBlacklist(database.JwtBlacklist{Jwt: jwtStr})
 	}
 
+	return nil
+}
+
+// callSSOLogout 调用 SSO 登出接口
+func (userService *UserService) callSSOLogout(accessToken string) error {
+	// 构建请求 URL
+	url := global.Config.SSO.ServiceURL + "/api/user/logout"
+
+	// 创建 HTTP 请求
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	// 设置 Authorization header
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	// 发送请求
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("调用 SSO 登出接口失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	body, _ := io.ReadAll(resp.Body)
+
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("SSO 登出失败，状态码: %d, 响应: %s", resp.StatusCode, string(body))
+	}
+
+	// 解析响应
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		// 即使解析失败，只要状态码是 200 就认为成功
+		global.Log.Warn("解析 SSO 登出响应失败", zap.Error(err))
+	}
+
+	global.Log.Info("SSO 登出成功", zap.String("token", accessToken[:20]+"..."))
 	return nil
 }
 
