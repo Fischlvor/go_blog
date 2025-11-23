@@ -9,10 +9,13 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"github.com/mojocn/base64Captcha"
+	"go.uber.org/zap"
 )
 
 type AuthHandler struct {
@@ -102,6 +105,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// ✅ SSO: 设置全局 Session Cookie（跨应用单点登录）
+	session := sessions.Default(c)
+	session.Set("user_uuid", resp.UserInfo.UUID)
+	session.Set("logged_in", true)
+	session.Set("logged_in_at", time.Now().Unix())
+	if err := session.Save(); err != nil {
+		global.Log.Error("保存 Session 失败", zap.Error(err))
+	}
+
 	// ✅ OAuth 2.0: 生成授权码（使用UUID）
 	code, err := service.GenerateAuthorizationCodeByUUID(resp.UserInfo.UUID, req.AppID, req.RedirectURI, resp.AccessToken, resp.RefreshToken)
 	if err != nil {
@@ -181,6 +193,13 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	if err := h.authService.Logout(token, ipAddress, userAgent); err != nil {
 		utils.Error(c, 1004, err.Error())
 		return
+	}
+
+	// ✅ SSO: 清除全局 Session Cookie
+	session := sessions.Default(c)
+	session.Clear()
+	if err := session.Save(); err != nil {
+		global.Log.Error("清除 Session 失败", zap.Error(err))
 	}
 
 	utils.SuccessMsg(c, "登出成功", nil)
@@ -281,6 +300,15 @@ func (h *AuthHandler) QQLogin(c *gin.Context) {
 	if err != nil {
 		utils.Error(c, 1009, err.Error())
 		return
+	}
+
+	// ✅ SSO: 设置全局 Session Cookie（跨应用单点登录）
+	session := sessions.Default(c)
+	session.Set("user_uuid", resp.UserInfo.UUID)
+	session.Set("logged_in", true)
+	session.Set("logged_in_at", time.Now().Unix())
+	if err := session.Save(); err != nil {
+		global.Log.Error("保存 Session 失败", zap.Error(err))
 	}
 
 	// ✅ OAuth 2.0: 生成授权码（使用UUID）

@@ -612,3 +612,84 @@ func (s *AuthService) ForgotPassword(req request.ForgotPasswordRequest) error {
 
 	return nil
 }
+
+// GenerateTokensForUser 为已登录用户生成新的 Token（用于 SSO 静默登录）
+func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID string) (*response.TokenResponse, error) {
+	// 解析 UUID
+	userUUID, err := uuid.FromString(userUUIDStr)
+	if err != nil {
+		return nil, errors.New("无效的用户 UUID")
+	}
+
+	// 查询用户
+	var user entity.SSOUser
+	if err := global.DB.Where("uuid = ?", userUUID).First(&user).Error; err != nil {
+		return nil, errors.New("用户不存在")
+	}
+
+	// 检查用户状态
+	if user.Status != 1 {
+		return nil, errors.New("用户已被禁用或注销")
+	}
+
+	// 查询应用
+	app, err := s.getAppByKey(appID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 检查应用权限
+	var userAppRelation entity.UserAppRelation
+	err = global.DB.Where("user_uuid = ? AND app_id = ?", user.UUID, app.ID).First(&userAppRelation).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("您无权访问此应用")
+		}
+		return nil, err
+	}
+	if userAppRelation.Status == 2 {
+		return nil, errors.New("您无权访问此应用")
+	}
+
+	// 生成设备 ID（SSO 静默登录使用固定设备 ID）
+	deviceID := "sso_silent_" + uuid.Must(uuid.NewV4()).String()
+
+	// 生成 Token
+	accessTokenDuration, _ := utils.ParseDuration(global.Config.JWT.AccessTokenExpiryTime)
+	refreshTokenDuration, _ := utils.ParseDuration(global.Config.JWT.RefreshTokenExpiryTime)
+
+	accessToken, err := jwt.CreateAccessToken(
+		user.UUID,
+		appID,
+		deviceID,
+		accessTokenDuration,
+		global.Config.JWT.Issuer,
+		global.RSAPrivateKey,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("生成 AccessToken 失败: %w", err)
+	}
+
+	refreshToken, err := jwt.CreateRefreshToken(
+		user.UUID,
+		appID,
+		deviceID,
+		refreshTokenDuration,
+		global.Config.JWT.Issuer,
+		global.RSAPrivateKey,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("生成 RefreshToken 失败: %w", err)
+	}
+
+	// 将 RefreshToken 存储到 Redis
+	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", user.UUID.String(), deviceID)
+	global.Redis.Set(refreshTokenKey, refreshToken, refreshTokenDuration)
+
+	return &response.TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    int(accessTokenDuration.Seconds()),
+	}, nil
+}
