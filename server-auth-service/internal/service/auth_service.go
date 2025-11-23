@@ -356,7 +356,7 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 }
 
 // Logout 登出
-func (s *AuthService) Logout(accessToken string) error {
+func (s *AuthService) Logout(accessToken, ipAddress, userAgent string) error {
 	// 解析Token
 	claims, err := jwt.ParseAccessTokenIgnoreExpiry(accessToken, global.RSAPublicKey)
 	if err != nil {
@@ -388,12 +388,14 @@ func (s *AuthService) Logout(accessToken string) error {
 
 	// 记录登出日志
 	loginLog := entity.SSOLoginLog{
-		UserUUID: claims.UserUUID,
-		AppID:    logAppID,
-		Action:   "logout",
-		DeviceID: claims.DeviceID,
-		Status:   1,
-		Message:  "登出成功",
+		UserUUID:  claims.UserUUID,
+		AppID:     logAppID,
+		Action:    "logout",
+		DeviceID:  claims.DeviceID,
+		IPAddress: ipAddress,
+		UserAgent: userAgent,
+		Status:    1,
+		Message:   "登出成功",
 	}
 	global.DB.Create(&loginLog)
 

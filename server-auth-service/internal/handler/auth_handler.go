@@ -174,7 +174,11 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		token = token[7:]
 	}
 
-	if err := h.authService.Logout(token); err != nil {
+	// 获取客户端信息
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+
+	if err := h.authService.Logout(token, ipAddress, userAgent); err != nil {
 		utils.Error(c, 1004, err.Error())
 		return
 	}
