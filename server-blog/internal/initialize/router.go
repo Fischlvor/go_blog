@@ -2,13 +2,15 @@ package initialize
 
 import (
 	"net/http"
+	"strconv"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/redis"
+	"github.com/gin-gonic/gin"
+
 	"server/internal/middleware"
 	"server/internal/router"
 	"server/pkg/global"
-
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
-	"github.com/gin-gonic/gin"
 )
 
 // InitRouter 初始化路由
@@ -23,9 +25,20 @@ func InitRouter() *gin.Engine {
 	// 使用限流中间件
 	Router.Use(middleware.RateLimitMiddleware(global.RateLimiter))
 
-	// 使用gin会话路由
-	var store = cookie.NewStore([]byte(global.Config.System.SessionsSecret))
-	Router.Use(sessions.Sessions("session", store))
+	// 使用gin会话路由 - 复用全局Redis配置参数
+	// 注意：这里复用global.Config.Redis的配置，但gin-contrib/sessions/redis使用不同的Redis库
+	store, err := redis.NewStoreWithDB(
+		10,                                   // 连接池大小
+		"tcp",                                // 网络类型
+		global.Config.Redis.Address,          // 复用全局Redis地址
+		global.Config.Redis.Password,         // 复用全局Redis密码
+		strconv.Itoa(global.Config.Redis.DB), // 复用全局Redis数据库
+		[]byte(global.Config.System.SessionsSecret), // 加密密钥
+	)
+	if err != nil {
+		panic(err)
+	}
+	Router.Use(sessions.Sessions("blog_session", store))
 
 	// 将指定目录下的文件提供给客户端
 	// "uploads" 是URL路径前缀，http.Dir("uploads")是实际文件系统中存储文件的目录

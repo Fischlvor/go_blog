@@ -237,13 +237,11 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 	isNewDevice := errors.Is(err, gorm.ErrRecordNotFound)
 
 	if isNewDevice {
-		var deviceCount int64
-		global.DB.Model(&entity.SSODevice{}).
-			Where("user_uuid = ? AND app_id = ? AND status = 1", user.UUID, app.ID).
-			Count(&deviceCount)
-
-		if int(deviceCount) >= app.MaxDevices {
-			return nil, fmt.Errorf("设备数已达上限(%d台)", app.MaxDevices)
+		// 新设备，检查设备数量限制并自动踢出最早的设备
+		authService := &AuthService{}
+		err = authService.handleDeviceLimit(user.UUID, app.ID, app.MaxDevices)
+		if err != nil {
+			return nil, fmt.Errorf("处理设备限制失败: %w", err)
 		}
 	}
 
@@ -261,6 +259,10 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 
 	if isNewDevice {
 		global.DB.Create(&device)
+
+		// 记录新设备QQ登录日志
+		authService := &AuthService{}
+		authService.LogAction(user.UUID, app.ID, "qq_login", deviceID, "QQ新设备登录成功", 1)
 	} else {
 		global.DB.Model(&existDevice).Updates(map[string]interface{}{
 			"last_active_at": time.Now(),
@@ -268,6 +270,10 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 			"user_agent":     userAgent,
 			"status":         1,
 		})
+
+		// 记录现有设备QQ登录日志
+		authService := &AuthService{}
+		authService.LogAction(user.UUID, app.ID, "qq_login", deviceID, "QQ设备登录成功", 1)
 	}
 
 	// 生成Token

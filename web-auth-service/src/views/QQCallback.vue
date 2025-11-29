@@ -22,12 +22,18 @@ const loading = ref(true)
 onMounted(async () => {
   // 从URL获取参数
   const code = route.query.code
-  const appId = route.query.app_id || 'blog'
+  const appId = route.query.app_id
   const redirectUri = route.query.redirect_uri || ''
   const state = route.query.state || ''
 
   if (!code) {
     ElMessage.error('缺少授权码')
+    loading.value = false
+    return
+  }
+
+  if (!appId) {
+    ElMessage.error('访问链接无效')
     loading.value = false
     return
   }

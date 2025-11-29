@@ -190,22 +190,20 @@ const changeEmojiListState = () => {
 // 跳转到登录页面
 const redirectToLogin = async () => {
   try {
-    // 构建回调地址 - 使用 /sso-callback 统一处理
+    // 通过 Blog 后端获取 SSO 授权 URL（支持静默登录）
     const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback');
-    // 获取完整路径（包含查询参数）
     const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
     
-    // 获取SSO登录URL
     const response = await fetch(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
     const data = await response.json();
     
     if (data.code === 0) {
-      // 跳转到SSO登录页面
+      // 跳转到 SSO 授权端点
       window.location.href = data.data.sso_login_url;
     } else {
       ElMessage.error(data.message || '获取登录地址失败');
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('获取SSO登录URL失败:', error);
     ElMessage.error('登录服务异常，请稍后重试');
   }

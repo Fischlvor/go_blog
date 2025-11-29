@@ -37,10 +37,9 @@ const redirectToSSO = async (action: 'login' | 'register' | 'forgot-password') =
     
     // 构建回调地址
     const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback');
-    // 获取完整路径（包含查询参数）
     const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
     
-    // 获取SSO登录URL
+    // 通过 Blog 后端获取 SSO URL
     const response = await axios.get(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
     
     if (response.data.code === 0) {
@@ -49,9 +48,9 @@ const redirectToSSO = async (action: 'login' | 'register' | 'forgot-password') =
       
       // 根据action修改URL路径
       if (action === 'register') {
-        ssoURL = ssoURL.replace('/login', '/register');
+        ssoURL = ssoURL.replace('/api/oauth/authorize', '/register');
       } else if (action === 'forgot-password') {
-        ssoURL = ssoURL.replace('/login', '/forgot-password');
+        ssoURL = ssoURL.replace('/api/oauth/authorize', '/forgot-password');
       }
       
       // 跳转到SSO页面

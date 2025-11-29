@@ -434,10 +434,9 @@ router.beforeEach((to, from, next) => {
               center: true
             })
             .then(async () => {
-              // 直接跳转到SSO登录页面
+              // 通过 Blog 后端获取 SSO 授权 URL（支持静默登录）
               try {
                 const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback');
-                // 获取完整路径（包含查询参数）
                 const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
                 const response = await fetch(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
                 const data = await response.json();
