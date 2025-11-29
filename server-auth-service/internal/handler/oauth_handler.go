@@ -124,12 +124,12 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 			return
 		}
 
-		// 记录静默登录日志
+		// 记录静默登录日志（包含 IP 和 User-Agent）
 		userUUIDParsed, _ := uuid.FromString(userUUIDStr)
 		// 获取应用 ID
 		app, _ := h.authService.GetAppByKey(appID)
 		if app != nil {
-			h.authService.LogAction(userUUIDParsed, app.ID, "silent_login", ssoDeviceIDStr, "SSO静默登录成功", 1)
+			h.authService.LogActionWithContext(c, userUUIDParsed, app.ID, "silent_login", ssoDeviceIDStr, "SSO静默登录成功", 1)
 		}
 
 		// 生成授权码

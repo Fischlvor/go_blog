@@ -15,6 +15,7 @@ import (
 	"server/pkg/utils"
 	"time"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"go.uber.org/zap"
@@ -124,6 +125,14 @@ func (userService *UserService) Logout(c *gin.Context) {
 
 	// 3. 清除本地状态
 	utils.ClearRefreshToken(c)
+
+	// 4. 清除 blog_session（包含 refresh_token）
+	session := sessions.Default(c)
+	session.Clear()
+	if err := session.Save(); err != nil {
+		global.Log.Error("清除 blog_session 失败", zap.Error(err))
+	}
+
 	// 注意：不再需要手动操作 Redis 和黑名单，由 SSO 统一管理
 }
 

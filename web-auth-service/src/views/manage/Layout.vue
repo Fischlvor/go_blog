@@ -86,10 +86,35 @@ const handleCommand = (command) => {
 }
 
 // 退出登录
-const logout = () => {
-  localStorage.removeItem('access_token')
-  router.push('/login')
-  ElMessage.success('已退出登录')
+const logout = async () => {
+  try {
+    const res = await manageApi.logout()
+    console.log('manage应用退出响应:', res) // 调试信息
+    if (res.data && res.data.code === 0) {
+      ElMessage.success('退出成功')
+      // 清除所有本地token
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
+      
+      // 检查是否有重定向信息
+      const redirectTo = res.data.data?.redirect_to
+      if (redirectTo) {
+        router.push(redirectTo) // 使用后端返回的重定向路径
+      } else {
+        router.push('/login?app_id=manage') // 默认跳转
+      }
+    } else {
+      console.error('响应格式错误:', res) // 调试信息
+      ElMessage.error(res.data?.message || 'SSO退出失败')
+    }
+  } catch (error) {
+    console.error('SSO退出失败:', error)
+    ElMessage.error('SSO退出失败')
+    // 即使API失败，也清除所有本地token并跳转
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    router.push('/login?app_id=manage')
+  }
 }
 
 onMounted(() => {

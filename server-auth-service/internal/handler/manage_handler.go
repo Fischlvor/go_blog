@@ -103,7 +103,53 @@ func (h *ManageHandler) KickDevice(c *gin.Context) {
 	utils.Success(c, "设备已踢出")
 }
 
-// SSOLogout SSO退出（清除Session）
+// Logout 退出manage应用（只退出当前应用，不影响SSO）
+func (h *ManageHandler) Logout(c *gin.Context) {
+	// 从中间件获取用户UUID
+	userUUID := middleware.GetUserUUID(c)
+	if userUUID == uuid.Nil {
+		utils.Error(c, 1001, "用户未登录")
+		return
+	}
+
+	// 从Token获取设备ID
+	token := c.GetHeader("Authorization")
+	if len(token) <= 7 || token[:7] != "Bearer " {
+		utils.Error(c, 1001, "Token格式错误")
+		return
+	}
+
+	claims, err := jwt.ParseAccessToken(token[7:], global.RSAPublicKey)
+	if err != nil {
+		utils.Error(c, 1001, "Token解析失败")
+		return
+	}
+
+	// 只撤销manage应用的Token和更新设备状态，不清除SSO Session
+	err = h.manageService.AppLogout(c, userUUID, claims.DeviceID)
+	if err != nil {
+		global.Log.Error("manage应用退出失败",
+			zap.Error(err),
+			zap.String("user_uuid", userUUID.String()),
+			zap.String("device_id", claims.DeviceID),
+		)
+		utils.Error(c, 2004, err.Error())
+		return
+	}
+
+	// 注意：不清除SSO Session，保持其他应用的登录状态
+	global.Log.Info("manage应用退出成功",
+		zap.String("user_uuid", userUUID.String()),
+		zap.String("device_id", claims.DeviceID),
+	)
+
+	// 返回重定向信息
+	utils.SuccessMsg(c, "manage退出成功", gin.H{
+		"redirect_to": "/login?app_id=manage",
+	})
+}
+
+// SSOLogout SSO全局退出（清除Session，影响所有应用）
 func (h *ManageHandler) SSOLogout(c *gin.Context) {
 	// 从中间件获取用户UUID
 	userUUID := middleware.GetUserUUID(c)
@@ -149,7 +195,10 @@ func (h *ManageHandler) SSOLogout(c *gin.Context) {
 		zap.String("device_id", claims.DeviceID),
 	)
 
-	utils.Success(c, "SSO退出成功")
+	// 返回重定向信息，前端根据这个跳转到登录页面
+	utils.SuccessMsg(c, "SSO退出成功", gin.H{
+		"redirect_to": "/login?app_id=manage", // 指定 app_id=manage
+	})
 }
 
 // LogoutAllDevices 退出所有设备

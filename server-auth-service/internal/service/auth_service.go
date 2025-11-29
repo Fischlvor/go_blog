@@ -101,7 +101,10 @@ func (s *AuthService) Register(req request.RegisterRequest) error {
 }
 
 // Login 用户登录
-func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent string) (*response.TokenResponse, error) {
+func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response.TokenResponse, error) {
+	// 获取客户端信息
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
 	// 查询用户
 	var user entity.SSOUser
 	err := global.DB.Where("email = ?", req.Email).First(&user).Error
@@ -195,8 +198,8 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 			return nil, fmt.Errorf("注册设备失败: %w", err)
 		}
 
-		// 记录新设备登录日志
-		s.LogAction(user.UUID, app.ID, "login", deviceID, "新设备登录成功", 1)
+		// 记录新设备登录日志（包含IP和UA）
+		s.LogActionWithContext(c, user.UUID, app.ID, "login", deviceID, "新设备登录成功", 1)
 	} else {
 		// 更新现有设备
 		global.DB.Model(&existDevice).Updates(map[string]interface{}{
@@ -208,8 +211,8 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 			"status":         1,
 		})
 
-		// 记录现有设备登录日志
-		s.LogAction(user.UUID, app.ID, "login", deviceID, "设备登录成功", 1)
+		// 记录现有设备登录日志（包含IP和UA）
+		s.LogActionWithContext(c, user.UUID, app.ID, "login", deviceID, "设备登录成功", 1)
 	}
 
 	// 生成Token

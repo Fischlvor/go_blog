@@ -121,7 +121,8 @@ func Setup(r *gin.Engine) {
 				manageHandler := handler.NewManageHandler()
 				manage.GET("/devices", manageHandler.GetDevices)           // 获取设备列表
 				manage.POST("/kick-device", manageHandler.KickDevice)      // 踢出设备
-				manage.POST("/sso-logout", manageHandler.SSOLogout)        // SSO退出
+				manage.POST("/logout", manageHandler.Logout)               // 退出manage应用
+				manage.POST("/sso-logout", manageHandler.SSOLogout)        // SSO全局退出
 				manage.POST("/logout-all", manageHandler.LogoutAllDevices) // 退出所有设备
 				manage.GET("/logs", manageHandler.GetLogs)                 // 操作日志
 				manage.GET("/profile", manageHandler.GetProfile)           // 用户信息

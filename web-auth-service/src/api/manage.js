@@ -7,7 +7,10 @@ export const manageApi = {
   // 踢出设备
   kickDevice: (deviceId) => request.post('/manage/kick-device', { device_id: deviceId }),
   
-  // SSO退出
+  // 退出manage应用
+  logout: () => request.post('/manage/logout'),
+  
+  // SSO全局退出
   ssoLogout: () => request.post('/manage/sso-logout'),
   
   // 退出所有设备

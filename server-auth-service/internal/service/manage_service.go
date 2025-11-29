@@ -28,6 +28,8 @@ type DeviceInfo struct {
 	Status       int       `json:"status"`
 	IsCurrent    bool      `json:"is_current"` // 是否为当前设备
 	CreatedAt    time.Time `json:"created_at"`
+	AppName      string    `json:"app_name"` // 应用名称
+	AppKey       string    `json:"app_key"`  // 应用标识
 }
 
 // LogInfo 操作日志信息响应结构
@@ -50,7 +52,7 @@ type LogQueryParams struct {
 	EndTime   string `form:"end_time"`   // 结束时间
 }
 
-// GetUserDevices 获取用户设备列表
+// GetUserDevices 获取用户设备列表（包含应用信息）
 func (s *ManageService) GetUserDevices(userUUID uuid.UUID, currentDeviceID string) ([]DeviceInfo, error) {
 	var devices []entity.SSODevice
 	err := global.DB.Where("user_uuid = ? AND status = 1", userUUID).
@@ -65,8 +67,17 @@ func (s *ManageService) GetUserDevices(userUUID uuid.UUID, currentDeviceID strin
 		return nil, fmt.Errorf("查询设备列表失败: %w", err)
 	}
 
+	// 获取所有应用信息
+	var apps []entity.SSOApplication
+	global.DB.Find(&apps)
+	appMap := make(map[uint]entity.SSOApplication)
+	for _, app := range apps {
+		appMap[app.ID] = app
+	}
+
 	result := make([]DeviceInfo, len(devices))
 	for i, device := range devices {
+		app := appMap[device.AppID]
 		result[i] = DeviceInfo{
 			ID:           device.ID,
 			DeviceID:     device.DeviceID,
@@ -77,6 +88,8 @@ func (s *ManageService) GetUserDevices(userUUID uuid.UUID, currentDeviceID strin
 			Status:       device.Status,
 			IsCurrent:    device.DeviceID == currentDeviceID, // 标记当前设备
 			CreatedAt:    device.CreatedAt,
+			AppName:      app.AppName,
+			AppKey:       app.AppKey,
 		}
 	}
 
@@ -148,6 +161,39 @@ func (s *ManageService) SSOLogout(c *gin.Context, userUUID uuid.UUID, deviceID s
 	authService.LogActionWithContext(c, userUUID, device.AppID, "sso_logout", deviceID, "SSO退出成功", 1)
 
 	global.Log.Info("SSO退出成功",
+		zap.String("user_uuid", userUUID.String()),
+		zap.String("device_id", deviceID),
+		zap.String("device_name", device.DeviceName),
+	)
+
+	return nil
+}
+
+// AppLogout 退出应用（只撤销Token和更新设备状态，不清除SSO Session）
+func (s *ManageService) AppLogout(c *gin.Context, userUUID uuid.UUID, deviceID string) error {
+	// 验证设备归属
+	var device entity.SSODevice
+	err := global.DB.Where("user_uuid = ? AND device_id = ? AND status = 1",
+		userUUID, deviceID).First(&device).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("设备不存在或已离线")
+		}
+		return fmt.Errorf("查询设备失败: %w", err)
+	}
+
+	// 1. 删除 RefreshToken（让当前会话失效）
+	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", userUUID.String(), deviceID)
+	global.Redis.Del(refreshTokenKey)
+
+	// 注意：应用退出不删除设备记录，设备仍然存在，只是当前会话结束
+	// 只有"踢出设备"或"SSO退出"才需要更新设备状态
+
+	// 2. 记录应用退出日志
+	authService := &AuthService{}
+	authService.LogActionWithContext(c, userUUID, device.AppID, "logout", deviceID, "应用退出成功", 1)
+
+	global.Log.Info("应用退出成功",
 		zap.String("user_uuid", userUUID.String()),
 		zap.String("device_id", deviceID),
 		zap.String("device_name", device.DeviceName),
