@@ -26,7 +26,7 @@ function collectBrowserFingerprint(): string {
   features.push(`${screen.availWidth}x${screen.availHeight}`)
   
   // 3. 颜色深度（稳定）
-  features.push(screen.colorDepth.toString())
+  features.push((screen.colorDepth || '').toString())
   
   // 4. 时区（稳定）
   features.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '')
@@ -72,6 +72,42 @@ function collectBrowserFingerprint(): string {
       }
     } catch (e) {
       // WebGL不可用
+    }
+  }
+  
+  // 12. 字体检测（简化版，检测常见字体）
+  // 注意：需要在浏览器环境中执行，不能在SSR时执行
+  if (typeof document !== 'undefined' && document.body) {
+    try {
+      const fonts = ['Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia']
+      const fontAvailable: string[] = []
+      const testString = 'mmmmmmmmmmlli'
+      const testSize = '72px'
+      
+      const span = document.createElement('span')
+      span.style.fontSize = testSize
+      span.innerHTML = testString
+      span.style.position = 'absolute'
+      span.style.left = '-9999px'
+      span.style.top = '-9999px'
+      document.body.appendChild(span)
+      
+      const defaultWidth = span.offsetWidth
+      const defaultHeight = span.offsetHeight
+      
+      fonts.forEach(font => {
+        span.style.fontFamily = font
+        const width = span.offsetWidth
+        const height = span.offsetHeight
+        if (width !== defaultWidth || height !== defaultHeight) {
+          fontAvailable.push(font)
+        }
+      })
+      
+      document.body.removeChild(span)
+      features.push(fontAvailable.join(','))
+    } catch (e) {
+      // 字体检测失败，跳过
     }
   }
   

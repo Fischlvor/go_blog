@@ -57,7 +57,7 @@ func (h *DeviceHandler) KickDevice(c *gin.Context) {
 		utils.Unauthorized(c, "未登录")
 		return
 	}
-	if err := h.deviceService.KickDevice(userUUID, deviceID, appID, currentDeviceID); err != nil {
+	if err := h.deviceService.KickDevice(c, userUUID, deviceID, appID, currentDeviceID); err != nil {
 		utils.Error(c, 2002, err.Error())
 		return
 	}

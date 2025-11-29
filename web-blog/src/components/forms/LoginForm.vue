@@ -23,22 +23,24 @@ import { useLayoutStore } from "@/stores/layout";
 
 const layoutStore = useLayoutStore()
 
-// 跳转到SSO登录
+// 跳转到SSO登录（通过授权端点，支持静默登录）
 const redirectToSSO = async () => {
   try {
-    // 获取SSO登录URL
+    // 关闭登录弹窗
+    layoutStore.state.loginVisible = false
+    
+    // 通过 Blog 后端获取 SSO 授权 URL
     const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback')
-    // 获取完整路径（包含查询参数）
     const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
     const response = await axios.get(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`)
     
     if (response.data.code === 0) {
-      // 关闭登录弹窗
-      layoutStore.state.loginVisible = false
-      // 跳转到SSO登录页
+      // 跳转到 SSO 授权端点
+      // 如果用户已登录（有 Session），SSO 会自动返回授权码
+      // 如果用户未登录，SSO 会重定向到登录页面
       window.location.href = response.data.data.sso_login_url
     } else {
-      ElMessage.error('获取登录地址失败')
+      ElMessage.error(response.data.message || '获取登录地址失败')
     }
   } catch (error) {
     console.error('获取SSO登录URL失败:', error)

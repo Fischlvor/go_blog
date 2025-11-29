@@ -13,12 +13,12 @@ type RegisterRequest struct {
 // LoginRequest 登录请求
 type LoginRequest struct {
 	Email            string `json:"email" binding:"required,email"`
-	Password         string `json:"password"`                 // 密码登录时必填
-	VerificationCode string `json:"verification_code"`        // 验证码登录时必填
-	State            string `json:"state" binding:"required"` // OAuth state参数（包含app_id、redirect_uri等）
-	AppID            string `json:"app_id"`                   // 从state中提取
-	RedirectURI      string `json:"redirect_uri"`             // 从state中提取
-	DeviceID         string `json:"device_id"`                // 从state中提取
+	Password         string `json:"password"`                  // 密码登录时必填
+	VerificationCode string `json:"verification_code"`         // 验证码登录时必填
+	State            string `json:"state" binding:"required"`  // OAuth state参数（包含redirect_uri等）
+	AppID            string `json:"app_id" binding:"required"` // 必填：应用ID
+	RedirectURI      string `json:"redirect_uri"`              // 从state中提取
+	DeviceID         string `json:"device_id"`                 // 从state中提取
 	DeviceName       string `json:"device_name"`
 	DeviceType       string `json:"device_type"`
 	CaptchaID        string `json:"captcha_id"` // 密码登录时必填

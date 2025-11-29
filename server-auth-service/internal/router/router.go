@@ -114,6 +114,18 @@ func Setup(r *gin.Engine) {
 				device.GET("", deviceHandler.GetDevices)
 				device.DELETE("/:device_id", deviceHandler.KickDevice)
 			}
+
+			// SSO管理后台
+			manage := authenticated.Group("/manage")
+			{
+				manageHandler := handler.NewManageHandler()
+				manage.GET("/devices", manageHandler.GetDevices)           // 获取设备列表
+				manage.POST("/kick-device", manageHandler.KickDevice)      // 踢出设备
+				manage.POST("/sso-logout", manageHandler.SSOLogout)        // SSO退出
+				manage.POST("/logout-all", manageHandler.LogoutAllDevices) // 退出所有设备
+				manage.GET("/logs", manageHandler.GetLogs)                 // 操作日志
+				manage.GET("/profile", manageHandler.GetProfile)           // 用户信息
+			}
 		}
 	}
 

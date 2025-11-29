@@ -8,20 +8,32 @@
     </div>
 
     <div class="login-card">
-      <!-- Logo区域 -->
-      <div class="logo-section">
-        <div class="logo-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <div class="logo-text">
-          <h1 class="title">统一登录</h1>
-          <p class="subtitle">欢迎使用 {{ appName }}</p>
+      <!-- 错误提示 -->
+      <div v-if="!hasValidAppId" class="error-section">
+        <div class="error-icon">⚠️</div>
+        <h2 class="error-title">访问错误</h2>
+        <p class="error-message">请通过正确的链接访问登录页面</p>
+        <div class="error-help">
+          <p>如果您需要帮助，请联系系统管理员</p>
         </div>
       </div>
+
+      <!-- 正常登录界面 -->
+      <div v-else>
+        <!-- Logo区域 -->
+        <div class="logo-section">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="logo-text">
+            <h1 class="title">统一登录</h1>
+            <p class="subtitle">欢迎使用 {{ appName }}</p>
+          </div>
+        </div>
 
       <!-- 登录方式切换 -->
       <div class="login-type-tabs">
@@ -183,14 +195,15 @@
         @confirm="onCaptchaConfirm"
       />
 
-      <!-- 安全提示 -->
-      <div class="security-tip">
-        <svg class="tip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M12 8V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M12 16H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>您的登录信息已加密传输，请放心使用</span>
+        <!-- 安全提示 -->
+        <div class="security-tip">
+          <svg class="tip-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 8V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 16H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>您的登录信息已加密传输，请放心使用</span>
+        </div>
       </div>
     </div>
   </div>
@@ -232,19 +245,41 @@ const canSendEmailCode = computed(() => {
 
 // 从URL获取参数
 const urlParams = new URLSearchParams(window.location.search)
-const appId = urlParams.get('app_id') || 'blog'
-const redirectUri = urlParams.get('redirect_uri') || 'http://localhost:3000/sso-callback'
+const appId = urlParams.get('app_id')
+
+// 验证app_id是否存在
+const hasValidAppId = ref(!!appId)
+if (!appId) {
+  ElMessage.error('访问链接无效，请联系管理员')
+  hasValidAppId.value = false
+}
+
+// 根据app_id设置默认的redirect_uri
+let defaultRedirectUri = 'http://localhost:3000/sso-callback'
+if (appId === 'manage') {
+  defaultRedirectUri = 'http://localhost:3001/manage'
+}
+
+const redirectUri = urlParams.get('redirect_uri') || defaultRedirectUri
 const returnUrl = urlParams.get('return_url') || '/'
 const state = urlParams.get('state') || ''
 
 onMounted(() => {
   appName.value = getAppName(appId)
   // 不再自动加载验证码，改为懒加载
+  
+  // 调试信息
+  console.log('登录页面参数:', {
+    appId,
+    redirectUri,
+    returnUrl
+  })
 })
 
 function getAppName(appId) {
   const appNames = {
-    'blog': 'Go博客系统'
+    'blog': 'Go博客系统',
+    'manage': 'SSO管理中心'
   }
   return appNames[appId] || '应用'
 }
@@ -312,6 +347,12 @@ async function onCaptchaConfirm(payload) {
 }
 
 async function handleLogin() {
+  // 验证app_id是否有效
+  if (!appId) {
+    ElMessage.error('访问链接无效，无法登录')
+    return
+  }
+
   loading.value = true
 
   try {
@@ -334,6 +375,7 @@ async function handleLogin() {
         captcha: form.value.captcha,
         captcha_id: form.value.captcha_id,
         state: encodedState,
+        app_id: appId,  // 直接传递app_id参数
         device_name: getBrowserName(),
         device_type: 'web'
       })
@@ -343,6 +385,7 @@ async function handleLogin() {
         email: form.value.email,
         verification_code: form.value.emailCode,
         state: encodedState,
+        app_id: appId,  // 直接传递app_id参数
         device_name: getBrowserName(),
         device_type: 'web'
       })
@@ -350,12 +393,26 @@ async function handleLogin() {
 
     if (response.data.code === 0) {
       const data = response.data.data
-      // ✅ OAuth 2.0: 回调时携带code和return_url
-      let callbackUrl = `${data.redirect_uri}?code=${data.code}`
-      if (data.return_url) {
-        callbackUrl += `&return_url=${encodeURIComponent(data.return_url)}`
+      if (appId === 'manage') {
+        // 管理后台登录：存储Token并跳转
+        if (data.access_token) {
+          localStorage.setItem('access_token', data.access_token)
+          if (data.refresh_token) {
+            localStorage.setItem('refresh_token', data.refresh_token)
+          }
+          // 使用路由跳转而不是window.location.href
+          router.push('/manage')
+        } else {
+          ElMessage.error('登录失败：未获取到访问令牌')
+        }
+      } else {
+        // ✅ OAuth 2.0: 回调时携带code和return_url
+        let callbackUrl = `${data.redirect_uri}?code=${data.code}`
+        if (data.return_url) {
+          callbackUrl += `&return_url=${encodeURIComponent(data.return_url)}`
+        }
+        window.location.href = callbackUrl
       }
-      window.location.href = callbackUrl
     } else {
       ElMessage.error(response.data.message || '登录失败')
       if (loginType.value === 'password') {
@@ -375,6 +432,12 @@ async function handleLogin() {
 // getDeviceId 和 getBrowserName 已从 @/utils/device 导入
 
 async function qqLogin() {
+  // 验证app_id是否有效
+  if (!appId) {
+    ElMessage.error('访问链接无效，无法登录')
+    return
+  }
+
   try {
     // 生成state参数
     const stateData = {
@@ -957,6 +1020,65 @@ async function qqLogin() {
   height: 16px;
   flex-shrink: 0;
   color: #0284c7;
+}
+
+/* 错误提示样式 */
+.error-section {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.error-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #dc2626;
+  margin-bottom: 12px;
+}
+
+.error-message {
+  font-size: 16px;
+  color: #6b7280;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.error-help {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: left;
+}
+
+.error-help p {
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 8px;
+}
+
+.error-help ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.error-help li {
+  color: #78350f;
+  margin-bottom: 4px;
+}
+
+.error-help code {
+  background: #fbbf24;
+  color: #78350f;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
 }
 
 /* 响应式设计 */

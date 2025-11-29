@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 )
 
@@ -42,7 +43,7 @@ func (s *DeviceService) GetDevices(userUUID uuid.UUID, appID string, currentDevi
 }
 
 // KickDevice 踢出设备（基于 UUID）
-func (s *DeviceService) KickDevice(userUUID uuid.UUID, deviceID, appID string, currentDeviceID string) error {
+func (s *DeviceService) KickDevice(c *gin.Context, userUUID uuid.UUID, deviceID, appID string, currentDeviceID string) error {
 	// 不允许踢出当前设备
 	if deviceID == currentDeviceID {
 		return errors.New("不能移除当前设备")
@@ -73,15 +74,8 @@ func (s *DeviceService) KickDevice(userUUID uuid.UUID, deviceID, appID string, c
 	}
 
 	// 记录日志
-	loginLog := entity.SSOLoginLog{
-		UserUUID: userUUID,
-		AppID:    device.AppID,
-		Action:   "kick",
-		DeviceID: deviceID,
-		Status:   1,
-		Message:  "设备被踢出",
-	}
-	global.DB.Create(&loginLog)
+	authService := &AuthService{}
+	authService.LogActionWithContext(c, userUUID, device.AppID, "kick", deviceID, "设备被踢出", 1)
 
 	return nil
 }

@@ -69,8 +69,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 从state中提取参数
-	req.AppID = stateData.AppID
+	// 验证app_id一致性：state中的app_id必须与请求参数中的app_id一致
+	if stateData.AppID != req.AppID {
+		utils.BadRequest(c, "app_id参数与state中的app_id不一致")
+		return
+	}
+
+	// 从state中提取其他参数
 	req.DeviceID = stateData.DeviceID
 	req.RedirectURI = stateData.RedirectURI
 
@@ -108,24 +113,39 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// ✅ SSO: 设置全局 Session Cookie（跨应用单点登录）
 	session := sessions.Default(c)
 	session.Set("user_uuid", resp.UserInfo.UUID)
+	session.Set("sso_device_id", req.DeviceID)           // 存储 SSO 设备 ID
+	session.Set("user_agent", c.GetHeader("User-Agent")) // 安全检测
+	session.Set("ip_address", c.ClientIP())              // 安全检测
 	session.Set("logged_in", true)
 	session.Set("logged_in_at", time.Now().Unix())
 	if err := session.Save(); err != nil {
 		global.Log.Error("保存 Session 失败", zap.Error(err))
 	}
 
-	// ✅ OAuth 2.0: 生成授权码（使用UUID）
-	code, err := service.GenerateAuthorizationCodeByUUID(resp.UserInfo.UUID, req.AppID, req.RedirectURI, resp.AccessToken, resp.RefreshToken)
-	if err != nil {
-		utils.Error(c, 1003, "生成授权码失败")
-		return
-	}
+	// 检查是否是管理后台登录
+	if req.AppID == "manage" {
+		// 管理后台登录：直接返回Token，不走OAuth流程
+		utils.Success(c, gin.H{
+			"access_token":  resp.AccessToken,
+			"refresh_token": resp.RefreshToken,
+			"token_type":    "Bearer",
+			"expires_in":    7200, // 2小时
+			"redirect_uri":  "http://localhost:3001/manage",
+		})
+	} else {
+		// ✅ OAuth 2.0: 生成授权码（使用UUID）
+		code, err := service.GenerateAuthorizationCodeByUUID(resp.UserInfo.UUID, req.AppID, req.RedirectURI, resp.AccessToken, resp.RefreshToken)
+		if err != nil {
+			utils.Error(c, 1003, "生成授权码失败")
+			return
+		}
 
-	utils.Success(c, gin.H{
-		"code":         code,
-		"redirect_uri": stateData.RedirectURI,
-		"return_url":   stateData.ReturnURL,
-	})
+		utils.Success(c, gin.H{
+			"code":         code,
+			"redirect_uri": stateData.RedirectURI,
+			"return_url":   stateData.ReturnURL,
+		})
+	}
 }
 
 // RefreshToken OAuth 2.0 token端点（支持authorization_code和refresh_token）
@@ -305,6 +325,9 @@ func (h *AuthHandler) QQLogin(c *gin.Context) {
 	// ✅ SSO: 设置全局 Session Cookie（跨应用单点登录）
 	session := sessions.Default(c)
 	session.Set("user_uuid", resp.UserInfo.UUID)
+	session.Set("sso_device_id", req.DeviceID)           // 存储 SSO 设备 ID
+	session.Set("user_agent", c.GetHeader("User-Agent")) // 安全检测
+	session.Set("ip_address", c.ClientIP())              // 安全检测
 	session.Set("logged_in", true)
 	session.Set("logged_in_at", time.Now().Unix())
 	if err := session.Save(); err != nil {

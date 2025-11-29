@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -20,8 +21,8 @@ import (
 
 type AuthService struct{}
 
-// getAppByKey 通过app_key获取应用信息
-func (s *AuthService) getAppByKey(appKey string) (*entity.SSOApplication, error) {
+// GetAppByKey 通过app_key获取应用信息
+func (s *AuthService) GetAppByKey(appKey string) (*entity.SSOApplication, error) {
 	var app entity.SSOApplication
 	err := global.DB.Where("app_key = ? AND status = 1", appKey).First(&app).Error
 	if err != nil {
@@ -79,7 +80,7 @@ func (s *AuthService) Register(req request.RegisterRequest) error {
 	}
 
 	// 查询应用ID
-	app, err := s.getAppByKey(req.AppID)
+	app, err := s.GetAppByKey(req.AppID)
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf("应用查询失败: %w", err)
@@ -142,7 +143,7 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 	}
 
 	// 查询应用
-	app, err := s.getAppByKey(req.AppID)
+	app, err := s.GetAppByKey(req.AppID)
 	if err != nil {
 		return nil, err
 	}
@@ -172,14 +173,10 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 	isNewDevice := errors.Is(err, gorm.ErrRecordNotFound)
 
 	if isNewDevice {
-		// 新设备，检查设备数量
-		var deviceCount int64
-		global.DB.Model(&entity.SSODevice{}).
-			Where("user_uuid = ? AND app_id = ? AND status = 1", user.UUID, app.ID).
-			Count(&deviceCount)
-
-		if int(deviceCount) >= app.MaxDevices {
-			return nil, fmt.Errorf("设备数已达上限(%d台)，请先在设备管理中移除其他设备", app.MaxDevices)
+		// 新设备，检查设备数量限制并自动踢出最早的设备
+		err = s.handleDeviceLimit(user.UUID, app.ID, app.MaxDevices)
+		if err != nil {
+			return nil, fmt.Errorf("处理设备限制失败: %w", err)
 		}
 
 		// 创建新设备
@@ -197,6 +194,9 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 		if err := global.DB.Create(&device).Error; err != nil {
 			return nil, fmt.Errorf("注册设备失败: %w", err)
 		}
+
+		// 记录新设备登录日志
+		s.LogAction(user.UUID, app.ID, "login", deviceID, "新设备登录成功", 1)
 	} else {
 		// 更新现有设备
 		global.DB.Model(&existDevice).Updates(map[string]interface{}{
@@ -207,6 +207,9 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 			"user_agent":     userAgent,
 			"status":         1,
 		})
+
+		// 记录现有设备登录日志
+		s.LogAction(user.UUID, app.ID, "login", deviceID, "设备登录成功", 1)
 	}
 
 	// 生成Token
@@ -273,7 +276,7 @@ func (s *AuthService) Login(req request.LoginRequest, ipAddress, userAgent strin
 // RefreshToken 刷新Token
 func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.TokenResponse, error) {
 	// 验证client_secret
-	app, err := s.getAppByKey(req.ClientID)
+	app, err := s.GetAppByKey(req.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +385,7 @@ func (s *AuthService) Logout(accessToken, ipAddress, userAgent string) error {
 
 	// 查询应用ID（用于日志）
 	var logAppID uint
-	if app, err := s.getAppByKey(claims.AppID); err == nil {
+	if app, err := s.GetAppByKey(claims.AppID); err == nil {
 		logAppID = app.ID
 	}
 
@@ -614,7 +617,7 @@ func (s *AuthService) ForgotPassword(req request.ForgotPasswordRequest) error {
 }
 
 // GenerateTokensForUser 为已登录用户生成新的 Token（用于 SSO 静默登录）
-func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID string) (*response.TokenResponse, error) {
+func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID, deviceID string) (*response.TokenResponse, error) {
 	// 解析 UUID
 	userUUID, err := uuid.FromString(userUUIDStr)
 	if err != nil {
@@ -633,7 +636,7 @@ func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID string) (*respons
 	}
 
 	// 查询应用
-	app, err := s.getAppByKey(appID)
+	app, err := s.GetAppByKey(appID)
 	if err != nil {
 		return nil, err
 	}
@@ -651,8 +654,10 @@ func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID string) (*respons
 		return nil, errors.New("您无权访问此应用")
 	}
 
-	// 生成设备 ID（SSO 静默登录使用固定设备 ID）
-	deviceID := "sso_silent_" + uuid.Must(uuid.NewV4()).String()
+	// 使用传入的 device_id（如果为空，生成新的）
+	if deviceID == "" {
+		deviceID = "sso_silent_" + uuid.Must(uuid.NewV4()).String()
+	}
 
 	// 生成 Token
 	accessTokenDuration, _ := utils.ParseDuration(global.Config.JWT.AccessTokenExpiryTime)
@@ -692,4 +697,158 @@ func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID string) (*respons
 		TokenType:    "Bearer",
 		ExpiresIn:    int(accessTokenDuration.Seconds()),
 	}, nil
+}
+
+// handleDeviceLimit 处理设备数量限制，自动踢出最早的设备
+func (s *AuthService) handleDeviceLimit(userUUID uuid.UUID, appID uint, maxDevices int) error {
+	// 1. 检查当前设备数量
+	var deviceCount int64
+	global.DB.Model(&entity.SSODevice{}).
+		Where("user_uuid = ? AND app_id = ? AND status = 1", userUUID, appID).
+		Count(&deviceCount)
+
+	// 2. 如果超出限制，踢出最早的设备
+	if int(deviceCount) >= maxDevices {
+		var oldestDevice entity.SSODevice
+		err := global.DB.Where("user_uuid = ? AND app_id = ? AND status = 1", userUUID, appID).
+			Order("last_active_at ASC").
+			First(&oldestDevice).Error
+		if err != nil {
+			return fmt.Errorf("查找最早设备失败: %w", err)
+		}
+
+		// 踢出最早的设备
+		err = s.kickDeviceInternal(userUUID, oldestDevice.DeviceID, appID, "auto_kick", "设备数量超限，自动踢出")
+		if err != nil {
+			return fmt.Errorf("踢出设备失败: %w", err)
+		}
+
+		global.Log.Info("自动踢出最早设备",
+			zap.String("user_uuid", userUUID.String()),
+			zap.String("device_id", oldestDevice.DeviceID),
+			zap.String("device_name", oldestDevice.DeviceName),
+		)
+	}
+
+	return nil
+}
+
+// KickDevice 统一的设备踢出方法（带Context）
+func (s *AuthService) KickDevice(c *gin.Context, userUUID uuid.UUID, deviceID string, appID uint, action, message string) error {
+	// 1. 删除 RefreshToken
+	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", userUUID.String(), deviceID)
+	global.Redis.Del(refreshTokenKey)
+
+	// 2. 更新设备状态
+	result := global.DB.Model(&entity.SSODevice{}).
+		Where("user_uuid = ? AND device_id = ?", userUUID, deviceID).
+		Update("status", 0)
+	if result.Error != nil {
+		return fmt.Errorf("更新设备状态失败: %w", result.Error)
+	}
+
+	// 3. 记录日志
+	if c != nil {
+		s.LogActionWithContext(c, userUUID, appID, action, deviceID, message, 1)
+	} else {
+		s.LogAction(userUUID, appID, action, deviceID, message, 1)
+	}
+
+	return nil
+}
+
+// kickDeviceInternal 内部设备踢出方法（无Context）
+func (s *AuthService) kickDeviceInternal(userUUID uuid.UUID, deviceID string, appID uint, action, message string) error {
+	// 1. 删除 RefreshToken
+	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", userUUID.String(), deviceID)
+	global.Redis.Del(refreshTokenKey)
+
+	// 2. 更新设备状态
+	result := global.DB.Model(&entity.SSODevice{}).
+		Where("user_uuid = ? AND device_id = ?", userUUID, deviceID).
+		Update("status", 0)
+	if result.Error != nil {
+		return fmt.Errorf("更新设备状态失败: %w", result.Error)
+	}
+
+	// 3. 记录日志（无IP和UA信息）
+	s.LogAction(userUUID, appID, action, deviceID, message, 1)
+
+	return nil
+}
+
+// LogAction 统一的日志记录方法
+func (s *AuthService) LogAction(userUUID uuid.UUID, appID uint, action, deviceID, message string, status int) {
+	log := entity.SSOLoginLog{
+		UserUUID:  userUUID,
+		AppID:     appID,
+		Action:    action,
+		DeviceID:  deviceID,
+		Status:    status,
+		Message:   message,
+		CreatedAt: time.Now(),
+	}
+
+	if err := global.DB.Create(&log).Error; err != nil {
+		global.Log.Error("记录登录日志失败",
+			zap.Error(err),
+			zap.String("action", action),
+			zap.String("device_id", deviceID),
+		)
+	}
+}
+
+// LogActionWithContext 带上下文的日志记录方法
+func (s *AuthService) LogActionWithContext(c *gin.Context, userUUID uuid.UUID, appID uint, action, deviceID, message string, status int) {
+	log := entity.SSOLoginLog{
+		UserUUID:  userUUID,
+		AppID:     appID,
+		Action:    action,
+		DeviceID:  deviceID,
+		IPAddress: c.ClientIP(),
+		UserAgent: c.GetHeader("User-Agent"),
+		Status:    status,
+		Message:   message,
+		CreatedAt: time.Now(),
+	}
+
+	if err := global.DB.Create(&log).Error; err != nil {
+		global.Log.Error("记录登录日志失败",
+			zap.Error(err),
+			zap.String("action", action),
+			zap.String("device_id", deviceID),
+		)
+	}
+}
+
+// CheckDeviceExpiry 检查设备过期状态（滑动过期）
+func (s *AuthService) CheckDeviceExpiry(deviceID string) error {
+	var device entity.SSODevice
+	err := global.DB.Where("device_id = ? AND status = 1", deviceID).First(&device).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("设备不存在或已离线")
+		}
+		return fmt.Errorf("查询设备失败: %w", err)
+	}
+
+	// 检查是否超过7天未活跃（滑动过期）
+	inactive := time.Since(device.LastActiveAt)
+	if inactive > 7*24*time.Hour {
+		// 设备过期，踢出设备
+		err = s.kickDeviceInternal(device.UserUUID, deviceID, device.AppID, "expired", "设备长时间未活跃，自动下线")
+		if err != nil {
+			global.Log.Error("踢出过期设备失败", zap.Error(err), zap.String("device_id", deviceID))
+		}
+		return errors.New("设备已过期，请重新登录")
+	}
+
+	// 设备有效，更新活跃时间（滑动过期的核心）
+	err = global.DB.Model(&device).Update("last_active_at", time.Now()).Error
+	if err != nil {
+		global.Log.Error("更新设备活跃时间失败", zap.Error(err), zap.String("device_id", deviceID))
+		// 不返回错误，允许继续登录
+	}
+
+	return nil
 }

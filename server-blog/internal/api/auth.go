@@ -18,9 +18,9 @@ import (
 
 type AuthApi struct{}
 
-// GetSSOLoginURL 获取SSO登录地址
+// GetSSOLoginURL 获取SSO授权地址（支持静默登录）
 func (a *AuthApi) GetSSOLoginURL(c *gin.Context) {
-	// 构建SSO登录URL
+	// 构建SSO授权URL
 	redirectURI := c.Query("redirect_uri")
 	if redirectURI == "" {
 		redirectURI = fmt.Sprintf("http://localhost:%d/sso-callback", global.Config.System.Port) // 默认值使用当前服务端口
@@ -32,12 +32,17 @@ func (a *AuthApi) GetSSOLoginURL(c *gin.Context) {
 		returnURL = "/" // 默认返回首页
 	}
 
-	// ✅ 从配置文件读取SSO前端地址
-	ssoLoginURL := fmt.Sprintf("%s/login?app_id=%s&redirect_uri=%s&return_url=%s",
+	// 构建 state 参数
+	state := fmt.Sprintf(`{"return_url":"%s"}`, returnURL)
+
+	// ✅ 返回 OAuth 2.0 授权端点（支持静默登录）
+	// 如果用户已登录（有 Session），SSO 会自动返回授权码
+	// 如果用户未登录，SSO 会重定向到登录页面
+	ssoLoginURL := fmt.Sprintf("%s/api/oauth/authorize?app_id=%s&redirect_uri=%s&state=%s",
 		global.Config.SSO.WebURL,
 		global.Config.SSO.ClientID,
 		url.QueryEscape(redirectURI),
-		url.QueryEscape(returnURL),
+		url.QueryEscape(state),
 	)
 
 	response.OkWithData(gin.H{
