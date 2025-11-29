@@ -99,12 +99,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 获取客户端信息
-	ipAddress := c.ClientIP()
-	userAgent := c.GetHeader("User-Agent")
-
 	// 登录验证
-	resp, err := h.authService.Login(req, ipAddress, userAgent)
+	resp, err := h.authService.Login(c, req)
 	if err != nil {
 		utils.Error(c, 1002, err.Error())
 		return
@@ -215,12 +211,11 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	// ✅ SSO: 清除全局 Session Cookie
-	session := sessions.Default(c)
-	session.Clear()
-	if err := session.Save(); err != nil {
-		global.Log.Error("清除 Session 失败", zap.Error(err))
-	}
+	// 注意：应用退出不清除 SSO Session，保持其他应用的静默登录能力
+	// 只有 /api/manage/sso-logout 才清除 SSO Session
+	// session := sessions.Default(c)
+	// session.Clear()
+	// session.Save()
 
 	utils.SuccessMsg(c, "登出成功", nil)
 }

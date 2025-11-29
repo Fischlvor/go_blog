@@ -24,47 +24,61 @@
     </div>
 
     <div class="devices-list">
-      <el-row :gutter="16">
-        <el-col :span="12" v-for="device in devices" :key="device.device_id">
-          <el-card class="device-card" :class="{ 'current-device': device.is_current }">
+      <el-row :gutter="16" class="devices-row">
+        <el-col :span="12" v-for="deviceGroup in groupedDevices" :key="deviceGroup.deviceId" class="device-col">
+          <el-card class="device-card" :class="{ 'current-device': deviceGroup.isCurrent }">
             <div class="device-header">
               <div class="device-icon">
-                <el-icon size="24">
-                  <Monitor v-if="device.device_type === 'web'" />
+                <el-icon size="20">
+                  <Monitor v-if="deviceGroup.deviceType === 'web'" />
                   <Cellphone v-else />
                 </el-icon>
               </div>
               <div class="device-info">
-                <div class="device-name">
-                  {{ device.device_name }}
-                  <el-tag v-if="device.is_current" type="primary" size="small">当前设备</el-tag>
+                <div class="device-name-row">
+                  <div class="device-name">
+                    {{ deviceGroup.deviceName }}
+                    <el-tag v-if="deviceGroup.isCurrent" type="primary" size="small">当前</el-tag>
+                  </div>
+                  <el-button 
+                    v-if="!deviceGroup.isCurrent"
+                    type="danger" 
+                    size="small"
+                    @click="confirmKickAllApps(deviceGroup)"
+                    :loading="kickingDevices.includes(deviceGroup.deviceId)"
+                  >
+                    踢出所有应用
+                  </el-button>
                 </div>
-                <div class="device-details">
-                  <div class="detail-item">
-                    <span class="label">设备ID:</span>
-                    <span class="value">{{ device.device_id }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="label">IP地址:</span>
-                    <span class="value">{{ device.ip_address }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="label">最后活跃:</span>
-                    <span class="value">{{ formatTime(device.last_active_at) }}</span>
-                  </div>
+                <div class="device-meta">
+                  <span class="meta-item">{{ deviceGroup.ipAddress }}</span>
+                  <span class="meta-item">{{ formatTime(deviceGroup.lastActiveAt) }}</span>
                 </div>
               </div>
             </div>
             
-            <div class="device-actions" v-if="!device.is_current">
-              <el-button 
-                type="danger" 
-                size="small"
-                @click="confirmKickDevice(device)"
-                :loading="kickingDevices.includes(device.device_id)"
-              >
-                踢出设备
-              </el-button>
+            <!-- 应用列表 - 紧凑布局 -->
+            <div class="device-apps">
+              <div class="apps-header" v-if="deviceGroup.apps.length > 1">
+                <span class="apps-count">{{ deviceGroup.apps.length }} 个应用</span>
+              </div>
+              <div class="apps-list">
+                <div v-for="app in deviceGroup.apps" :key="app.id" class="app-item">
+                  <div class="app-info">
+                    <span class="app-name">{{ app.app_name || app.app_key || '未知应用' }}</span>
+                    <span class="app-time">{{ formatTime(app.last_active_at) }}</span>
+                  </div>
+                  <el-button 
+                    type="danger" 
+                    size="small"
+                    @click="confirmKickDevice(app)"
+                    :loading="kickingDevices.includes(app.device_id)"
+                    v-if="!app.is_current"
+                  >
+                    踢出
+                  </el-button>
+                </div>
+              </div>
             </div>
           </el-card>
         </el-col>
@@ -89,6 +103,46 @@ const kickingDevices = ref([])
 
 const currentDeviceCount = computed(() => {
   return devices.value.filter(device => device.is_current).length
+})
+
+// 按设备分组
+const groupedDevices = computed(() => {
+  const groups = new Map()
+  
+  devices.value.forEach(device => {
+    const deviceId = device.device_id
+    
+    if (!groups.has(deviceId)) {
+      groups.set(deviceId, {
+        deviceId: deviceId,
+        deviceName: device.device_name,
+        deviceType: device.device_type,
+        ipAddress: device.ip_address,
+        lastActiveAt: device.last_active_at,
+        isCurrent: device.is_current,
+        apps: []
+      })
+    }
+    
+    const group = groups.get(deviceId)
+    group.apps.push(device)
+    
+    // 更新设备级别的信息（使用最新的）
+    if (new Date(device.last_active_at) > new Date(group.lastActiveAt)) {
+      group.lastActiveAt = device.last_active_at
+      group.ipAddress = device.ip_address
+    }
+    
+    // 如果任何应用是当前设备，则整个设备组标记为当前
+    if (device.is_current) {
+      group.isCurrent = true
+    }
+  })
+  
+  // 转换为数组并按最后活跃时间排序
+  return Array.from(groups.values()).sort((a, b) => 
+    new Date(b.lastActiveAt) - new Date(a.lastActiveAt)
+  )
 })
 
 // 获取设备列表
@@ -117,10 +171,10 @@ const refreshDevices = () => {
   fetchDevices()
 }
 
-// 确认踢出设备
+// 确认踢出单个应用
 const confirmKickDevice = (device) => {
   ElMessageBox.confirm(
-    `确定要踢出设备 "${device.device_name}" 吗？`,
+    `确定要踢出应用 "${device.app_name}" 吗？`,
     '确认操作',
     {
       confirmButtonText: '确定',
@@ -132,6 +186,43 @@ const confirmKickDevice = (device) => {
   }).catch(() => {
     // 用户取消
   })
+}
+
+// 确认踢出设备的所有应用
+const confirmKickAllApps = (deviceGroup) => {
+  ElMessageBox.confirm(
+    `确定要踢出设备 "${deviceGroup.deviceName}" 的所有应用吗？`,
+    '确认操作',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(async () => {
+    await kickAllApps(deviceGroup)
+  }).catch(() => {
+    // 用户取消
+  })
+}
+
+// 踢出设备的所有应用
+const kickAllApps = async (deviceGroup) => {
+  kickingDevices.value.push(deviceGroup.deviceId)
+  try {
+    // 逐个踢出该设备的所有应用
+    for (const app of deviceGroup.apps) {
+      if (!app.is_current) { // 跳过当前设备
+        await manageApi.kickDevice(app.device_id)
+      }
+    }
+    ElMessage.success(`设备 "${deviceGroup.deviceName}" 的所有应用已踢出`)
+    await fetchDevices() // 刷新列表
+  } catch (error) {
+    console.error('踢出设备应用失败:', error)
+    ElMessage.error('踢出设备应用失败')
+  } finally {
+    kickingDevices.value = kickingDevices.value.filter(id => id !== deviceGroup.deviceId)
+  }
 }
 
 // 踢出设备
@@ -222,9 +313,28 @@ onMounted(() => {
   color: #909399;
 }
 
-.device-card {
+/* 等高布局 */
+.devices-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.device-col {
+  display: flex;
   margin-bottom: 16px;
+}
+
+.device-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
   transition: all 0.3s;
+}
+
+.device-card .el-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .device-card:hover {
@@ -237,57 +347,123 @@ onMounted(() => {
 
 .device-header {
   display: flex;
-  gap: 12px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .device-icon {
   color: #409eff;
   display: flex;
-  align-items: flex-start;
-  padding-top: 4px;
+  align-items: center;
 }
 
 .device-info {
   flex: 1;
 }
 
+.device-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
 .device-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
   color: #303133;
-  margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.device-details {
+.device-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.meta-item {
+  display: inline-block;
+}
+
+/* 应用列表样式 - 紧凑布局 */
+.device-apps {
+  margin-top: 12px;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
-.detail-item {
-  font-size: 14px;
-  display: flex;
-  gap: 8px;
+.apps-header {
+  margin-bottom: 8px;
 }
 
-.label {
+.apps-count {
+  font-size: 12px;
   color: #909399;
-  min-width: 60px;
+  font-weight: 500;
 }
 
-.value {
-  color: #606266;
-  word-break: break-all;
+.apps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
 }
 
-.device-actions {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
-  text-align: right;
+/* 美化滚动条 */
+.apps-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.apps-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.apps-list::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 2px;
+}
+
+.apps-list::-webkit-scrollbar-thumb:hover {
+  background: #909399;
+}
+
+.app-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #e4e7ed;
+  gap: 12px;
+}
+
+.app-item:hover {
+  background: #f0f2f5;
+}
+
+.app-info {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.app-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.app-time {
+  font-size: 11px;
+  color: #c0c4cc;
 }
 
 .empty-state {

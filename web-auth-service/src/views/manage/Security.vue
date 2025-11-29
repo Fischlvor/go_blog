@@ -112,8 +112,9 @@ const ssoLogout = async () => {
     console.log('SSO退出响应:', res) // 调试信息
     if (res.data && res.data.code === 0) {
       ElMessage.success('SSO退出成功')
-      // 清除本地token并跳转到管理后台登录页
+      // 清除所有本地token并跳转到管理后台登录页
       localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
       router.push('/login?app_id=manage')
     } else {
       console.error('响应格式错误:', res) // 调试信息
