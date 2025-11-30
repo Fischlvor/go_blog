@@ -26,6 +26,7 @@ type UserInfo struct {
 
 // DeviceInfo 设备信息
 type DeviceInfo struct {
+	ID           uint      `json:"id"`
 	DeviceID     string    `json:"device_id"`
 	DeviceName   string    `json:"device_name"`
 	DeviceType   string    `json:"device_type"`
@@ -33,6 +34,20 @@ type DeviceInfo struct {
 	LastActiveAt time.Time `json:"last_active_at"`
 	Status       int       `json:"status"`
 	IsCurrent    bool      `json:"is_current"`
+	CreatedAt    time.Time `json:"created_at"`
+	AppName      string    `json:"app_name"`
+	AppKey       string    `json:"app_key"`
+}
+
+// LogInfo 操作日志信息
+type LogInfo struct {
+	ID        uint      `json:"id"`
+	Action    string    `json:"action"`
+	DeviceID  string    `json:"device_id"`
+	IPAddress string    `json:"ip_address"`
+	Status    int       `json:"status"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // LoginLogInfo 登录日志信息

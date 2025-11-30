@@ -2,11 +2,11 @@ package main
 
 import (
 	"auth-service/internal/initialize"
-	"auth-service/internal/model/entity"
 	"auth-service/internal/router"
 	"auth-service/pkg/core"
 	"auth-service/pkg/global"
 	"auth-service/pkg/jwt"
+	"auth-service/scripts/flag"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -39,17 +39,8 @@ func main() {
 	}
 	global.RSAPublicKey = publicKey
 
-	// 6. 自动迁移数据库表
-	if err := global.DB.AutoMigrate(
-		&entity.SSOUser{},
-		&entity.SSOOAuthBinding{},
-		&entity.SSOApplication{},
-		&entity.UserAppRelation{},
-		&entity.SSODevice{},
-		&entity.SSOLoginLog{},
-	); err != nil {
-		global.Log.Fatal("数据库表迁移失败", zap.Error(err))
-	}
+	// 6. 处理命令行标志（如 --sql 进行数据库迁移）
+	flag.InitFlag()
 
 	// 7. 设置Gin模式
 	if global.Config.Server.Mode == "release" {

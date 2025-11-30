@@ -1,6 +1,7 @@
 package service
 
 import (
+	"auth-service/internal/model/appTypes"
 	"auth-service/pkg/global"
 	"crypto/rand"
 	"encoding/hex"
@@ -8,17 +9,6 @@ import (
 	"fmt"
 	"time"
 )
-
-// AuthorizationCode 授权码存储结构
-type AuthorizationCode struct {
-	Code         string
-	UserUUID     string
-	AppID        string
-	RedirectURI  string
-	ExpiresAt    time.Time
-	AccessToken  string
-	RefreshToken string
-}
 
 // GenerateAuthorizationCodeByUUID 生成授权码（使用UUID）
 func GenerateAuthorizationCodeByUUID(userUUID, appID, redirectURI, accessToken, refreshToken string) (string, error) {
@@ -33,7 +23,7 @@ func GenerateAuthorizationCodeByUUID(userUUID, appID, redirectURI, accessToken, 
 	key := fmt.Sprintf("auth_code:%s", code)
 
 	// ✅ 使用JSON序列化存储（支持特殊字符）
-	authCode := &AuthorizationCode{
+	authCode := &appTypes.AuthorizationCode{
 		Code:         code,
 		UserUUID:     userUUID,
 		AppID:        appID,
@@ -57,7 +47,7 @@ func GenerateAuthorizationCodeByUUID(userUUID, appID, redirectURI, accessToken, 
 }
 
 // ValidateAndConsumeCode 验证并消费授权码（一次性使用）
-func ValidateAndConsumeCode(code, appID, redirectURI string) (*AuthorizationCode, error) {
+func ValidateAndConsumeCode(code, appID, redirectURI string) (*appTypes.AuthorizationCode, error) {
 	key := fmt.Sprintf("auth_code:%s", code)
 
 	// 获取授权码信息
@@ -67,7 +57,7 @@ func ValidateAndConsumeCode(code, appID, redirectURI string) (*AuthorizationCode
 	}
 
 	// ✅ 使用JSON反序列化
-	var authCode AuthorizationCode
+	var authCode appTypes.AuthorizationCode
 	if err := json.Unmarshal([]byte(value), &authCode); err != nil {
 		return nil, fmt.Errorf("授权码数据格式错误: %v", err)
 	}

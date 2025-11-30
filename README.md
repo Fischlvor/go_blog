@@ -84,17 +84,61 @@ goBlog/
 │   │   ├── global/          # 全局变量
 │   │   └── core/            # 核心功能
 │   ├── configs/             # 配置文件
+│   ├── keys/                # RSA 密钥文件
+│   ├── log/                 # 日志文件
+│   ├── scripts/             # 工具脚本
+│   ├── sql/                 # SQL 脚本
+│   ├── uploads/             # 上传文件
 │   └── main.go              # 程序入口
 ├── server-auth-service/      # SSO 认证服务
 │   ├── internal/             # 私有代码
-│   │   ├── handler/         # 请求处理
+│   │   ├── api/             # API 处理器
+│   │   │   ├── auth.go      # 认证 API
+│   │   │   ├── captcha.go   # 验证码 API
+│   │   │   ├── device.go    # 设备 API
+│   │   │   ├── manage.go    # 管理 API
+│   │   │   ├── oauth.go     # OAuth API
+│   │   │   └── enter.go     # API 聚合
 │   │   ├── service/         # 业务逻辑
+│   │   │   ├── auth_service.go    # 认证服务
+│   │   │   ├── code_service.go    # 授权码服务
+│   │   │   ├── device_service.go  # 设备服务
+│   │   │   ├── manage_service.go  # 管理服务
+│   │   │   └── qq_service.go      # QQ 登录服务
 │   │   ├── model/           # 数据模型
-│   │   └── router/          # 路由配置
+│   │   │   ├── appTypes/    # 应用类型枚举
+│   │   │   ├── database/    # 数据库模型
+│   │   │   ├── request/     # 请求体
+│   │   │   ├── response/    # 响应体
+│   │   │   └── other/       # 其他模型
+│   │   ├── middleware/      # 中间件
+│   │   │   ├── auth.go      # JWT 认证中间件
+│   │   │   ├── client_auth.go # 客户端认证中间件
+│   │   │   └── cors.go      # CORS 中间件
+│   │   ├── router/          # 路由配置
+│   │   │   ├── enter.go     # 路由聚合
+│   │   │   ├── auth.go      # 认证路由
+│   │   │   ├── base.go      # 基础路由
+│   │   │   ├── device.go    # 设备路由
+│   │   │   ├── manage.go    # 管理路由
+│   │   │   ├── oauth.go     # OAuth 路由
+│   │   │   ├── user.go      # 用户路由
+│   │   │   └── router.go    # 路由设置
+│   │   └── initialize/      # 初始化模块
 │   ├── pkg/                 # 公共库
 │   │   ├── jwt/             # JWT 工具
 │   │   ├── crypto/          # 加密工具
-│   │   └── config/          # 配置管理
+│   │   ├── config/          # 配置管理
+│   │   ├── utils/           # 工具函数
+│   │   ├── global/          # 全局变量
+│   │   └── core/            # 核心功能
+│   ├── scripts/             # 工具脚本
+│   │   └── flag/            # 命令行标志处理
+│   ├── configs/             # 配置文件
+│   ├── keys/                # RSA 密钥文件
+│   ├── logs/                # 日志文件
+│   ├── go.mod               # Go 模块文件
+│   ├── go.sum               # 依赖锁定文件
 │   └── main.go              # 程序入口
 ├── web-blog/                 # 博客前端 (Vue3 + TypeScript)
 │   ├── src/
@@ -407,6 +451,69 @@ VITE_API_BASE_URL=http://localhost:8000/api
 5. 提交 Pull Request
 
 ## 📝 开发日志
+
+### 2025-11-30
+
+#### Refactor
+- **重构 server-auth-service 项目结构，完全对齐 server-blog**
+  - 响应/请求结构体重构
+    - 移动 `response.go` 到 `internal/model/response/`
+    - 更新 `DeviceInfo`、`LogInfo` 到 `internal/model/response/`
+    - 添加 `LogQueryParams` 到 `internal/model/request/`
+    - 移动 `AuthorizationCode` 到 `internal/model/appTypes/`
+    - 修复所有 package 声明（entity → database）
+  - Router 结构重构
+    - 创建 `enter.go` 聚合所有 Router
+    - 按功能模块拆分 router（auth.go、base.go、oauth.go、user.go、device.go、manage.go）
+    - 每个 router 使用 Group 组织相同前缀的路由
+    - 更新 Setup 函数调用各个 router 的初始化方法
+  - 更新 README 项目结构文档
+  - 涉及文件：30+ 个文件，完全对齐 server-blog 的项目结构
+
+### 2025-11-29
+
+#### Fixed
+- **修复日志和前后端联调** ([c586a4d](https://github.com/Fischlvor/go_blog/commit/c586a4d3864416a93a87d690b90e526d5a9f23b3))
+  - 优化SSO认证服务的日志记录功能
+  - 修复前后端数据联调问题
+  - 完善设备管理界面的交互逻辑
+  - 优化管理平台的用户体验
+  - 涉及文件：11个文件，新增391行，删除83行
+
+- **优化SSO静默登录，添加SSO管理平台，支持设备、全局下线** ([a62fdc1](https://github.com/Fischlvor/go_blog/commit/a62fdc1c63b64a9880b4192036f3a4eca510241f))
+  - 实现SSO静默登录机制，提升用户体验
+  - 新增完整的SSO管理平台界面
+  - 实现设备管理功能（查看、下线设备）
+  - 支持全局下线功能（一键下线所有设备）
+  - 增加登录活动监控和安全管理
+  - 优化OAuth认证流程和QQ登录
+  - 完善前端路由和权限控制
+  - 涉及文件：31个文件，新增2135行，删除145行
+
+### 2025-11-23
+
+#### Fixed
+- **单点登录后端完成** ([25e3cbc](https://github.com/Fischlvor/go_blog/commit/25e3cbc6d33c27af670b0e6675c1c7897560b4e5))
+  - 完善SSO认证服务后端核心功能
+  - 实现完整的OAuth认证处理器
+  - 增加认证路由和中间件
+  - 完善认证服务业务逻辑
+  - 涉及文件：6个文件，新增305行，删除11行
+
+- **增加登出日志字段** ([9d7cba8](https://github.com/Fischlvor/go_blog/commit/9d7cba81b32eb88467b93017f0a2d24a1dd99539))
+  - 优化用户登出功能的日志记录
+  - 增加登出操作的详细日志字段
+  - 完善认证服务的审计功能
+  - 涉及文件：2个文件，新增14行，删除8行
+
+### 2025-11-22
+
+#### Fixed
+- **blog退出登录走SSO** ([007fb09](https://github.com/Fischlvor/go_blog/commit/007fb0957b2c396d0945fef6ec9aaf8761b65cb3))
+  - 重构博客系统的登出逻辑
+  - 统一登出流程，通过SSO服务处理
+  - 确保多应用间登出状态同步
+  - 涉及文件：1个文件，新增62行，删除4行
 
 ### 2025-11-21
 

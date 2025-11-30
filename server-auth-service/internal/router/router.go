@@ -1,9 +1,8 @@
 package router
 
 import (
-	"auth-service/internal/handler"
+	"auth-service/internal/middleware"
 	"auth-service/pkg/global"
-	"auth-service/pkg/middleware"
 	"os"
 	"strconv"
 
@@ -56,78 +55,14 @@ func Setup(r *gin.Engine) {
 	r.Use(sessions.Sessions("sso_session", store))
 
 	// API组
-	api := r.Group("/api")
+	apiGroup := r.Group("/api")
 	{
-		// 基础接口
-		base := api.Group("/base")
-		{
-			captchaHandler := handler.NewCaptchaHandler()
-			base.GET("/captcha", captchaHandler.GetCaptcha)
-			authHandler := handler.NewAuthHandler()
-			base.GET("/qqLoginURL", authHandler.QQLoginURL) // QQ登录URL
-		}
-
-		// 认证相关（无需鉴权）
-		auth := api.Group("/auth")
-		{
-			authHandler := handler.NewAuthHandler()
-			auth.POST("/register", authHandler.Register)
-			auth.POST("/login", authHandler.Login)
-			auth.POST("/token", authHandler.RefreshToken)                                  // OAuth 2.0标准token端点
-			auth.POST("/oauth/qq/login", authHandler.QQLogin)                              // QQ登录
-			auth.GET("/oauth/qq/callback", authHandler.QQCallback)                         // QQ回调（GET：QQ服务端回调）
-			auth.POST("/sendEmailVerificationCode", authHandler.SendEmailVerificationCode) // 发送邮箱验证码
-			auth.POST("/forgotPassword", authHandler.ForgotPassword)                       // 忘记密码
-		}
-
-		// ✅ OAuth 2.0 授权端点（SSO 静默登录）
-		oauth := api.Group("/oauth")
-		{
-			oauthHandler := handler.NewOAuthHandler()
-			oauth.GET("/authorize", oauthHandler.Authorize) // 授权端点（检查 Session）
-		}
-
-		// 服务间调用接口（使用客户端认证）
-		internal := api.Group("/internal", middleware.ClientAuthMiddleware())
-		{
-			authHandler := handler.NewAuthHandler()
-			internal.GET("/user/:uuid", authHandler.GetUserByUUID)
-		}
-
-		// 需要鉴权的接口
-		authenticated := api.Group("", middleware.AuthMiddleware())
-		{
-			// 用户信息
-			user := authenticated.Group("/user")
-			{
-				authHandler := handler.NewAuthHandler()
-				user.GET("/info", authHandler.GetUserInfo)
-				user.PUT("/info", authHandler.UpdateUserInfo)
-				user.PUT("/password", authHandler.UpdatePassword)
-				user.POST("/logout", authHandler.Logout)
-			}
-
-			// 设备管理
-			device := authenticated.Group("/devices")
-			{
-				deviceHandler := handler.NewDeviceHandler()
-				device.GET("", deviceHandler.GetDevices)
-				device.DELETE("/:device_id", deviceHandler.KickDevice)
-			}
-
-			// SSO管理后台
-			manage := authenticated.Group("/manage")
-			{
-				manageHandler := handler.NewManageHandler()
-				manage.GET("/devices", manageHandler.GetDevices)           // 获取设备列表
-				manage.POST("/kick-device", manageHandler.KickDevice)      // 踢出设备
-				manage.POST("/logout", manageHandler.Logout)               // 退出manage应用
-				manage.POST("/sso-logout", manageHandler.SSOLogout)        // SSO全局退出
-				manage.POST("/logout-all", manageHandler.LogoutAllDevices) // 退出所有设备
-				manage.GET("/logs", manageHandler.GetLogs)                 // 操作日志
-				manage.GET("/profile", manageHandler.GetProfile)           // 用户信息
-			}
-		}
+		// 初始化各个路由
+		RouterGroupApp.BaseRouter.InitBaseRouter(apiGroup)
+		RouterGroupApp.AuthRouter.InitAuthRouter(apiGroup)
+		RouterGroupApp.OAuthRouter.InitOAuthRouter(apiGroup)
+		RouterGroupApp.UserRouter.InitUserRouter(apiGroup)
+		RouterGroupApp.ManageRouter.InitManageRouter(apiGroup)
 	}
 
 	// 健康检查

@@ -1,4 +1,4 @@
-package utils
+package response
 
 import (
 	"net/http"
@@ -87,4 +87,3 @@ func InternalError(c *gin.Context, message string) {
 		Message: message,
 	})
 }
-

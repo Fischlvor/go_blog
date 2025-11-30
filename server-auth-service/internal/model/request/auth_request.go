@@ -80,3 +80,12 @@ type ForgotPasswordRequest struct {
 	VerificationCode string `json:"verification_code" binding:"required,len=6"`
 	NewPassword      string `json:"new_password" binding:"required,min=8,max=20"`
 }
+
+// LogQueryParams 日志查询参数
+type LogQueryParams struct {
+	Page      int    `form:"page" binding:"min=1"`
+	PageSize  int    `form:"page_size" binding:"min=1,max=100"`
+	Action    string `form:"action"`     // 操作类型筛选
+	StartTime string `form:"start_time"` // 开始时间
+	EndTime   string `form:"end_time"`   // 结束时间
+}

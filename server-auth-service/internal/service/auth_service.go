@@ -1,10 +1,10 @@
 package service
 
 import (
-	"auth-service/internal/model/entity"
+	types "auth-service/internal/model/appTypes"
+	database "auth-service/internal/model/database"
 	"auth-service/internal/model/request"
 	"auth-service/internal/model/response"
-	"auth-service/internal/model/types"
 	"auth-service/pkg/crypto"
 	"auth-service/pkg/global"
 	"auth-service/pkg/jwt"
@@ -22,8 +22,8 @@ import (
 type AuthService struct{}
 
 // GetAppByKey 通过app_key获取应用信息
-func (s *AuthService) GetAppByKey(appKey string) (*entity.SSOApplication, error) {
-	var app entity.SSOApplication
+func (s *AuthService) GetAppByKey(appKey string) (*database.SSOApplication, error) {
+	var app database.SSOApplication
 	err := global.DB.Where("app_key = ? AND status = 1", appKey).First(&app).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -37,7 +37,7 @@ func (s *AuthService) GetAppByKey(appKey string) (*entity.SSOApplication, error)
 // Register 用户注册
 func (s *AuthService) Register(req request.RegisterRequest) error {
 	// 检查邮箱是否已注册
-	var existUser entity.SSOUser
+	var existUser database.SSOUser
 	err := global.DB.Where("email = ?", req.Email).First(&existUser).Error
 	if err == nil {
 		return errors.New("邮箱已被注册")
@@ -53,7 +53,7 @@ func (s *AuthService) Register(req request.RegisterRequest) error {
 	}
 
 	// 创建用户
-	user := entity.SSOUser{
+	user := database.SSOUser{
 		UUID:           uuid.Must(uuid.NewV4()),
 		Username:       req.Email, // 默认用邮箱作为用户名
 		PasswordHash:   passwordHash,
@@ -87,7 +87,7 @@ func (s *AuthService) Register(req request.RegisterRequest) error {
 	}
 
 	// 自动授权访问指定应用
-	userAppRelation := entity.UserAppRelation{
+	userAppRelation := database.UserAppRelation{
 		UserUUID: user.UUID,
 		AppID:    app.ID,
 		Status:   1,
@@ -106,7 +106,7 @@ func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response
 	ipAddress := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 	// 查询用户
-	var user entity.SSOUser
+	var user database.SSOUser
 	err := global.DB.Where("email = ?", req.Email).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -152,7 +152,7 @@ func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response
 	}
 
 	// 检查应用权限
-	var userAppRelation entity.UserAppRelation
+	var userAppRelation database.UserAppRelation
 	err = global.DB.Where("user_uuid = ? AND app_id = ?", user.UUID, app.ID).First(&userAppRelation).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -171,7 +171,7 @@ func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response
 	}
 
 	// 检查该设备是否已存在（用户+应用+设备的组合唯一）
-	var existDevice entity.SSODevice
+	var existDevice database.SSODevice
 	err = global.DB.Where("user_uuid = ? AND app_id = ? AND device_id = ?", user.UUID, app.ID, deviceID).First(&existDevice).Error
 	isNewDevice := errors.Is(err, gorm.ErrRecordNotFound)
 
@@ -183,7 +183,7 @@ func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response
 		}
 
 		// 创建新设备
-		device := entity.SSODevice{
+		device := database.SSODevice{
 			UserUUID:     user.UUID,
 			AppID:        app.ID,
 			DeviceID:     deviceID,
@@ -248,7 +248,7 @@ func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response
 	global.Redis.Set(refreshTokenKey, refreshToken, refreshTokenDuration)
 
 	// 记录登录日志
-	loginLog := entity.SSOLoginLog{
+	loginLog := database.SSOLoginLog{
 		UserUUID:  user.UUID,
 		AppID:     app.ID,
 		Action:    "login",
@@ -304,7 +304,7 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 	}
 
 	// 检查用户状态
-	var user entity.SSOUser
+	var user database.SSOUser
 	if err := global.DB.Where("uuid = ?", claims.UserUUID).First(&user).Error; err != nil {
 		return nil, errors.New("用户不存在")
 	}
@@ -313,7 +313,7 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 	}
 
 	// 检查设备状态
-	var device entity.SSODevice
+	var device database.SSODevice
 	err = global.DB.Where("user_uuid = ? AND device_id = ?", user.UUID, claims.DeviceID).First(&device).Error
 	if err != nil || device.Status != 1 {
 		return nil, errors.New("设备已被移除")
@@ -382,7 +382,7 @@ func (s *AuthService) Logout(accessToken, ipAddress, userAgent string) error {
 	global.Redis.Del(refreshTokenKey)
 
 	// 更新设备状态（基于 UUID）
-	global.DB.Model(&entity.SSODevice{}).
+	global.DB.Model(&database.SSODevice{}).
 		Where("user_uuid = ? AND device_id = ?", claims.UserUUID, claims.DeviceID).
 		Update("status", 0)
 
@@ -393,7 +393,7 @@ func (s *AuthService) Logout(accessToken, ipAddress, userAgent string) error {
 	}
 
 	// 记录登出日志
-	loginLog := entity.SSOLoginLog{
+	loginLog := database.SSOLoginLog{
 		UserUUID:  claims.UserUUID,
 		AppID:     logAppID,
 		Action:    "logout",
@@ -410,7 +410,7 @@ func (s *AuthService) Logout(accessToken, ipAddress, userAgent string) error {
 
 // GetUserInfoByUUID 根据UUID获取用户信息
 func (s *AuthService) GetUserInfoByUUID(userUUID uuid.UUID) (*response.UserInfo, error) {
-	var user entity.SSOUser
+	var user database.SSOUser
 	if err := global.DB.Where("uuid = ?", userUUID).First(&user).Error; err != nil {
 		return nil, errors.New("用户不存在")
 	}
@@ -445,12 +445,12 @@ func (s *AuthService) UpdateUserInfoByUUID(userUUID uuid.UUID, req request.Updat
 		return errors.New("没有需要更新的内容")
 	}
 
-	return global.DB.Model(&entity.SSOUser{}).Where("uuid = ?", userUUID).Updates(updates).Error
+	return global.DB.Model(&database.SSOUser{}).Where("uuid = ?", userUUID).Updates(updates).Error
 }
 
 // UpdatePasswordByUUID 修改密码
 func (s *AuthService) UpdatePasswordByUUID(userUUID uuid.UUID, req request.UpdatePasswordRequest) error {
-	var user entity.SSOUser
+	var user database.SSOUser
 	if err := global.DB.Where("uuid = ?", userUUID).First(&user).Error; err != nil {
 		return errors.New("用户不存在")
 	}
@@ -479,7 +479,7 @@ func (s *AuthService) GetUserByUUID(userUUIDStr string) (*response.UserInfo, err
 	}
 
 	// 查询用户
-	var user entity.SSOUser
+	var user database.SSOUser
 	if err := global.DB.Where("uuid = ?", userUUID).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户不存在")
@@ -594,7 +594,7 @@ func (s *AuthService) ForgotPassword(req request.ForgotPasswordRequest) error {
 	}
 
 	// 查询用户
-	var user entity.SSOUser
+	var user database.SSOUser
 	if err := global.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("邮箱不存在")
@@ -620,7 +620,7 @@ func (s *AuthService) ForgotPassword(req request.ForgotPasswordRequest) error {
 }
 
 // GenerateTokensForUser 为已登录用户生成新的 Token（用于 SSO 静默登录）
-func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID, deviceID string) (*response.TokenResponse, error) {
+func (s *AuthService) GenerateTokensForUser(c *gin.Context, userUUIDStr, appID, deviceID string) (*response.TokenResponse, error) {
 	// 解析 UUID
 	userUUID, err := uuid.FromString(userUUIDStr)
 	if err != nil {
@@ -628,7 +628,7 @@ func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID, deviceID string)
 	}
 
 	// 查询用户
-	var user entity.SSOUser
+	var user database.SSOUser
 	if err := global.DB.Where("uuid = ?", userUUID).First(&user).Error; err != nil {
 		return nil, errors.New("用户不存在")
 	}
@@ -645,7 +645,7 @@ func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID, deviceID string)
 	}
 
 	// 检查应用权限
-	var userAppRelation entity.UserAppRelation
+	var userAppRelation database.UserAppRelation
 	err = global.DB.Where("user_uuid = ? AND app_id = ?", user.UUID, app.ID).First(&userAppRelation).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -660,6 +660,41 @@ func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID, deviceID string)
 	// 使用传入的 device_id（如果为空，生成新的）
 	if deviceID == "" {
 		deviceID = "sso_silent_" + uuid.Must(uuid.NewV4()).String()
+	}
+
+	// 检查该设备是否已存在（用户+应用+设备的组合唯一）
+	var existDevice database.SSODevice
+	err = global.DB.Where("user_uuid = ? AND app_id = ? AND device_id = ?", user.UUID, app.ID, deviceID).First(&existDevice).Error
+	isNewDevice := errors.Is(err, gorm.ErrRecordNotFound)
+
+	if isNewDevice {
+		// 新设备，检查设备数量限制并自动踢出最早的设备
+		err = s.handleDeviceLimit(user.UUID, app.ID, app.MaxDevices)
+		if err != nil {
+			return nil, fmt.Errorf("处理设备限制失败: %w", err)
+		}
+
+		// 创建新设备记录
+		device := database.SSODevice{
+			UserUUID:     user.UUID,
+			AppID:        app.ID,
+			DeviceID:     deviceID,
+			DeviceName:   "SSO 设备",
+			DeviceType:   "web",
+			IPAddress:    c.ClientIP(),
+			UserAgent:    c.GetHeader("User-Agent"),
+			LastActiveAt: time.Now(),
+			Status:       1,
+		}
+		global.DB.Create(&device)
+	} else {
+		// 更新现有设备的最后活跃时间、IP、User-Agent 和状态（恢复为在线）
+		global.DB.Model(&existDevice).Updates(map[string]interface{}{
+			"last_active_at": time.Now(),
+			"ip_address":     c.ClientIP(),
+			"user_agent":     c.GetHeader("User-Agent"),
+			"status":         1,
+		})
 	}
 
 	// 生成 Token
@@ -706,13 +741,13 @@ func (s *AuthService) GenerateTokensForUser(userUUIDStr, appID, deviceID string)
 func (s *AuthService) handleDeviceLimit(userUUID uuid.UUID, appID uint, maxDevices int) error {
 	// 1. 检查当前设备数量
 	var deviceCount int64
-	global.DB.Model(&entity.SSODevice{}).
+	global.DB.Model(&database.SSODevice{}).
 		Where("user_uuid = ? AND app_id = ? AND status = 1", userUUID, appID).
 		Count(&deviceCount)
 
 	// 2. 如果超出限制，踢出最早的设备
 	if int(deviceCount) >= maxDevices {
-		var oldestDevice entity.SSODevice
+		var oldestDevice database.SSODevice
 		err := global.DB.Where("user_uuid = ? AND app_id = ? AND status = 1", userUUID, appID).
 			Order("last_active_at ASC").
 			First(&oldestDevice).Error
@@ -743,7 +778,7 @@ func (s *AuthService) KickDevice(c *gin.Context, userUUID uuid.UUID, deviceID st
 	global.Redis.Del(refreshTokenKey)
 
 	// 2. 更新设备状态
-	result := global.DB.Model(&entity.SSODevice{}).
+	result := global.DB.Model(&database.SSODevice{}).
 		Where("user_uuid = ? AND device_id = ?", userUUID, deviceID).
 		Update("status", 0)
 	if result.Error != nil {
@@ -767,7 +802,7 @@ func (s *AuthService) kickDeviceInternal(userUUID uuid.UUID, deviceID string, ap
 	global.Redis.Del(refreshTokenKey)
 
 	// 2. 更新设备状态
-	result := global.DB.Model(&entity.SSODevice{}).
+	result := global.DB.Model(&database.SSODevice{}).
 		Where("user_uuid = ? AND device_id = ?", userUUID, deviceID).
 		Update("status", 0)
 	if result.Error != nil {
@@ -782,7 +817,7 @@ func (s *AuthService) kickDeviceInternal(userUUID uuid.UUID, deviceID string, ap
 
 // LogAction 统一的日志记录方法
 func (s *AuthService) LogAction(userUUID uuid.UUID, appID uint, action, deviceID, message string, status int) {
-	log := entity.SSOLoginLog{
+	log := database.SSOLoginLog{
 		UserUUID:  userUUID,
 		AppID:     appID,
 		Action:    action,
@@ -803,7 +838,7 @@ func (s *AuthService) LogAction(userUUID uuid.UUID, appID uint, action, deviceID
 
 // LogActionWithContext 带上下文的日志记录方法
 func (s *AuthService) LogActionWithContext(c *gin.Context, userUUID uuid.UUID, appID uint, action, deviceID, message string, status int) {
-	log := entity.SSOLoginLog{
+	log := database.SSOLoginLog{
 		UserUUID:  userUUID,
 		AppID:     appID,
 		Action:    action,
@@ -826,7 +861,7 @@ func (s *AuthService) LogActionWithContext(c *gin.Context, userUUID uuid.UUID, a
 
 // CheckDeviceExpiry 检查设备过期状态（滑动过期）
 func (s *AuthService) CheckDeviceExpiry(deviceID string) error {
-	var device entity.SSODevice
+	var device database.SSODevice
 	err := global.DB.Where("device_id = ? AND status = 1", deviceID).First(&device).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

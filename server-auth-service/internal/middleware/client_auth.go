@@ -1,9 +1,9 @@
 package middleware
 
 import (
-	"auth-service/internal/model/entity"
+	"auth-service/internal/model/database"
 	"auth-service/pkg/global"
-	"auth-service/pkg/utils"
+	"auth-service/internal/model/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,23 +15,23 @@ func ClientAuthMiddleware() gin.HandlerFunc {
 		clientSecret := c.GetHeader("X-Client-Secret")
 
 		if clientID == "" || clientSecret == "" {
-			utils.Unauthorized(c, "缺少客户端认证信息")
+			response.Unauthorized(c, "缺少客户端认证信息")
 			c.Abort()
 			return
 		}
 
 		// 验证客户端ID和Secret
-		var app entity.SSOApplication
+		var app database.SSOApplication
 		err := global.DB.Where("app_key = ? AND status = 1", clientID).First(&app).Error
 		if err != nil {
-			utils.Unauthorized(c, "无效的客户端ID")
+			response.Unauthorized(c, "无效的客户端ID")
 			c.Abort()
 			return
 		}
 
 		// 验证Secret
 		if app.AppSecret != clientSecret {
-			utils.Unauthorized(c, "客户端认证失败")
+			response.Unauthorized(c, "客户端认证失败")
 			c.Abort()
 			return
 		}

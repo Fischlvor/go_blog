@@ -3,58 +3,23 @@ package service
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
-	"auth-service/internal/model/entity"
+	database "auth-service/internal/model/database"
+	"auth-service/internal/model/request"
 	"auth-service/internal/model/response"
 	"auth-service/pkg/global"
 )
 
 type ManageService struct{}
 
-// DeviceInfo 设备信息响应结构
-type DeviceInfo struct {
-	ID           uint      `json:"id"`
-	DeviceID     string    `json:"device_id"`
-	DeviceName   string    `json:"device_name"`
-	DeviceType   string    `json:"device_type"`
-	IPAddress    string    `json:"ip_address"`
-	LastActiveAt time.Time `json:"last_active_at"`
-	Status       int       `json:"status"`
-	IsCurrent    bool      `json:"is_current"` // 是否为当前设备
-	CreatedAt    time.Time `json:"created_at"`
-	AppName      string    `json:"app_name"` // 应用名称
-	AppKey       string    `json:"app_key"`  // 应用标识
-}
-
-// LogInfo 操作日志信息响应结构
-type LogInfo struct {
-	ID        uint      `json:"id"`
-	Action    string    `json:"action"`
-	DeviceID  string    `json:"device_id"`
-	IPAddress string    `json:"ip_address"`
-	Status    int       `json:"status"`
-	Message   string    `json:"message"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-// LogQueryParams 日志查询参数
-type LogQueryParams struct {
-	Page      int    `form:"page" binding:"min=1"`
-	PageSize  int    `form:"page_size" binding:"min=1,max=100"`
-	Action    string `form:"action"`     // 操作类型筛选
-	StartTime string `form:"start_time"` // 开始时间
-	EndTime   string `form:"end_time"`   // 结束时间
-}
-
 // GetUserDevices 获取用户设备列表（包含应用信息）
-func (s *ManageService) GetUserDevices(userUUID uuid.UUID, currentDeviceID string) ([]DeviceInfo, error) {
-	var devices []entity.SSODevice
+func (s *ManageService) GetUserDevices(userUUID uuid.UUID, currentDeviceID string) ([]response.DeviceInfo, error) {
+	var devices []database.SSODevice
 	err := global.DB.Where("user_uuid = ? AND status = 1", userUUID).
 		Order("last_active_at DESC").
 		Find(&devices).Error
@@ -68,17 +33,17 @@ func (s *ManageService) GetUserDevices(userUUID uuid.UUID, currentDeviceID strin
 	}
 
 	// 获取所有应用信息
-	var apps []entity.SSOApplication
+	var apps []database.SSOApplication
 	global.DB.Find(&apps)
-	appMap := make(map[uint]entity.SSOApplication)
+	appMap := make(map[uint]database.SSOApplication)
 	for _, app := range apps {
 		appMap[app.ID] = app
 	}
 
-	result := make([]DeviceInfo, len(devices))
+	result := make([]response.DeviceInfo, len(devices))
 	for i, device := range devices {
 		app := appMap[device.AppID]
-		result[i] = DeviceInfo{
+		result[i] = response.DeviceInfo{
 			ID:           device.ID,
 			DeviceID:     device.DeviceID,
 			DeviceName:   device.DeviceName,
@@ -105,7 +70,7 @@ func (s *ManageService) GetUserDevices(userUUID uuid.UUID, currentDeviceID strin
 // KickDevice 踢出指定设备
 func (s *ManageService) KickDevice(c *gin.Context, userUUID uuid.UUID, deviceID string) error {
 	// 验证设备归属
-	var device entity.SSODevice
+	var device database.SSODevice
 	err := global.DB.Where("user_uuid = ? AND device_id = ? AND status = 1",
 		userUUID, deviceID).First(&device).Error
 	if err != nil {
@@ -134,7 +99,7 @@ func (s *ManageService) KickDevice(c *gin.Context, userUUID uuid.UUID, deviceID 
 // SSOLogout 退出当前设备SSO（撤销Token和更新设备状态）
 func (s *ManageService) SSOLogout(c *gin.Context, userUUID uuid.UUID, deviceID string) error {
 	// 验证设备归属
-	var device entity.SSODevice
+	var device database.SSODevice
 	err := global.DB.Where("user_uuid = ? AND device_id = ? AND status = 1",
 		userUUID, deviceID).First(&device).Error
 	if err != nil {
@@ -149,7 +114,7 @@ func (s *ManageService) SSOLogout(c *gin.Context, userUUID uuid.UUID, deviceID s
 	global.Redis.Del(refreshTokenKey)
 
 	// 2. 更新设备状态
-	result := global.DB.Model(&entity.SSODevice{}).
+	result := global.DB.Model(&database.SSODevice{}).
 		Where("user_uuid = ? AND device_id = ?", userUUID, deviceID).
 		Update("status", 0)
 	if result.Error != nil {
@@ -172,7 +137,7 @@ func (s *ManageService) SSOLogout(c *gin.Context, userUUID uuid.UUID, deviceID s
 // AppLogout 退出应用（只撤销Token和更新设备状态，不清除SSO Session）
 func (s *ManageService) AppLogout(c *gin.Context, userUUID uuid.UUID, deviceID string) error {
 	// 验证设备归属
-	var device entity.SSODevice
+	var device database.SSODevice
 	err := global.DB.Where("user_uuid = ? AND device_id = ? AND status = 1",
 		userUUID, deviceID).First(&device).Error
 	if err != nil {
@@ -205,7 +170,7 @@ func (s *ManageService) AppLogout(c *gin.Context, userUUID uuid.UUID, deviceID s
 // LogoutAllDevices 退出所有设备
 func (s *ManageService) LogoutAllDevices(c *gin.Context, userUUID uuid.UUID) (int, error) {
 	// 查询所有活跃设备
-	var devices []entity.SSODevice
+	var devices []database.SSODevice
 	err := global.DB.Where("user_uuid = ? AND status = 1", userUUID).Find(&devices).Error
 	if err != nil {
 		return 0, fmt.Errorf("查询用户设备失败: %w", err)
@@ -241,7 +206,7 @@ func (s *ManageService) LogoutAllDevices(c *gin.Context, userUUID uuid.UUID) (in
 }
 
 // GetOperationLogs 获取操作日志
-func (s *ManageService) GetOperationLogs(userUUID uuid.UUID, params LogQueryParams) (*response.PageResponse, error) {
+func (s *ManageService) GetOperationLogs(userUUID uuid.UUID, params request.LogQueryParams) (*response.PageResponse, error) {
 	// 设置默认值
 	if params.Page <= 0 {
 		params.Page = 1
@@ -251,7 +216,7 @@ func (s *ManageService) GetOperationLogs(userUUID uuid.UUID, params LogQueryPara
 	}
 
 	// 构建查询条件
-	query := global.DB.Model(&entity.SSOLoginLog{}).Where("user_uuid = ?", userUUID)
+	query := global.DB.Model(&database.SSOLoginLog{}).Where("user_uuid = ?", userUUID)
 
 	// 操作类型筛选
 	if params.Action != "" {
@@ -274,7 +239,7 @@ func (s *ManageService) GetOperationLogs(userUUID uuid.UUID, params LogQueryPara
 	}
 
 	// 分页查询
-	var logs []entity.SSOLoginLog
+	var logs []database.SSOLoginLog
 	offset := (params.Page - 1) * params.PageSize
 	err = query.Order("created_at DESC").
 		Offset(offset).
@@ -285,9 +250,9 @@ func (s *ManageService) GetOperationLogs(userUUID uuid.UUID, params LogQueryPara
 	}
 
 	// 转换为响应格式
-	logInfos := make([]LogInfo, len(logs))
+	logInfos := make([]response.LogInfo, len(logs))
 	for i, log := range logs {
-		logInfos[i] = LogInfo{
+		logInfos[i] = response.LogInfo{
 			ID:        log.ID,
 			Action:    log.Action,
 			DeviceID:  log.DeviceID,

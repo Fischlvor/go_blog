@@ -1,10 +1,11 @@
-package handler
+package api
 
 import (
+	"auth-service/internal/middleware"
 	"auth-service/internal/model/request"
+	"auth-service/internal/model/response"
 	"auth-service/internal/service"
 	"auth-service/pkg/global"
-	"auth-service/pkg/middleware"
 	"auth-service/pkg/utils"
 	"fmt"
 	"net/url"
@@ -14,64 +15,54 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
-	"github.com/mojocn/base64Captcha"
 	"go.uber.org/zap"
 )
 
-type AuthHandler struct {
-	authService *service.AuthService
-	store       base64Captcha.Store
-}
-
-func NewAuthHandler() *AuthHandler {
-	return &AuthHandler{
-		authService: &service.AuthService{},
-		store:       base64Captcha.DefaultMemStore,
-	}
+type AuthApi struct {
 }
 
 // Register 注册
-func (h *AuthHandler) Register(c *gin.Context) {
+func (h *AuthApi) Register(c *gin.Context) {
 	var req request.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, "参数错误: "+err.Error())
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	// 验证验证码
-	if !h.store.Verify(req.CaptchaID, req.Captcha, true) {
-		utils.Error(c, 1000, "验证码错误")
+	if !captchaStore.Verify(req.CaptchaID, req.Captcha, true) {
+		response.Error(c, 1000, "验证码错误")
 		return
 	}
 
 	// ✅ 注册用户（不自动登录）
-	if err := h.authService.Register(req); err != nil {
-		utils.Error(c, 1001, err.Error())
+	if err := authService.Register(req); err != nil {
+		response.Error(c, 1001, err.Error())
 		return
 	}
 
 	// 返回成功，前端跳转到登录页
-	utils.SuccessMsg(c, "注册成功，请登录", nil)
+	response.SuccessMsg(c, "注册成功，请登录", nil)
 }
 
 // Login 登录
-func (h *AuthHandler) Login(c *gin.Context) {
+func (h *AuthApi) Login(c *gin.Context) {
 	var req request.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, "参数错误: "+err.Error())
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	// 验证state参数
 	stateData, err := utils.ValidateState(req.State)
 	if err != nil {
-		utils.BadRequest(c, "state验证失败: "+err.Error())
+		response.BadRequest(c, "state验证失败: "+err.Error())
 		return
 	}
 
 	// 验证app_id一致性：state中的app_id必须与请求参数中的app_id一致
 	if stateData.AppID != req.AppID {
-		utils.BadRequest(c, "app_id参数与state中的app_id不一致")
+		response.BadRequest(c, "app_id参数与state中的app_id不一致")
 		return
 	}
 
@@ -83,26 +74,26 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if req.Password != "" {
 		// 密码登录：需要图片验证码
 		if req.CaptchaID == "" || req.Captcha == "" {
-			utils.BadRequest(c, "密码登录需要图片验证码")
+			response.BadRequest(c, "密码登录需要图片验证码")
 			return
 		}
 		// 验证图片验证码
-		if !h.store.Verify(req.CaptchaID, req.Captcha, true) {
-			utils.Error(c, 1000, "验证码错误")
+		if !captchaStore.Verify(req.CaptchaID, req.Captcha, true) {
+			response.Error(c, 1000, "验证码错误")
 			return
 		}
 	} else if req.VerificationCode != "" {
 		// 验证码登录：不需要图片验证码
 		// 验证码验证在service层进行
 	} else {
-		utils.BadRequest(c, "请提供密码或邮箱验证码")
+		response.BadRequest(c, "请提供密码或邮箱验证码")
 		return
 	}
 
 	// 登录验证
-	resp, err := h.authService.Login(c, req)
+	resp, err := authService.Login(c, req)
 	if err != nil {
-		utils.Error(c, 1002, err.Error())
+		response.Error(c, 1002, err.Error())
 		return
 	}
 
@@ -121,7 +112,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// 检查是否是管理后台登录
 	if req.AppID == "manage" {
 		// 管理后台登录：直接返回Token，不走OAuth流程
-		utils.Success(c, gin.H{
+		response.Success(c, gin.H{
 			"access_token":  resp.AccessToken,
 			"refresh_token": resp.RefreshToken,
 			"token_type":    "Bearer",
@@ -132,11 +123,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		// ✅ OAuth 2.0: 生成授权码（使用UUID）
 		code, err := service.GenerateAuthorizationCodeByUUID(resp.UserInfo.UUID, req.AppID, req.RedirectURI, resp.AccessToken, resp.RefreshToken)
 		if err != nil {
-			utils.Error(c, 1003, "生成授权码失败")
+			response.Error(c, 1003, "生成授权码失败")
 			return
 		}
 
-		utils.Success(c, gin.H{
+		response.Success(c, gin.H{
 			"code":         code,
 			"redirect_uri": stateData.RedirectURI,
 			"return_url":   stateData.ReturnURL,
@@ -145,16 +136,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 // RefreshToken OAuth 2.0 token端点（支持authorization_code和refresh_token）
-func (h *AuthHandler) RefreshToken(c *gin.Context) {
+func (h *AuthApi) RefreshToken(c *gin.Context) {
 	var req request.TokenExchangeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, "参数错误: "+err.Error())
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	// 验证client_id和client_secret
 	if req.ClientID != "blog" || req.ClientSecret != "blog_secret_2025_go_blog_system" {
-		utils.Unauthorized(c, "client_id或client_secret错误")
+		response.Unauthorized(c, "client_id或client_secret错误")
 		return
 	}
 
@@ -163,11 +154,11 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		// ✅ 用授权码换取token
 		authCode, err := service.ValidateAndConsumeCode(req.Code, req.ClientID, req.RedirectURI)
 		if err != nil {
-			utils.Error(c, 1003, err.Error())
+			response.Error(c, 1003, err.Error())
 			return
 		}
 
-		utils.Success(c, gin.H{
+		response.Success(c, gin.H{
 			"access_token":  authCode.AccessToken,
 			"refresh_token": authCode.RefreshToken,
 			"token_type":    "Bearer",
@@ -182,20 +173,20 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 			ClientID:     req.ClientID,
 			ClientSecret: req.ClientSecret,
 		}
-		resp, err := h.authService.RefreshToken(refreshReq)
+		resp, err := authService.RefreshToken(refreshReq)
 		if err != nil {
-			utils.Error(c, 1003, err.Error())
+			response.Error(c, 1003, err.Error())
 			return
 		}
-		utils.Success(c, resp)
+		response.Success(c, resp)
 
 	default:
-		utils.BadRequest(c, "不支持的grant_type")
+		response.BadRequest(c, "不支持的grant_type")
 	}
 }
 
 // Logout 登出
-func (h *AuthHandler) Logout(c *gin.Context) {
+func (h *AuthApi) Logout(c *gin.Context) {
 	// 从Authorization header获取token
 	token := c.GetHeader("Authorization")
 	if len(token) > 7 && token[:7] == "Bearer " {
@@ -206,8 +197,8 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	ipAddress := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 
-	if err := h.authService.Logout(token, ipAddress, userAgent); err != nil {
-		utils.Error(c, 1004, err.Error())
+	if err := authService.Logout(token, ipAddress, userAgent); err != nil {
+		response.Error(c, 1004, err.Error())
 		return
 	}
 
@@ -217,92 +208,92 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// session.Clear()
 	// session.Save()
 
-	utils.SuccessMsg(c, "登出成功", nil)
+	response.SuccessMsg(c, "登出成功", nil)
 }
 
 // GetUserInfo 获取用户信息
-func (h *AuthHandler) GetUserInfo(c *gin.Context) {
+func (h *AuthApi) GetUserInfo(c *gin.Context) {
 	userUUID := middleware.GetUserUUID(c)
 	if userUUID == uuid.Nil {
-		utils.Unauthorized(c, "未登录")
+		response.Unauthorized(c, "未登录")
 		return
 	}
 
-	userInfo, err := h.authService.GetUserInfoByUUID(userUUID)
+	userInfo, err := authService.GetUserInfoByUUID(userUUID)
 	if err != nil {
-		utils.Error(c, 1005, err.Error())
+		response.Error(c, 1005, err.Error())
 		return
 	}
 
-	utils.Success(c, userInfo)
+	response.Success(c, userInfo)
 }
 
 // UpdateUserInfo 更新用户信息
-func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
+func (h *AuthApi) UpdateUserInfo(c *gin.Context) {
 	userUUID := middleware.GetUserUUID(c)
 	if userUUID == uuid.Nil {
-		utils.Unauthorized(c, "未登录")
+		response.Unauthorized(c, "未登录")
 		return
 	}
 
 	var req request.UpdateUserInfoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, "参数错误: "+err.Error())
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
-	if err := h.authService.UpdateUserInfoByUUID(userUUID, req); err != nil {
-		utils.Error(c, 1006, err.Error())
+	if err := authService.UpdateUserInfoByUUID(userUUID, req); err != nil {
+		response.Error(c, 1006, err.Error())
 		return
 	}
 
-	utils.SuccessMsg(c, "更新成功", nil)
+	response.SuccessMsg(c, "更新成功", nil)
 }
 
 // UpdatePassword 修改密码
-func (h *AuthHandler) UpdatePassword(c *gin.Context) {
+func (h *AuthApi) UpdatePassword(c *gin.Context) {
 	userUUID := middleware.GetUserUUID(c)
 	if userUUID == uuid.Nil {
-		utils.Unauthorized(c, "未登录")
+		response.Unauthorized(c, "未登录")
 		return
 	}
 
 	var req request.UpdatePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, "参数错误: "+err.Error())
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
-	if err := h.authService.UpdatePasswordByUUID(userUUID, req); err != nil {
-		utils.Error(c, 1007, err.Error())
+	if err := authService.UpdatePasswordByUUID(userUUID, req); err != nil {
+		response.Error(c, 1007, err.Error())
 		return
 	}
 
-	utils.SuccessMsg(c, "密码修改成功", nil)
+	response.SuccessMsg(c, "密码修改成功", nil)
 }
 
 // GetUserByUUID 根据UUID获取用户信息（服务间调用）
-func (h *AuthHandler) GetUserByUUID(c *gin.Context) {
+func (h *AuthApi) GetUserByUUID(c *gin.Context) {
 	userUUIDStr := c.Param("uuid")
 	if userUUIDStr == "" {
-		utils.BadRequest(c, "缺少UUID参数")
+		response.BadRequest(c, "缺少UUID参数")
 		return
 	}
 
-	userInfo, err := h.authService.GetUserByUUID(userUUIDStr)
+	userInfo, err := authService.GetUserByUUID(userUUIDStr)
 	if err != nil {
-		utils.Error(c, 1008, err.Error())
+		response.Error(c, 1008, err.Error())
 		return
 	}
 
-	utils.Success(c, userInfo)
+	response.Success(c, userInfo)
 }
 
 // QQLogin QQ登录
-func (h *AuthHandler) QQLogin(c *gin.Context) {
+func (h *AuthApi) QQLogin(c *gin.Context) {
 	var req request.QQLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, "参数错误: "+err.Error())
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -311,9 +302,9 @@ func (h *AuthHandler) QQLogin(c *gin.Context) {
 	userAgent := c.GetHeader("User-Agent")
 
 	// 调用QQ登录服务
-	resp, err := h.authService.QQLogin(req, ipAddress, userAgent)
+	resp, err := authService.QQLogin(req, ipAddress, userAgent)
 	if err != nil {
-		utils.Error(c, 1009, err.Error())
+		response.Error(c, 1009, err.Error())
 		return
 	}
 
@@ -332,44 +323,44 @@ func (h *AuthHandler) QQLogin(c *gin.Context) {
 	// ✅ OAuth 2.0: 生成授权码（使用UUID）
 	code, err := service.GenerateAuthorizationCodeByUUID(resp.UserInfo.UUID, req.AppID, req.RedirectURI, resp.AccessToken, resp.RefreshToken)
 	if err != nil {
-		utils.Error(c, 1003, "生成授权码失败")
+		response.Error(c, 1003, "生成授权码失败")
 		return
 	}
 
-	utils.Success(c, gin.H{
+	response.Success(c, gin.H{
 		"code":         code,
 		"redirect_uri": req.RedirectURI,
 	})
 }
 
 // QQCallback QQ授权回调（GET方式，QQ服务端回调）
-func (h *AuthHandler) QQCallback(c *gin.Context) {
+func (h *AuthApi) QQCallback(c *gin.Context) {
 	code := c.Query("code")
 	appID := c.Query("app_id")
 	state := c.Query("state")
 	if code == "" {
-		utils.BadRequest(c, "缺少code")
+		response.BadRequest(c, "缺少code")
 		return
 	}
 	if strings.TrimSpace(appID) == "" {
-		utils.BadRequest(c, "缺少app_id")
+		response.BadRequest(c, "缺少app_id")
 		return
 	}
 	if state == "" {
-		utils.BadRequest(c, "缺少state参数")
+		response.BadRequest(c, "缺少state参数")
 		return
 	}
 
 	// 验证state参数
 	stateData, err := utils.ValidateState(state)
 	if err != nil {
-		utils.BadRequest(c, "state验证失败: "+err.Error())
+		response.BadRequest(c, "state验证失败: "+err.Error())
 		return
 	}
 
 	// 验证app_id是否匹配
 	if stateData.AppID != appID {
-		utils.BadRequest(c, "app_id不匹配")
+		response.BadRequest(c, "app_id不匹配")
 		return
 	}
 
@@ -391,16 +382,16 @@ func (h *AuthHandler) QQCallback(c *gin.Context) {
 	}
 
 	// 调用服务登录
-	resp, err := h.authService.QQLogin(req, ipAddress, userAgent)
+	resp, err := authService.QQLogin(req, ipAddress, userAgent)
 	if err != nil {
-		utils.Error(c, 1009, err.Error())
+		response.Error(c, 1009, err.Error())
 		return
 	}
 
 	// 生成授权码并重定向到 redirect_uri?code=...
 	authCode, err := service.GenerateAuthorizationCodeByUUID(resp.UserInfo.UUID, req.AppID, req.RedirectURI, resp.AccessToken, resp.RefreshToken)
 	if err != nil {
-		utils.Error(c, 1003, "生成授权码失败")
+		response.Error(c, 1003, "生成授权码失败")
 		return
 	}
 	// 重定向到回调地址，携带code和return_url
@@ -412,55 +403,55 @@ func (h *AuthHandler) QQCallback(c *gin.Context) {
 }
 
 // SendEmailVerificationCode 发送邮箱验证码
-func (h *AuthHandler) SendEmailVerificationCode(c *gin.Context) {
+func (h *AuthApi) SendEmailVerificationCode(c *gin.Context) {
 	var req request.SendEmailVerificationCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, "参数错误: "+err.Error())
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	// 验证图片验证码
-	if !h.store.Verify(req.CaptchaID, req.Captcha, true) {
-		utils.Error(c, 1000, "验证码错误")
+	if !captchaStore.Verify(req.CaptchaID, req.Captcha, true) {
+		response.Error(c, 1000, "验证码错误")
 		return
 	}
 
 	// 发送邮箱验证码
-	if err := h.authService.SendEmailVerificationCode(req.Email); err != nil {
-		utils.Error(c, 1010, err.Error())
+	if err := authService.SendEmailVerificationCode(req.Email); err != nil {
+		response.Error(c, 1010, err.Error())
 		return
 	}
 
-	utils.SuccessMsg(c, "验证码已发送", nil)
+	response.SuccessMsg(c, "验证码已发送", nil)
 }
 
 // ForgotPassword 忘记密码
-func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+func (h *AuthApi) ForgotPassword(c *gin.Context) {
 	var req request.ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, "参数错误: "+err.Error())
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	// 验证邮箱验证码
-	if err := h.authService.ForgotPassword(req); err != nil {
-		utils.Error(c, 1011, err.Error())
+	if err := authService.ForgotPassword(req); err != nil {
+		response.Error(c, 1011, err.Error())
 		return
 	}
 
-	utils.SuccessMsg(c, "密码重置成功", nil)
+	response.SuccessMsg(c, "密码重置成功", nil)
 }
 
 // QQLoginURL 获取QQ登录URL
-func (h *AuthHandler) QQLoginURL(c *gin.Context) {
+func (h *AuthApi) QQLoginURL(c *gin.Context) {
 	if !global.Config.QQ.Enable {
-		utils.Error(c, 1012, "QQ登录未启用")
+		response.Error(c, 1012, "QQ登录未启用")
 		return
 	}
 	// 允许前端传入 app_id，拼接到 redirect_uri，确保 QQ 回调时可携带 app_id
 	appID := c.Query("app_id")
 	if strings.TrimSpace(appID) == "" {
-		utils.BadRequest(c, "缺少app_id")
+		response.BadRequest(c, "缺少app_id")
 		return
 	}
 	// 支持state参数传递（用于传递设备ID等信息）
@@ -477,7 +468,7 @@ func (h *AuthHandler) QQLoginURL(c *gin.Context) {
 	if state != "" {
 		authURL = authURL + "&state=" + url.QueryEscape(state)
 	}
-	utils.Success(c, gin.H{"url": authURL})
+	response.Success(c, gin.H{"url": authURL})
 }
 
 // parseDeviceNameFromUserAgent 从 User-Agent 解析设备名称
