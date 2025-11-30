@@ -1,7 +1,7 @@
 package service
 
 import (
-	"auth-service/internal/model/entity"
+	"auth-service/internal/model/database"
 	"auth-service/internal/model/response"
 	"auth-service/pkg/global"
 	"errors"
@@ -15,7 +15,7 @@ type DeviceService struct{}
 
 // GetDevices 获取设备列表（基于 UUID）
 func (s *DeviceService) GetDevices(userUUID uuid.UUID, appID string, currentDeviceID string) ([]response.DeviceInfo, error) {
-	var devices []entity.SSODevice
+	var devices []database.SSODevice
 
 	query := global.DB.Where("user_uuid = ? AND status = 1", userUUID)
 	if appID != "" && appID != "all" {
@@ -50,7 +50,7 @@ func (s *DeviceService) KickDevice(c *gin.Context, userUUID uuid.UUID, deviceID,
 	}
 
 	// 验证设备所有权
-	var device entity.SSODevice
+	var device database.SSODevice
 	query := global.DB.Where("device_id = ? AND user_uuid = ?", deviceID, userUUID)
 	if appID != "" {
 		query = query.Where("app_id = ?", appID)

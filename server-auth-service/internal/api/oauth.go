@@ -1,9 +1,9 @@
-package handler
+package api
 
 import (
+	"auth-service/internal/model/response"
 	"auth-service/internal/service"
 	"auth-service/pkg/global"
-	"auth-service/pkg/utils"
 	"fmt"
 	"net/url"
 
@@ -13,26 +13,19 @@ import (
 	"go.uber.org/zap"
 )
 
-type OAuthHandler struct {
-	authService *service.AuthService
-}
-
-func NewOAuthHandler() *OAuthHandler {
-	return &OAuthHandler{
-		authService: &service.AuthService{},
-	}
+type OAuthApi struct {
 }
 
 // Authorize OAuth 2.0 授权端点（检查 Session，实现静默登录）
 // GET /api/oauth/authorize?app_id=blog&redirect_uri=xxx&state=xxx
-func (h *OAuthHandler) Authorize(c *gin.Context) {
+func (h *OAuthApi) Authorize(c *gin.Context) {
 	appID := c.Query("app_id")
 	redirectURI := c.Query("redirect_uri")
 	state := c.Query("state")
 
 	// 参数验证
 	if appID == "" || redirectURI == "" {
-		utils.BadRequest(c, "缺少必要参数")
+		response.BadRequest(c, "缺少必要参数")
 		return
 	}
 
@@ -48,7 +41,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 		// ✅ 用户已登录 SSO，进行安全检测和静默登录
 		userUUIDStr, ok := userUUID.(string)
 		if !ok {
-			utils.Error(c, 1014, "Session 数据格式错误")
+			response.Error(c, 1014, "Session 数据格式错误")
 			return
 		}
 
@@ -90,7 +83,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 		}
 
 		// 检查设备过期状态（滑动过期）
-		err := h.authService.CheckDeviceExpiry(ssoDeviceIDStr)
+		err := authService.CheckDeviceExpiry(ssoDeviceIDStr)
 		if err != nil {
 			global.Log.Warn("设备已过期，清除 Session",
 				zap.String("user_uuid", userUUIDStr),
@@ -118,18 +111,18 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 		)
 
 		// 生成新的 AccessToken 和 RefreshToken（使用 SSO 设备 ID）
-		tokenResp, err := h.authService.GenerateTokensForUser(userUUIDStr, appID, ssoDeviceIDStr)
+		tokenResp, err := authService.GenerateTokensForUser(c, userUUIDStr, appID, ssoDeviceIDStr)
 		if err != nil {
-			utils.Error(c, 1015, "生成 Token 失败: "+err.Error())
+			response.Error(c, 1015, "生成 Token 失败: "+err.Error())
 			return
 		}
 
 		// 记录静默登录日志（包含 IP 和 User-Agent）
 		userUUIDParsed, _ := uuid.FromString(userUUIDStr)
 		// 获取应用 ID
-		app, _ := h.authService.GetAppByKey(appID)
+		app, _ := authService.GetAppByKey(appID)
 		if app != nil {
-			h.authService.LogActionWithContext(c, userUUIDParsed, app.ID, "silent_login", ssoDeviceIDStr, "SSO静默登录成功", 1)
+			authService.LogActionWithContext(c, userUUIDParsed, app.ID, "silent_login", ssoDeviceIDStr, "SSO静默登录成功", 1)
 		}
 
 		// 生成授权码
@@ -141,7 +134,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 			tokenResp.RefreshToken,
 		)
 		if err != nil {
-			utils.Error(c, 1016, "生成授权码失败")
+			response.Error(c, 1016, "生成授权码失败")
 			return
 		}
 

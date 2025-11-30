@@ -1,10 +1,10 @@
 package service
 
 import (
-	"auth-service/internal/model/entity"
+	types "auth-service/internal/model/appTypes"
+	database "auth-service/internal/model/database"
 	"auth-service/internal/model/other"
 	"auth-service/internal/model/response"
-	"auth-service/internal/model/types"
 	"auth-service/pkg/crypto"
 	"auth-service/pkg/global"
 	"auth-service/pkg/jwt"
@@ -95,8 +95,8 @@ func (s *QQService) GetUserInfoByAccessTokenAndOpenid(accessToken, openID string
 }
 
 // getAppByKey 通过app_key获取应用信息
-func (s *QQService) getAppByKey(appKey string) (*entity.SSOApplication, error) {
-	var app entity.SSOApplication
+func (s *QQService) getAppByKey(appKey string) (*database.SSOApplication, error) {
+	var app database.SSOApplication
 	err := global.DB.Where("app_key = ? AND status = 1", appKey).First(&app).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -110,10 +110,10 @@ func (s *QQService) getAppByKey(appKey string) (*entity.SSOApplication, error) {
 // QQLogin QQ登录
 func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipAddress, userAgent string, qqUserInfo map[string]interface{}) (*response.TokenResponse, error) {
 	// 查找OAuth绑定
-	var oauthBinding entity.SSOOAuthBinding
+	var oauthBinding database.SSOOAuthBinding
 	err := global.DB.Where("provider = ? AND open_id = ?", "qq", openID).First(&oauthBinding).Error
 
-	var user entity.SSOUser
+	var user database.SSOUser
 	var isNewUser bool
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -130,7 +130,7 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 			avatar = figureurl
 		}
 
-		user = entity.SSOUser{
+		user = database.SSOUser{
 			UUID:           uuid.Must(uuid.NewV4()),
 			Username:       fmt.Sprintf("qq_%s", openID),
 			PasswordHash:   crypto.HashPasswordDefault(), // 随机密码
@@ -156,7 +156,7 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 		}
 
 		// 创建OAuth绑定
-		oauthBinding = entity.SSOOAuthBinding{
+		oauthBinding = database.SSOOAuthBinding{
 			UserUUID: user.UUID,
 			Provider: "qq",
 			OpenID:   openID,
@@ -174,7 +174,7 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 		}
 
 		// 自动授权访问指定应用
-		userAppRelation := entity.UserAppRelation{
+		userAppRelation := database.UserAppRelation{
 			UserUUID: user.UUID,
 			AppID:    app.ID,
 			Status:   1,
@@ -208,12 +208,12 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 	}
 
 	// 检查应用权限
-	var userAppRelation entity.UserAppRelation
+	var userAppRelation database.UserAppRelation
 	err = global.DB.Where("user_uuid = ? AND app_id = ?", user.UUID, app.ID).First(&userAppRelation).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// 自动授权
-			userAppRelation = entity.UserAppRelation{
+			userAppRelation = database.UserAppRelation{
 				UserUUID: user.UUID,
 				AppID:    app.ID,
 				Status:   1,
@@ -232,7 +232,7 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 	}
 
 	// 检查该设备是否已存在（用户+应用+设备的组合唯一）
-	var existDevice entity.SSODevice
+	var existDevice database.SSODevice
 	err = global.DB.Where("user_uuid = ? AND app_id = ? AND device_id = ?", user.UUID, app.ID, deviceID).First(&existDevice).Error
 	isNewDevice := errors.Is(err, gorm.ErrRecordNotFound)
 
@@ -245,7 +245,7 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 		}
 	}
 
-	device := entity.SSODevice{
+	device := database.SSODevice{
 		UserUUID:     user.UUID,
 		AppID:        app.ID,
 		DeviceID:     deviceID,
@@ -303,7 +303,7 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 	global.Redis.Set(refreshTokenKey, refreshToken, refreshTokenDuration)
 
 	// 记录登录日志
-	loginLog := entity.SSOLoginLog{
+	loginLog := database.SSOLoginLog{
 		UserUUID:  user.UUID,
 		AppID:     app.ID,
 		Action:    "login",

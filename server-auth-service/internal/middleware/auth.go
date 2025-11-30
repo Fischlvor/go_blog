@@ -3,7 +3,7 @@ package middleware
 import (
 	"auth-service/pkg/global"
 	"auth-service/pkg/jwt"
-	"auth-service/pkg/utils"
+	"auth-service/internal/model/response"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +16,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 获取Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			utils.Unauthorized(c, "未提供认证token")
+			response.Unauthorized(c, "未提供认证token")
 			c.Abort()
 			return
 		}
@@ -24,7 +24,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 检查Bearer前缀
 		parts := strings.SplitN(authHeader, " ", 2)
 		if !(len(parts) == 2 && parts[0] == "Bearer") {
-			utils.Unauthorized(c, "token格式错误")
+			response.Unauthorized(c, "token格式错误")
 			c.Abort()
 			return
 		}
@@ -34,7 +34,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 检查黑名单
 		blacklistKey := "token:blacklist:" + token
 		if global.Redis.Exists(blacklistKey).Val() > 0 {
-			utils.Unauthorized(c, "token已失效")
+			response.Unauthorized(c, "token已失效")
 			c.Abort()
 			return
 		}
@@ -43,9 +43,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		claims, err := jwt.ParseAccessToken(token, global.RSAPublicKey)
 		if err != nil {
 			if err == jwt.ErrTokenExpired {
-				utils.Unauthorized(c, "token已过期")
+				response.Unauthorized(c, "token已过期")
 			} else {
-				utils.Unauthorized(c, "token无效")
+				response.Unauthorized(c, "token无效")
 			}
 			c.Abort()
 			return
@@ -54,7 +54,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 检查设备黑名单
 		deviceBlacklistKey := "device:blacklist:" + claims.DeviceID
 		if global.Redis.Exists(deviceBlacklistKey).Val() > 0 {
-			utils.Unauthorized(c, "设备已被移除")
+			response.Unauthorized(c, "设备已被移除")
 			c.Abort()
 			return
 		}

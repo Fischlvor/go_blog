@@ -1,4 +1,4 @@
-package entity
+package database
 
 import (
 	"auth-service/pkg/global"
