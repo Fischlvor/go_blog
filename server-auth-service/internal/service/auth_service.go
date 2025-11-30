@@ -688,9 +688,11 @@ func (s *AuthService) GenerateTokensForUser(c *gin.Context, userUUIDStr, appID, 
 		}
 		global.DB.Create(&device)
 	} else {
-		// 更新现有设备的最后活跃时间和状态（恢复为在线）
+		// 更新现有设备的最后活跃时间、IP、User-Agent 和状态（恢复为在线）
 		global.DB.Model(&existDevice).Updates(map[string]interface{}{
 			"last_active_at": time.Now(),
+			"ip_address":     c.ClientIP(),
+			"user_agent":     c.GetHeader("User-Agent"),
 			"status":         1,
 		})
 	}
