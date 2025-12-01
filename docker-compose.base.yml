@@ -95,8 +95,3 @@ networks:
     driver: bridge
     name: infrastructure-network  # 强制指定网络名称，不带项目前缀
 
-volumes:
-  mysql_data:
-  es_data:
-  redis_data:
-
