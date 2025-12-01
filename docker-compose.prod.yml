@@ -19,9 +19,12 @@ services:
       # 挂载密钥文件目录
       - /media/practice/onServer/go_blog/deploy/server-blog/keys:/app/keys
     # 注意：基础服务（mysql, redis, elasticsearch）在 docker-compose.base.yml 中
-    # 它们已经启动，业务服务通过 blog-network 网络连接
+    # 它们已经启动，业务服务通过两个网络连接：
+    # - blog-network: 应用层网络
+    # - infrastructure-network: 基础设施网络（访问数据库）
     networks:
       - blog-network
+      - infrastructure-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "/dev/null", "http://localhost:8081/health"]
       interval: 30s
@@ -45,9 +48,12 @@ services:
       # 挂载密钥文件目录
       - /media/practice/onServer/go_blog/deploy/server-auth/keys:/app/keys
     # 注意：基础服务（mysql, redis）在 docker-compose.base.yml 中
-    # 它们已经启动，业务服务通过 blog-network 网络连接
+    # 它们已经启动，业务服务通过两个网络连接：
+    # - blog-network: 应用层网络
+    # - infrastructure-network: 基础设施网络（访问数据库）
     networks:
       - blog-network
+      - infrastructure-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "/dev/null", "http://localhost:8001/health"]
       interval: 30s
@@ -111,3 +117,7 @@ services:
 networks:
   blog-network:
     driver: bridge
+    name: blog-network  # 强制指定网络名称，不带项目前缀
+  infrastructure-network:
+    external: true
+    name: infrastructure-network  # 引用 base.yml 中的网络（无项目前缀）

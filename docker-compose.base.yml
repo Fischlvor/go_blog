@@ -11,11 +11,11 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: blog_db
     volumes:
-      - ./data/mysql/conf:/etc/mysql/conf.d
-      - ./data/mysql/datadir:/var/lib/mysql
-      - ./data/mysql/go_blog.sql:/opt/go_blog.sql
+      - ./docker-data/mysql/conf:/etc/mysql/conf.d
+      - ./docker-data/mysql/datadir:/var/lib/mysql
+      - ./docker-data/mysql/go_blog.sql:/opt/go_blog.sql
     networks:
-      - blog-network
+      - infrastructure-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
       interval: 10s
@@ -36,11 +36,11 @@ services:
       xpack.security.enabled: false
       ES_JAVA_OPTS: "-Xms84m -Xmx512m"
     volumes:
-      - ./data/es/config:/usr/share/elasticsearch/config
-      - ./data/es/data:/usr/share/elasticsearch/data
-      - ./data/es/plugins:/usr/share/elasticsearch/plugins
+      - ./docker-data/elasticsearch/config:/usr/share/elasticsearch/config
+      - ./docker-data/elasticsearch/data:/usr/share/elasticsearch/data
+      - ./docker-data/elasticsearch/plugins:/usr/share/elasticsearch/plugins
     networks:
-      - blog-network
+      - infrastructure-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
@@ -55,11 +55,11 @@ services:
     ports:
       - "16379:6379"
     volumes:
-      - ./data/redis/redis.conf:/usr/local/etc/redis/redis.conf
-      - ./data/redis:/data
+      - ./docker-data/redis/redis.conf:/usr/local/etc/redis/redis.conf
+      - ./docker-data/redis:/data
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
-      - blog-network
+      - infrastructure-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -67,12 +67,31 @@ services:
       retries: 5
       start_period: 10s
 
-networks:
-  blog-network:
-    driver: bridge
+  # PostgreSQL数据库
+  postgres:
+    image: pgvector/pgvector:pg15  # 使用带pgvector的镜像
+    container_name: agent_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: agent_db
+    ports:
+      - "15432:5432"  # agent 项目使用的端口
+    volumes:
+      - ./docker-data/postgres:/var/lib/postgresql/data
+      - ./docker-data/postgres/init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - infrastructure-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-volumes:
-  mysql_data:
-  es_data:
-  redis_data:
+networks:
+  infrastructure-network:
+    driver: bridge
+    name: infrastructure-network  # 强制指定网络名称，不带项目前缀
 
