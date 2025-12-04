@@ -151,14 +151,23 @@ func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response
 		return nil, err
 	}
 
-	// 检查应用权限
+	// 检查应用权限，不存在则自动创建
 	var userAppRelation database.UserAppRelation
 	err = global.DB.Where("user_uuid = ? AND app_id = ?", user.UUID, app.ID).First(&userAppRelation).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("您无权访问此应用")
+			// 自动创建用户-应用关联
+			userAppRelation = database.UserAppRelation{
+				UserUUID: user.UUID,
+				AppID:    app.ID,
+				Status:   1, // 1=可访问
+			}
+			if err := global.DB.Create(&userAppRelation).Error; err != nil {
+				return nil, fmt.Errorf("创建用户应用关联失败: %w", err)
+			}
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
 	if userAppRelation.Status == 2 {
 		return nil, errors.New("您无权访问此应用")
@@ -644,14 +653,23 @@ func (s *AuthService) GenerateTokensForUser(c *gin.Context, userUUIDStr, appID, 
 		return nil, err
 	}
 
-	// 检查应用权限
+	// 检查应用权限，不存在则自动创建
 	var userAppRelation database.UserAppRelation
 	err = global.DB.Where("user_uuid = ? AND app_id = ?", user.UUID, app.ID).First(&userAppRelation).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("您无权访问此应用")
+			// 自动创建用户-应用关联
+			userAppRelation = database.UserAppRelation{
+				UserUUID: user.UUID,
+				AppID:    app.ID,
+				Status:   1, // 1=可访问
+			}
+			if err := global.DB.Create(&userAppRelation).Error; err != nil {
+				return nil, fmt.Errorf("创建用户应用关联失败: %w", err)
+			}
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
 	if userAppRelation.Status == 2 {
 		return nil, errors.New("您无权访问此应用")
