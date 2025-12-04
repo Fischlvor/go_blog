@@ -143,8 +143,9 @@ func (h *AuthApi) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// 验证client_id和client_secret
-	if req.ClientID != "blog" || req.ClientSecret != "blog_secret_2025_go_blog_system" {
+	// 从数据库验证 client_id 和 client_secret
+	app, err := authService.GetAppByKey(req.ClientID)
+	if err != nil || app.AppSecret != req.ClientSecret {
 		response.Unauthorized(c, "client_id或client_secret错误")
 		return
 	}
