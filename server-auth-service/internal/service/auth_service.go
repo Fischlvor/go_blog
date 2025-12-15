@@ -390,16 +390,16 @@ func (s *AuthService) Logout(accessToken, ipAddress, userAgent string) error {
 	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", claims.UserUUID.String(), claims.DeviceID)
 	global.Redis.Del(refreshTokenKey)
 
-	// 更新设备状态（基于 UUID）
-	global.DB.Model(&database.SSODevice{}).
-		Where("user_uuid = ? AND device_id = ?", claims.UserUUID, claims.DeviceID).
-		Update("status", 0)
-
-	// 查询应用ID（用于日志）
+	// 查询应用ID（用于更新设备状态和日志）
 	var logAppID uint
 	if app, err := s.GetAppByKey(claims.AppID); err == nil {
 		logAppID = app.ID
 	}
+
+	// 更新设备状态（必须包含 app_id，避免误踢其他应用的同名设备）
+	global.DB.Model(&database.SSODevice{}).
+		Where("user_uuid = ? AND device_id = ? AND app_id = ?", claims.UserUUID, claims.DeviceID, logAppID).
+		Update("status", 0)
 
 	// 记录登出日志
 	loginLog := database.SSOLoginLog{
@@ -764,7 +764,8 @@ func (s *AuthService) handleDeviceLimit(userUUID uuid.UUID, appID uint, maxDevic
 		Count(&deviceCount)
 
 	// 2. 如果超出限制，踢出最早的设备
-	if int(deviceCount) >= maxDevices {
+	// 注意：应该是 > 而不是 >=，允许 maxDevices 个设备同时在线
+	if int(deviceCount) > maxDevices {
 		var oldestDevice database.SSODevice
 		err := global.DB.Where("user_uuid = ? AND app_id = ? AND status = 1", userUUID, appID).
 			Order("last_active_at ASC").
@@ -795,9 +796,9 @@ func (s *AuthService) KickDevice(c *gin.Context, userUUID uuid.UUID, deviceID st
 	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", userUUID.String(), deviceID)
 	global.Redis.Del(refreshTokenKey)
 
-	// 2. 更新设备状态
+	// 2. 更新设备状态（必须包含 app_id，避免误踢其他应用的同名设备）
 	result := global.DB.Model(&database.SSODevice{}).
-		Where("user_uuid = ? AND device_id = ?", userUUID, deviceID).
+		Where("user_uuid = ? AND device_id = ? AND app_id = ?", userUUID, deviceID, appID).
 		Update("status", 0)
 	if result.Error != nil {
 		return fmt.Errorf("更新设备状态失败: %w", result.Error)
@@ -819,9 +820,9 @@ func (s *AuthService) kickDeviceInternal(userUUID uuid.UUID, deviceID string, ap
 	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", userUUID.String(), deviceID)
 	global.Redis.Del(refreshTokenKey)
 
-	// 2. 更新设备状态
+	// 2. 更新设备状态（必须包含 app_id，避免误踢其他应用的同名设备）
 	result := global.DB.Model(&database.SSODevice{}).
-		Where("user_uuid = ? AND device_id = ?", userUUID, deviceID).
+		Where("user_uuid = ? AND device_id = ? AND app_id = ?", userUUID, deviceID, appID).
 		Update("status", 0)
 	if result.Error != nil {
 		return fmt.Errorf("更新设备状态失败: %w", result.Error)
@@ -878,9 +879,10 @@ func (s *AuthService) LogActionWithContext(c *gin.Context, userUUID uuid.UUID, a
 }
 
 // CheckDeviceExpiry 检查设备过期状态（滑动过期）
-func (s *AuthService) CheckDeviceExpiry(deviceID string) error {
+// 必须传入 user_uuid 和 app_id，避免查询到其他用户或应用的同名设备
+func (s *AuthService) CheckDeviceExpiry(userUUID uuid.UUID, appID uint, deviceID string) error {
 	var device database.SSODevice
-	err := global.DB.Where("device_id = ? AND status = 1", deviceID).First(&device).Error
+	err := global.DB.Where("device_id = ? AND user_uuid = ? AND app_id = ? AND status = 1", deviceID, userUUID, appID).First(&device).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("设备不存在或已离线")
@@ -900,7 +902,10 @@ func (s *AuthService) CheckDeviceExpiry(deviceID string) error {
 	}
 
 	// 设备有效，更新活跃时间（滑动过期的核心）
-	err = global.DB.Model(&device).Update("last_active_at", time.Now()).Error
+	// 明确指定更新条件，避免更新所有设备
+	err = global.DB.Model(&database.SSODevice{}).
+		Where("device_id = ? AND user_uuid = ? AND app_id = ?", deviceID, device.UserUUID, device.AppID).
+		Update("last_active_at", time.Now()).Error
 	if err != nil {
 		global.Log.Error("更新设备活跃时间失败", zap.Error(err), zap.String("device_id", deviceID))
 		// 不返回错误，允许继续登录

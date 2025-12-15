@@ -82,8 +82,25 @@ func (h *OAuthApi) Authorize(c *gin.Context) {
 			// 中安全模式：记录日志但允许继续
 		}
 
+		// 解析用户 UUID 和应用 ID
+		userUUIDParsed, err := uuid.FromString(userUUIDStr)
+		if err != nil {
+			global.Log.Error("解析用户 UUID 失败", zap.String("user_uuid", userUUIDStr), zap.Error(err))
+			c.Redirect(302, "/login")
+			return
+		}
+
+		// 获取应用 ID
+		app, err := authService.GetAppByKey(appID)
+		if err != nil {
+			global.Log.Error("获取应用信息失败", zap.String("app_id", appID), zap.Error(err))
+			c.Redirect(302, "/login")
+			return
+		}
+
 		// 检查设备过期状态（滑动过期）
-		err := authService.CheckDeviceExpiry(ssoDeviceIDStr)
+		// 必须传入 user_uuid 和 app_id，避免查询到其他用户或应用的同名设备
+		err = authService.CheckDeviceExpiry(userUUIDParsed, app.ID, ssoDeviceIDStr)
 		if err != nil {
 			global.Log.Warn("设备已过期，清除 Session",
 				zap.String("user_uuid", userUUIDStr),
@@ -118,12 +135,7 @@ func (h *OAuthApi) Authorize(c *gin.Context) {
 		}
 
 		// 记录静默登录日志（包含 IP 和 User-Agent）
-		userUUIDParsed, _ := uuid.FromString(userUUIDStr)
-		// 获取应用 ID
-		app, _ := authService.GetAppByKey(appID)
-		if app != nil {
-			authService.LogActionWithContext(c, userUUIDParsed, app.ID, "silent_login", ssoDeviceIDStr, "SSO静默登录成功", 1)
-		}
+		authService.LogActionWithContext(c, userUUIDParsed, app.ID, "silent_login", ssoDeviceIDStr, "SSO静默登录成功", 1)
 
 		// 生成授权码
 		code, err := service.GenerateAuthorizationCodeByUUID(
