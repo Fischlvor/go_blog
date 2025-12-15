@@ -452,6 +452,39 @@ VITE_API_BASE_URL=http://localhost:8000/api
 
 ## 📝 开发日志
 
+### 2025-12-15
+
+#### Fixed
+- **修复 SSO 设备管理跨应用误踢问题**
+  - **问题描述**：
+    - 用户在应用 A 登录后，应用 B 的同名设备被误踢出
+    - 静默登录时，`CheckDeviceExpiry` 只使用 `device_id` 查询，可能查到其他用户的设备
+    - 踢出设备时（3个方法）没有区分 `app_id`，导致所有应用的同名设备都被踢出
+    - 设备数量限制判断逻辑错误（`>=` 应为 `>`），导致设备数量少于限制时仍被踢出
+  
+  - **修复内容**：
+    1. **修复 `CheckDeviceExpiry` 方法**
+       - 添加 `user_uuid` 和 `app_id` 参数
+       - 修改查询条件，包含 `user_uuid` 和 `app_id`
+       - 更新 `oauth.go` 中的调用，传入正确的参数
+    
+    2. **修复设备踢出逻辑**（3个方法）
+       - `Logout` 方法：添加 `app_id` 条件
+       - `KickDevice` 方法：添加 `app_id` 条件
+       - `kickDeviceInternal` 方法：添加 `app_id` 条件
+    
+    3. **修复设备数量限制**
+       - `handleDeviceLimit` 方法：修正判断逻辑（`>=` 改为 `>`）
+       - 允许 `maxDevices` 个设备同时在线
+    
+    4. **修复设备活跃时间更新**
+       - `CheckDeviceExpiry` 中的 `last_active_at` 更新已包含 `app_id` 条件
+  
+  - **影响范围**：
+    - 修改文件：`internal/service/auth_service.go`、`internal/api/oauth.go`
+    - 修改方法：5个核心方法
+    - 修复了跨应用设备管理的隔离问题
+
 ### 2025-11-30
 
 #### Refactor
