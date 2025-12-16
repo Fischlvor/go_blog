@@ -323,7 +323,7 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 
 	// 检查设备状态
 	var device database.SSODevice
-	err = global.DB.Where("user_uuid = ? AND device_id = ?", user.UUID, claims.DeviceID).First(&device).Error
+	err = global.DB.Where("user_uuid = ? AND device_id = ? AND app_id = ?", user.UUID, claims.DeviceID, claims.AppID).First(&device).Error
 	if err != nil || device.Status != 1 {
 		return nil, errors.New("设备已被移除")
 	}
