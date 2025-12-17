@@ -252,10 +252,6 @@ func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response
 		return nil, fmt.Errorf("生成RefreshToken失败: %w", err)
 	}
 
-	// 将RefreshToken存储到Redis（用于撤销检查）
-	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", user.UUID.String(), deviceID)
-	global.Redis.Set(refreshTokenKey, refreshToken, refreshTokenDuration)
-
 	// 记录登录日志
 	loginLog := database.SSOLoginLog{
 		UserUUID:  user.UUID,
@@ -287,6 +283,11 @@ func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response
 
 // RefreshToken 刷新Token
 func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.TokenResponse, error) {
+	// 0. 检查 refresh_token 是否为空
+	if req.RefreshToken == "" {
+		return nil, errors.New("refresh_token不能为空")
+	}
+
 	// 1. 先解析 RefreshToken，获取 claims
 	claims, err := jwt.ParseRefreshToken(req.RefreshToken, global.RSAPublicKey)
 	if err != nil {
@@ -315,14 +316,7 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 		return nil, errors.New("client_secret错误")
 	}
 
-	// 4. 检查Redis中是否存在（未被撤销）
-	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", claims.UserUUID.String(), claims.DeviceID)
-	storedToken, err := global.Redis.Get(refreshTokenKey).Result()
-	if err != nil || storedToken != req.RefreshToken {
-		return nil, errors.New("refresh_token已被撤销，请重新登录")
-	}
-
-	// 检查用户状态
+	// 4. 检查用户状态
 	var user database.SSOUser
 	if err := global.DB.Where("uuid = ?", claims.UserUUID).First(&user).Error; err != nil {
 		return nil, errors.New("用户不存在")
@@ -367,9 +361,6 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 		return nil, fmt.Errorf("生成RefreshToken失败: %w", err)
 	}
 
-	// 更新Redis中的RefreshToken
-	global.Redis.Set(refreshTokenKey, newRefreshToken, refreshTokenDuration)
-
 	// 更新设备活跃时间
 	global.DB.Model(&device).Update("last_active_at", time.Now())
 
@@ -397,13 +388,10 @@ func (s *AuthService) Logout(accessToken, ipAddress, userAgent string) error {
 		global.Redis.Set(blacklistKey, "1", expiry)
 	}
 
-	// 删除RefreshToken
-	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", claims.UserUUID.String(), claims.DeviceID)
-	global.Redis.Del(refreshTokenKey)
-
 	// 查询应用ID（用于更新设备状态和日志）
 	var logAppID uint
-	if app, err := s.GetAppByKey(claims.AppID); err == nil {
+	app, err := s.GetAppByKey(claims.AppID)
+	if err == nil {
 		logAppID = app.ID
 	}
 
@@ -754,10 +742,6 @@ func (s *AuthService) GenerateTokensForUser(c *gin.Context, userUUIDStr, appID, 
 		return nil, fmt.Errorf("生成 RefreshToken 失败: %w", err)
 	}
 
-	// 将 RefreshToken 存储到 Redis
-	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", user.UUID.String(), deviceID)
-	global.Redis.Set(refreshTokenKey, refreshToken, refreshTokenDuration)
-
 	return &response.TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -803,9 +787,9 @@ func (s *AuthService) handleDeviceLimit(userUUID uuid.UUID, appID uint, maxDevic
 
 // KickDevice 统一的设备踢出方法（带Context）
 func (s *AuthService) KickDevice(c *gin.Context, userUUID uuid.UUID, deviceID string, appID uint, action, message string) error {
-	// 1. 删除 RefreshToken
-	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", userUUID.String(), deviceID)
-	global.Redis.Del(refreshTokenKey)
+	// 1. 将设备加入黑名单（中间件会检查）
+	deviceBlacklistKey := "device:blacklist:" + deviceID
+	global.Redis.Set(deviceBlacklistKey, "1", 7*24*time.Hour) // 7天后自动过期
 
 	// 2. 更新设备状态（必须包含 app_id，避免误踢其他应用的同名设备）
 	result := global.DB.Model(&database.SSODevice{}).
@@ -827,9 +811,9 @@ func (s *AuthService) KickDevice(c *gin.Context, userUUID uuid.UUID, deviceID st
 
 // kickDeviceInternal 内部设备踢出方法（无Context）
 func (s *AuthService) kickDeviceInternal(userUUID uuid.UUID, deviceID string, appID uint, action, message string) error {
-	// 1. 删除 RefreshToken
-	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", userUUID.String(), deviceID)
-	global.Redis.Del(refreshTokenKey)
+	// 1. 将设备加入黑名单（中间件会检查）
+	deviceBlacklistKey := "device:blacklist:" + deviceID
+	global.Redis.Set(deviceBlacklistKey, "1", 7*24*time.Hour) // 7天后自动过期
 
 	// 2. 更新设备状态（必须包含 app_id，避免误踢其他应用的同名设备）
 	result := global.DB.Model(&database.SSODevice{}).

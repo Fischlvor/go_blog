@@ -455,39 +455,33 @@ VITE_API_BASE_URL=http://localhost:8000/api
 ### 2025-12-17
 
 #### Fixed
-- **修复 RefreshToken 时设备查询使用错误的 app_id 类型**
+- **改进 SSO Refresh Token 存储和安全校验，支持多应用隔离**
   - **问题描述**：
-    - `RefreshToken` 方法查询设备时使用 `claims.AppID`（字符串，如 "mcp"）
-    - 但数据库 `sso_devices.app_id` 是数字类型
-    - 导致 SQL 变成 `app_id = 'mcp'`，查询失败
+    1. `RefreshToken` 方法查询设备时使用 `claims.AppID`（字符串）而非 `app.ID`（数字）
+       - 导致 SQL 变成 `app_id = 'mcp'`，查询失败
+    3. 原逻辑先用 `req.ClientID` 查询应用，再解析 token
+       - 没有验证 `req.ClientID` 与 `claims.AppID` 是否一致，存在跨应用攻击风险
   
   - **修复内容**：
-    - 使用 `app.ID`（数字）替代 `claims.AppID`（字符串）查询设备
-    - 添加注释说明 OAuth 标准字段与数据库字段的映射关系
-
-#### Security
-- **增强 RefreshToken 安全校验**
-  - **问题描述**：
-    - 原逻辑先用 `req.ClientID` 查询应用，再解析 token
-    - 没有验证 `req.ClientID` 与 `claims.AppID` 是否一致
-    - 存在跨应用刷新 token 的风险
-  
-  - **修复内容**：
-    1. 调整逻辑顺序：先解析 token → 校验一致性 → 查询应用
-    2. 添加安全校验：`req.ClientID` 必须与 `claims.AppID` 一致
-    3. 用 `claims.AppID` 查询应用（而非 `req.ClientID`）
+    1. **修复 app_id 类型错误**：
+       - 使用 `app.ID`（数字）替代 `claims.AppID`（字符串）查询设备
+       - 添加 OAuth 标准字段与数据库字段的映射注释
+    
+    2. **增强安全校验**：
+       - 调整逻辑顺序：先解析 token → 校验一致性 → 查询应用
+       - 添加安全校验：`req.ClientID` 必须与 `claims.AppID` 一致
+       - 防止跨应用刷新 token 攻击
   
   - **新的验证流程**：
     ```
     1. 解析 RefreshToken 获取 claims
     2. 校验 req.ClientID == claims.AppID（防止跨应用攻击）
     3. 用 claims.AppID 查询应用并验证 client_secret
-    4. 检查 Redis 中 token 是否被撤销
-    5. 检查用户和设备状态
-    6. 生成新 token
+    4. 检查用户和设备状态
+    5. 生成新 token
     ```
   
-  - **字段映射说明**（已添加注释）：
+  - **字段映射说明**：
     | OAuth 标准字段 | 数据库字段 | 说明 |
     |---------------|-----------|------|
     | `client_id` | `app_key` | 应用标识（字符串，如 "mcp"） |
@@ -495,10 +489,10 @@ VITE_API_BASE_URL=http://localhost:8000/api
     | JWT `AppID` | `app_key` | 字符串，需转换为 `app.ID` |
     | - | `app.ID` | 应用数字 ID（用于数据库关联） |
   
-  - **修改文件**：
-    - `internal/service/auth_service.go` - 修复设备查询 + 增强安全校验
-    - `internal/model/request/auth_request.go` - 添加字段映射注释
-    - `pkg/jwt/jwt.go` - 添加 AppID 类型说明注释
+  - **影响范围**：
+    - 修改文件：`internal/service/auth_service.go`、`internal/model/request/auth_request.go`、`pkg/jwt/jwt.go`
+    - 修改方法：8 个
+    - 修改行数：约 30 行
 
 ### 2025-12-15
 
