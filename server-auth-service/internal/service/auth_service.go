@@ -287,16 +287,7 @@ func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response
 
 // RefreshToken 刷新Token
 func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.TokenResponse, error) {
-	// 验证client_secret
-	app, err := s.GetAppByKey(req.ClientID)
-	if err != nil {
-		return nil, err
-	}
-	if app.AppSecret != req.ClientSecret {
-		return nil, errors.New("client_secret错误")
-	}
-
-	// 解析RefreshToken
+	// 1. 先解析 RefreshToken，获取 claims
 	claims, err := jwt.ParseRefreshToken(req.RefreshToken, global.RSAPublicKey)
 	if err != nil {
 		if err == jwt.ErrTokenExpired {
@@ -305,7 +296,26 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 		return nil, errors.New("refresh_token无效")
 	}
 
-	// 检查Redis中是否存在（未被撤销）
+	// 2. 安全校验：验证请求的 client_id 与 token 中的 app_id 一致
+	// 防止用应用 A 的凭证刷新应用 B 的 token
+	if req.ClientID != claims.AppID {
+		global.Log.Warn("RefreshToken 安全校验失败：client_id 与 token 中的 app_id 不匹配",
+			zap.String("req_client_id", req.ClientID),
+			zap.String("claims_app_id", claims.AppID),
+		)
+		return nil, errors.New("client_id与token不匹配")
+	}
+
+	// 3. 用 claims.AppID 查询应用并验证 client_secret
+	app, err := s.GetAppByKey(claims.AppID)
+	if err != nil {
+		return nil, err
+	}
+	if app.AppSecret != req.ClientSecret {
+		return nil, errors.New("client_secret错误")
+	}
+
+	// 4. 检查Redis中是否存在（未被撤销）
 	refreshTokenKey := fmt.Sprintf("refresh_token:%s:%s", claims.UserUUID.String(), claims.DeviceID)
 	storedToken, err := global.Redis.Get(refreshTokenKey).Result()
 	if err != nil || storedToken != req.RefreshToken {
@@ -322,8 +332,9 @@ func (s *AuthService) RefreshToken(req request.RefreshTokenRequest) (*response.T
 	}
 
 	// 检查设备状态
+	// 注意：claims.AppID 是字符串（app_key），需要使用 app.ID（数字）查询设备
 	var device database.SSODevice
-	err = global.DB.Where("user_uuid = ? AND device_id = ? AND app_id = ?", user.UUID, claims.DeviceID, claims.AppID).First(&device).Error
+	err = global.DB.Where("user_uuid = ? AND device_id = ? AND app_id = ?", user.UUID, claims.DeviceID, app.ID).First(&device).Error
 	if err != nil || device.Status != 1 {
 		return nil, errors.New("设备已被移除")
 	}

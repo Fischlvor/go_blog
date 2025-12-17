@@ -15,18 +15,21 @@ var (
 )
 
 // AccessTokenClaims AccessToken载荷
+// 注意：AppID 存储的是 app_key（字符串，如 "mcp"、"blog"），不是数据库中的数字 ID
+// 查询数据库时需要先通过 GetAppByKey(AppID) 获取 app.ID
 type AccessTokenClaims struct {
 	UserUUID  uuid.UUID `json:"user_uuid"`
-	AppID     string    `json:"app_id"`
+	AppID     string    `json:"app_id"` // app_key（字符串），不是数字 ID
 	DeviceID  string    `json:"device_id"`
 	TokenType string    `json:"token_type"` // access_token
 	jwt.RegisteredClaims
 }
 
 // RefreshTokenClaims RefreshToken载荷
+// 注意：AppID 存储的是 app_key（字符串），不是数据库中的数字 ID
 type RefreshTokenClaims struct {
 	UserUUID  uuid.UUID `json:"user_uuid"`
-	AppID     string    `json:"app_id"`
+	AppID     string    `json:"app_id"` // app_key（字符串），不是数字 ID
 	DeviceID  string    `json:"device_id"`
 	TokenType string    `json:"token_type"` // refresh_token
 	jwt.RegisteredClaims
