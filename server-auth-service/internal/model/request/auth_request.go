@@ -26,21 +26,29 @@ type LoginRequest struct {
 }
 
 // RefreshTokenRequest 刷新Token请求
+// OAuth 2.0 标准字段映射：
+//   - client_id     -> sso_applications.app_key（字符串标识，如 "mcp"、"blog"）
+//   - client_secret -> sso_applications.app_secret
+//
+// 注意：数据库中设备关联使用的是 sso_applications.id（数字），不是 app_key
 type RefreshTokenRequest struct {
 	GrantType    string `json:"grant_type" binding:"required"`
 	RefreshToken string `json:"refresh_token" binding:"required"`
-	ClientID     string `json:"client_id" binding:"required"`
-	ClientSecret string `json:"client_secret" binding:"required"`
+	ClientID     string `json:"client_id" binding:"required"`     // 对应 app_key，不是数字 ID
+	ClientSecret string `json:"client_secret" binding:"required"` // 对应 app_secret
 }
 
 // TokenExchangeRequest OAuth 2.0 token端点请求（支持authorization_code和refresh_token）
+// OAuth 2.0 标准字段映射：
+//   - client_id     -> sso_applications.app_key（字符串标识）
+//   - client_secret -> sso_applications.app_secret
 type TokenExchangeRequest struct {
 	GrantType    string `json:"grant_type" binding:"required"`
-	Code         string `json:"code"`          // authorization_code模式需要
-	RefreshToken string `json:"refresh_token"` // refresh_token模式需要
-	ClientID     string `json:"client_id" binding:"required"`
-	ClientSecret string `json:"client_secret" binding:"required"`
-	RedirectURI  string `json:"redirect_uri"` // authorization_code模式需要
+	Code         string `json:"code"`                             // authorization_code模式需要
+	RefreshToken string `json:"refresh_token"`                    // refresh_token模式需要
+	ClientID     string `json:"client_id" binding:"required"`     // 对应 app_key
+	ClientSecret string `json:"client_secret" binding:"required"` // 对应 app_secret
+	RedirectURI  string `json:"redirect_uri"`                     // authorization_code模式需要
 }
 
 // UpdatePasswordRequest 修改密码请求
