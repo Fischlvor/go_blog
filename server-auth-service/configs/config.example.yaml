@@ -16,7 +16,7 @@ jwt:
     public_key_path: ./keys/public.pem    # RSA公钥路径（用于验证JWT）
     access_token_expiry_time: 2h          # 访问令牌过期时间
     refresh_token_expiry_time: 7d         # 刷新令牌过期时间
-    issuer: go_blog_sso                   # 签发者
+    issuer: SSO                           # 签发者
 
 # MySQL数据库配置
 mysql:
