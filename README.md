@@ -461,6 +461,11 @@ VITE_API_BASE_URL=http://localhost:8000/api
   - `GenerateTokensForUser` 在自动注册设备时优先使用上下文提供的名称与类型，仅在缺失时回退默认值，避免生成泛化的“SSO 设备”记录
   - 新增 `ErrDeviceNotFound` 哨兵错误，便于区分“设备首次访问”与“设备被移除/过期”，同时停止无意义的 `sso_device_id` 伪造
   - 影响文件：`server-auth-service/internal/api/auth.go`、`server-auth-service/internal/api/oauth.go`、`server-auth-service/internal/service/auth_service.go`
+- **QQ 登录服务补充 gin.Context 与会话写入，保持静默登录上下文一致**
+  - `AuthApi.QQLogin/QQCallback` 将 `gin.Context` 传入 Service，统一由服务层处理 QQ 登录回调
+  - `AuthService.QQLogin` 在成功登录后，将 `device_name`、`device_type`、`user_agent`、`ip_address` 等信息写入 SSO Session，保障后续静默授权直接复用
+  - 新增 `github.com/gin-contrib/sessions` 依赖，保存 session 失败时输出结构化日志并阻断异常登录
+  - 影响文件：`server-auth-service/internal/api/auth.go`、`server-auth-service/internal/service/auth_service.go`
 
 ### 2025-12-17
 

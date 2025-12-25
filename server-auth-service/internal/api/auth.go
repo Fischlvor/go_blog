@@ -305,7 +305,7 @@ func (h *AuthApi) QQLogin(c *gin.Context) {
 	userAgent := c.GetHeader("User-Agent")
 
 	// 调用QQ登录服务
-	resp, err := authService.QQLogin(req, ipAddress, userAgent)
+	resp, err := authService.QQLogin(c, req, ipAddress, userAgent)
 	if err != nil {
 		response.Error(c, 1009, err.Error())
 		return
@@ -387,7 +387,7 @@ func (h *AuthApi) QQCallback(c *gin.Context) {
 	}
 
 	// 调用服务登录
-	resp, err := authService.QQLogin(req, ipAddress, userAgent)
+	resp, err := authService.QQLogin(c, req, ipAddress, userAgent)
 	if err != nil {
 		response.Error(c, 1009, err.Error())
 		return

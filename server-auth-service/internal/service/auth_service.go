@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"go.uber.org/zap"
@@ -511,7 +512,7 @@ func (s *AuthService) GetUserByUUID(userUUIDStr string) (*response.UserInfo, err
 }
 
 // QQLogin QQ登录
-func (s *AuthService) QQLogin(req request.QQLoginRequest, ipAddress, userAgent string) (*response.TokenResponse, error) {
+func (s *AuthService) QQLogin(c *gin.Context, req request.QQLoginRequest, ipAddress, userAgent string) (*response.TokenResponse, error) {
 	// 获取QQ access token
 	qqService := &QQService{}
 	accessTokenResp, err := qqService.GetAccessTokenByCode(req.Code)
@@ -537,7 +538,8 @@ func (s *AuthService) QQLogin(req request.QQLoginRequest, ipAddress, userAgent s
 		deviceID = uuid.Must(uuid.NewV4()).String()
 	}
 
-	return qqService.QQLogin(
+	// 调用QQ登录服务
+	tokenResponse, err := qqService.QQLogin(
 		accessTokenResp.Openid,
 		req.AppID,
 		deviceID,
@@ -547,6 +549,32 @@ func (s *AuthService) QQLogin(req request.QQLoginRequest, ipAddress, userAgent s
 		userAgent,
 		qqUserInfo,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	// 获取用户信息
+	if tokenResponse.UserInfo == nil {
+		return nil, fmt.Errorf("用户信息不存在")
+	}
+
+	// 设置SSO session
+	session := sessions.Default(c)
+	session.Set("user_uuid", tokenResponse.UserInfo.UUID)
+	session.Set("sso_device_id", deviceID)
+	session.Set("device_name", req.DeviceName)
+	session.Set("device_type", req.DeviceType)
+	session.Set("user_agent", userAgent)
+	session.Set("ip_address", ipAddress)
+	session.Set("logged_in", true)
+
+	// 保存session
+	if err := session.Save(); err != nil {
+		global.Log.Error("保存session失败", zap.Error(err))
+		return nil, fmt.Errorf("保存session失败: %w", err)
+	}
+
+	return tokenResponse, nil
 }
 
 // SendEmailVerificationCode 发送邮箱验证码
