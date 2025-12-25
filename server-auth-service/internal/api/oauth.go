@@ -4,6 +4,7 @@ import (
 	"auth-service/internal/model/response"
 	"auth-service/internal/service"
 	"auth-service/pkg/global"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -33,6 +34,8 @@ func (h *OAuthApi) Authorize(c *gin.Context) {
 	session := sessions.Default(c)
 	userUUID := session.Get("user_uuid")
 	ssoDeviceID := session.Get("sso_device_id")
+	deviceName := session.Get("device_name")
+	deviceType := session.Get("device_type")
 	sessionUserAgent := session.Get("user_agent")
 	sessionIPAddress := session.Get("ip_address")
 	loggedIn := session.Get("logged_in")
@@ -56,7 +59,15 @@ func (h *OAuthApi) Authorize(c *gin.Context) {
 			return
 		}
 
-		// 安全检测：检查 User-Agent 和 IP 地址变化
+		var sessionDeviceName string
+		if deviceName != nil {
+			sessionDeviceName, _ = deviceName.(string)
+		}
+		var sessionDeviceType string
+		if deviceType != nil {
+			sessionDeviceType, _ = deviceType.(string)
+		}
+
 		currentUserAgent := c.GetHeader("User-Agent")
 		currentIPAddress := c.ClientIP()
 
@@ -102,23 +113,31 @@ func (h *OAuthApi) Authorize(c *gin.Context) {
 		// 必须传入 user_uuid 和 app_id，避免查询到其他用户或应用的同名设备
 		err = authService.CheckDeviceExpiry(userUUIDParsed, app.ID, ssoDeviceIDStr)
 		if err != nil {
-			global.Log.Warn("设备已过期，清除 Session",
-				zap.String("user_uuid", userUUIDStr),
-				zap.String("device_id", ssoDeviceIDStr),
-				zap.Error(err),
-			)
+			if errors.Is(err, service.ErrDeviceNotFound) {
+				global.Log.Info("SSO 静默登录：首次访问该应用，自动注册设备",
+					zap.String("user_uuid", userUUIDStr),
+					zap.String("device_id", ssoDeviceIDStr),
+					zap.String("app_id", appID),
+				)
+			} else {
+				global.Log.Warn("设备已过期，清除 Session",
+					zap.String("user_uuid", userUUIDStr),
+					zap.String("device_id", ssoDeviceIDStr),
+					zap.Error(err),
+				)
 
-			// 清除 Session
-			session.Clear()
-			session.Save()
+				// 清除 Session
+				session.Clear()
+				session.Save()
 
-			// 重定向到登录页面
-			loginURL := fmt.Sprintf("/login?app_id=%s&redirect_uri=%s", appID, url.QueryEscape(redirectURI))
-			if state != "" {
-				loginURL += "&state=" + url.QueryEscape(state)
+				// 重定向到登录页面
+				loginURL := fmt.Sprintf("/login?app_id=%s&redirect_uri=%s", appID, url.QueryEscape(redirectURI))
+				if state != "" {
+					loginURL += "&state=" + url.QueryEscape(state)
+				}
+				c.Redirect(302, loginURL)
+				return
 			}
-			c.Redirect(302, loginURL)
-			return
 		}
 
 		global.Log.Info("✓ SSO 静默登录成功",
@@ -126,6 +145,13 @@ func (h *OAuthApi) Authorize(c *gin.Context) {
 			zap.String("sso_device_id", ssoDeviceIDStr),
 			zap.String("app_id", appID),
 		)
+
+		if sessionDeviceName != "" {
+			c.Set("session_device_name", sessionDeviceName)
+		}
+		if sessionDeviceType != "" {
+			c.Set("session_device_type", sessionDeviceType)
+		}
 
 		// 生成新的 AccessToken 和 RefreshToken（使用 SSO 设备 ID）
 		tokenResp, err := authService.GenerateTokensForUser(c, userUUIDStr, appID, ssoDeviceIDStr)
