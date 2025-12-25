@@ -452,6 +452,16 @@ VITE_API_BASE_URL=http://localhost:8000/api
 
 ## 📝 开发日志
 
+### 2025-12-25
+
+#### Fixed
+- **SSO 静默登录缺失设备信息导致的重定向与“SSO 设备”命名问题**
+  - 登录与 QQ 登录成功后，将 `device_name`、`device_type` 一并写入 SSO Session，后续静默授权可直接复用浏览器/设备信息
+  - OAuth `Authorize` 端点读取 Session 中的设备信息，当 `CheckDeviceExpiry` 报告 `ErrDeviceNotFound` 时，认定为首次访问应用并保持静默登录流程
+  - `GenerateTokensForUser` 在自动注册设备时优先使用上下文提供的名称与类型，仅在缺失时回退默认值，避免生成泛化的“SSO 设备”记录
+  - 新增 `ErrDeviceNotFound` 哨兵错误，便于区分“设备首次访问”与“设备被移除/过期”，同时停止无意义的 `sso_device_id` 伪造
+  - 影响文件：`server-auth-service/internal/api/auth.go`、`server-auth-service/internal/api/oauth.go`、`server-auth-service/internal/service/auth_service.go`
+
 ### 2025-12-17
 
 #### Fixed

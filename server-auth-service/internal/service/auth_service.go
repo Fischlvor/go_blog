@@ -21,6 +21,10 @@ import (
 
 type AuthService struct{}
 
+var (
+	ErrDeviceNotFound = errors.New("设备不存在或已离线")
+)
+
 // GetAppByKey 通过app_key获取应用信息
 func (s *AuthService) GetAppByKey(appKey string) (*database.SSOApplication, error) {
 	var app database.SSOApplication
@@ -691,13 +695,22 @@ func (s *AuthService) GenerateTokensForUser(c *gin.Context, userUUIDStr, appID, 
 			return nil, fmt.Errorf("处理设备限制失败: %w", err)
 		}
 
+		sessionDeviceName := "SSO 设备"
+		if nameVal, exists := c.Get("session_device_name"); exists && nameVal != nil {
+			sessionDeviceName = fmt.Sprint(nameVal)
+		}
+		sessionDeviceType := "web"
+		if typeVal, exists := c.Get("session_device_type"); exists && typeVal != nil {
+			sessionDeviceType = fmt.Sprint(typeVal)
+		}
+
 		// 创建新设备记录
 		device := database.SSODevice{
 			UserUUID:     user.UUID,
 			AppID:        app.ID,
 			DeviceID:     deviceID,
-			DeviceName:   "SSO 设备",
-			DeviceType:   "web",
+			DeviceName:   sessionDeviceName,
+			DeviceType:   sessionDeviceType,
 			IPAddress:    c.ClientIP(),
 			UserAgent:    c.GetHeader("User-Agent"),
 			LastActiveAt: time.Now(),
@@ -880,7 +893,7 @@ func (s *AuthService) CheckDeviceExpiry(userUUID uuid.UUID, appID uint, deviceID
 	err := global.DB.Where("device_id = ? AND user_uuid = ? AND app_id = ? AND status = 1", deviceID, userUUID, appID).First(&device).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("设备不存在或已离线")
+			return ErrDeviceNotFound
 		}
 		return fmt.Errorf("查询设备失败: %w", err)
 	}

@@ -102,7 +102,9 @@ func (h *AuthApi) Login(c *gin.Context) {
 	session.Set("user_uuid", resp.UserInfo.UUID)
 	session.Set("sso_device_id", req.DeviceID)           // 存储 SSO 设备 ID
 	session.Set("user_agent", c.GetHeader("User-Agent")) // 安全检测
-	session.Set("ip_address", c.ClientIP())              // 安全检测
+	session.Set("device_name", req.DeviceName)
+	session.Set("device_type", req.DeviceType)
+	session.Set("ip_address", c.ClientIP()) // 安全检测
 	session.Set("logged_in", true)
 	session.Set("logged_in_at", time.Now().Unix())
 	if err := session.Save(); err != nil {
@@ -314,7 +316,9 @@ func (h *AuthApi) QQLogin(c *gin.Context) {
 	session.Set("user_uuid", resp.UserInfo.UUID)
 	session.Set("sso_device_id", req.DeviceID)           // 存储 SSO 设备 ID
 	session.Set("user_agent", c.GetHeader("User-Agent")) // 安全检测
-	session.Set("ip_address", c.ClientIP())              // 安全检测
+	session.Set("device_name", req.DeviceName)
+	session.Set("device_type", req.DeviceType)
+	session.Set("ip_address", c.ClientIP()) // 安全检测
 	session.Set("logged_in", true)
 	session.Set("logged_in_at", time.Now().Unix())
 	if err := session.Save(); err != nil {
