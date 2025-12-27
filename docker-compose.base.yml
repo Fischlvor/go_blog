@@ -76,6 +76,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: root
       POSTGRES_DB: agent_db
+      TZ: Asia/Shanghai  # 设置容器时区
+      PGTZ: Asia/Shanghai  # 设置PostgreSQL时区
     ports:
       - "15432:5432"  # agent 项目使用的端口
     volumes:
