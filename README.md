@@ -455,14 +455,34 @@ VITE_API_BASE_URL=http://localhost:8000/api
 ### 2026-01-06
 
 #### Added
-- **实现七牛云视频转码回调处理**
-  - 后端新增 `TranscodeStatus`、`TranscodeKey`、`ThumbnailKey` 字段到 `Resource` 模型
-  - 实现 `HandleQiniuCallback` 方法处理七牛云转码完成回调
-  - 根据输出文件后缀（`_h264.mp4`、`_thumb.jpg`）识别转码结果
-  - 前端资源列表新增"状态"列，显示转码状态（转码中/已转码/转码失败）
-  - 视频文件只有转码成功后才能复制链接，复制的是转码后的 URL
-  - 前端使用后端返回的 `thumbnail_url` 显示视频缩略图
-  - 涉及文件：8 个文件（database/resource.go、request/resource.go、response/resource.go、service/resource.go、api/resource.go、resource-list.vue、resource.ts、资源上传系统设计方案.md）
+- **实现完整的资源上传系统**
+  - **核心功能**：
+    - ✅ 秒传检测（基于文件 MD5 Hash）
+    - ✅ 断点续传（分片上传 + 七牛云 Context）
+    - ✅ 并发上传（3 个并发，可配置）
+    - ✅ 流式传输（边接收边转发，低内存占用）
+    - ✅ 进度跟踪（实时显示上传进度）
+    - ✅ 文件类型验证（MIME 类型 + Magic Number 签名）
+  - **后端架构**：
+    - 新增 `Resource` 模型（资源表，支持秒传）
+    - 新增 `ResourceUploadTask` 模型（上传任务表，支持断点续传）
+    - 新增 `ResourceUploader` 接口（支持切换云存储提供商）
+    - 新增 `QiniuResourceUploader` 实现（七牛云分片上传 V1 API）
+    - 新增 `FileValidator` 验证器（MIME 类型 + 文件签名验证）
+    - 新增 6 个 API 端点：check、init、upload-chunk、complete、cancel、progress
+    - 新增七牛云转码回调处理（`/api/qiniu/callback`）
+  - **前端实现**：
+    - 新增资源上传组件（拖拽上传、进度显示、状态管理）
+    - 新增资源列表页面（分页、搜索、预览、复制链接、删除）
+    - 使用 spark-md5 计算文件 Hash（支持大文件分片计算）
+    - 视频缩略图显示（使用后端返回的 `thumbnail_url`）
+    - 转码状态显示（转码中/已转码/转码失败）
+  - **数据库设计**：
+    - `resources` 表：存储已上传完成的资源，支持秒传（相同 Hash 复用物理文件）
+    - `resource_upload_tasks` 表：存储分片上传临时状态，支持断点续传
+    - 新增转码相关字段：`transcode_status`、`transcode_key`、`thumbnail_key`
+  - **涉及文件**：24 个文件，新增 3326 行代码
+  - **文档**：新增 `docs/资源上传系统设计方案.md`（745 行详细设计文档）
 
 ### 2025-12-25
 
