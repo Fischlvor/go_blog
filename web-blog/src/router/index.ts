@@ -217,6 +217,24 @@ const routes = [
         ]
       },
       {
+        path: "resources",
+        name: "resources",
+        meta: {
+          title: "资源管理",
+          requiresAdmin: true
+        },
+        children: [
+          {
+            path: "resource-list",
+            name: "resource-list",
+            component: () => import('@/views/dashboard/resources/resource-list.vue'),
+            meta: {
+              title: "资源列表"
+            }
+          }
+        ]
+      },
+      {
         path: "emoji",
         name: "emoji",
         meta: {

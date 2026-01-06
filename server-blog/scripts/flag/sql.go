@@ -1,9 +1,9 @@
 package flag
 
 import (
-	"server/pkg/global"
-	"server/internal/model/database"
 	"server/internal/model"
+	"server/internal/model/database"
+	"server/pkg/global"
 )
 
 // SQL 表结构迁移，如果表不存在，它会创建新表；如果表已经存在，它会根据结构更新表
@@ -26,5 +26,8 @@ func SQL() error {
 		&model.EmojiGroup{},
 		&model.EmojiSprite{},
 		&model.EmojiTask{},
+		// 资源上传相关表
+		&database.ResourceUploadTask{},
+		&database.Resource{},
 	)
 }

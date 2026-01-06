@@ -17,12 +17,14 @@
     "element-plus": "^2.10.7",
     "md-editor-v3": "^5.8.4",
     "pinia": "^3.0.1",
+    "spark-md5": "^3.0.2",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.1",
     "@types/node": "^22.14.0",
+    "@types/spark-md5": "^3.0.5",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vue/tsconfig": "^0.7.0",
     "npm-run-all2": "^7.0.2",
