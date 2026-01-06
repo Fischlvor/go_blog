@@ -62,7 +62,7 @@ func (s *AuthService) Register(req request.RegisterRequest) error {
 		UUID:           uuid.Must(uuid.NewV4()),
 		Username:       req.Email, // 默认用邮箱作为用户名
 		PasswordHash:   passwordHash,
-		Email:          req.Email,
+		Email:          &req.Email,
 		Nickname:       req.Nickname,
 		Avatar:         "https://image.hsk423.cn/blog/aaca0f5eb4d2d98a6ce6dffa99f8254b-20251108151238.jpg",
 		Status:         1,

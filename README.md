@@ -454,6 +454,17 @@ VITE_API_BASE_URL=http://localhost:8000/api
 
 ### 2026-01-06
 
+#### Fixed
+- **修复 QQ 登录时 Email 唯一索引冲突问题**
+  - **问题描述**：QQ 登录创建用户时未设置 Email 字段，导致插入空字符串，多个 QQ 用户注册时唯一索引冲突
+  - **修复内容**：
+    - 将 `SSOUser.Email` 字段类型从 `string` 改为 `*string`
+    - 添加 GORM 标签 `default:null`，支持 NULL 值
+    - 将 `UserInfo.Email` 响应字段同步改为 `*string`
+    - 邮箱注册时传递指针 `&req.Email`
+  - **效果**：QQ 登录用户 Email 为 NULL，不参与唯一索引约束
+  - **影响文件**：`sso_user.go`、`auth_response.go`、`auth_service.go`
+
 #### Added
 - **实现完整的资源上传系统**
   - **核心功能**：

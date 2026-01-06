@@ -37,6 +37,7 @@ func NewDefaultValidator() *DefaultValidator {
 			"application/zip":              true,
 			"application/x-rar-compressed": true,
 			"application/x-7z-compressed":  true,
+			"application/x-zip-compressed": true,
 		},
 		magicNumbers: map[string][]byte{
 			"image/jpeg":      {0xFF, 0xD8, 0xFF},
