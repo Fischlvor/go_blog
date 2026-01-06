@@ -15,13 +15,13 @@ type TokenResponse struct {
 
 // UserInfo 用户信息
 type UserInfo struct {
-	UUID           string `json:"uuid"`
-	Nickname       string `json:"nickname"`
-	Avatar         string `json:"avatar"`
-	Email          string `json:"email"`
-	Address        string `json:"address"`
-	Signature      string `json:"signature"`
-	RegisterSource int    `json:"register_source"` // 0:email 1:qq 2:wechat 3:github
+	UUID           string  `json:"uuid"`
+	Nickname       string  `json:"nickname"`
+	Avatar         string  `json:"avatar"`
+	Email          *string `json:"email"`
+	Address        string  `json:"address"`
+	Signature      string  `json:"signature"`
+	RegisterSource int     `json:"register_source"` // 0:email 1:qq 2:wechat 3:github
 }
 
 // DeviceInfo 设备信息
