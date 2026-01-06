@@ -16,6 +16,7 @@ type ApiGroup struct {
 	ConfigApi
 	AIChatApi
 	AIManagementApi
+	ResourceApi
 }
 
 var ApiGroupApp = new(ApiGroup)

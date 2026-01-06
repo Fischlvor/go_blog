@@ -452,6 +452,18 @@ VITE_API_BASE_URL=http://localhost:8000/api
 
 ## 📝 开发日志
 
+### 2026-01-06
+
+#### Added
+- **实现七牛云视频转码回调处理**
+  - 后端新增 `TranscodeStatus`、`TranscodeKey`、`ThumbnailKey` 字段到 `Resource` 模型
+  - 实现 `HandleQiniuCallback` 方法处理七牛云转码完成回调
+  - 根据输出文件后缀（`_h264.mp4`、`_thumb.jpg`）识别转码结果
+  - 前端资源列表新增"状态"列，显示转码状态（转码中/已转码/转码失败）
+  - 视频文件只有转码成功后才能复制链接，复制的是转码后的 URL
+  - 前端使用后端返回的 `thumbnail_url` 显示视频缩略图
+  - 涉及文件：8 个文件（database/resource.go、request/resource.go、response/resource.go、service/resource.go、api/resource.go、resource-list.vue、resource.ts、资源上传系统设计方案.md）
+
 ### 2025-12-25
 
 #### Fixed

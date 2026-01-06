@@ -133,6 +133,19 @@ const menuList: MenuItem[] = [
     ]
   },
   {
+    title: "资源管理",
+    name: "resources",
+    icon: "FolderOpened",
+    admin_role:true,
+    subItems: [
+      {
+        title: "资源列表",
+        name: "resource-list",
+        icon: "Files"
+      }
+    ]
+  },
+  {
     title: "AI对话管理",
     name: "ai-management",
     icon: "ChatDotRound",

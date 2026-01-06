@@ -66,6 +66,7 @@ func InitRouter() *gin.Engine {
 		routerGroup.InitBaseRouter(publicGroup)
 		routerGroup.InitAuthRouter(publicGroup)
 		routerGroup.InitPublicEmojiRouter(publicGroup)
+		routerGroup.InitResourcePublicRouter(publicGroup) // 七牛云回调等公开接口
 	}
 	// 功能 路由
 	{
@@ -84,6 +85,7 @@ func InitRouter() *gin.Engine {
 		routerGroup.InitConfigRouter(adminGroup)
 		routerGroup.InitAIManagementRouter(adminGroup)
 		routerGroup.InitEmojiRouter(adminGroup)
+		routerGroup.InitResourceRouter(adminGroup)
 	}
 	return Router
 }

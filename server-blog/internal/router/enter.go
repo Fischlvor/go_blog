@@ -16,6 +16,7 @@ type RouterGroup struct {
 	AIManagementRouter
 	EmojiRouter
 	PublicEmojiRouter
+	ResourceRouter
 }
 
 var RouterGroupApp = new(RouterGroup)
