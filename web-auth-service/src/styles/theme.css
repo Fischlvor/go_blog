@@ -1,0 +1,50 @@
+/* SSO 主题化样式 - 根据 app_id 动态切换背景色 */
+
+/* Blog 主题背景 - 蓝色主导+青色点缀 */
+[data-app-theme="blue"] {
+  background: linear-gradient(135deg, #bfdbfe 0%, #a5f3fc 50%, #bfdbfe 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* MCP 主题背景 - 绿色主导+黄绿点缀 */
+[data-app-theme="green"] {
+  background: linear-gradient(135deg, #a7f3d0 0%, #fde68a 50%, #a7f3d0 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* 默认/Manage 主题背景 - 紫色主导+粉色点缀 */
+[data-app-theme="purple"] {
+  background: linear-gradient(135deg, #ddd6fe 0%, #fbcfe8 50%, #ddd6fe 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* 背景渐变动画 */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Blog 主题圆形动画 */
+[data-app-theme="blue"] .circle {
+  background: radial-gradient(circle, rgba(147, 197, 253, 0.15) 0%, rgba(191, 219, 254, 0.05) 100%);
+}
+
+/* MCP 主题圆形动画 */
+[data-app-theme="green"] .circle {
+  background: radial-gradient(circle, rgba(110, 231, 183, 0.15) 0%, rgba(167, 243, 208, 0.05) 100%);
+}
+
+/* 默认/Manage 主题圆形动画 */
+[data-app-theme="purple"] .circle {
+  background: radial-gradient(circle, rgba(165, 180, 252, 0.15) 0%, rgba(221, 214, 254, 0.05) 100%);
+}

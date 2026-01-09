@@ -5,7 +5,6 @@ import (
 	database "auth-service/internal/model/database"
 	"auth-service/internal/model/other"
 	"auth-service/internal/model/response"
-	"auth-service/pkg/crypto"
 	"auth-service/pkg/global"
 	"auth-service/pkg/jwt"
 	"auth-service/pkg/utils"
@@ -132,8 +131,8 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 
 		user = database.SSOUser{
 			UUID:           uuid.Must(uuid.NewV4()),
-			Username:       fmt.Sprintf("qq_%s", openID),
-			PasswordHash:   crypto.HashPasswordDefault(), // 随机密码
+			Username:       nickname,
+			PasswordHash:   nil, // QQ登录无密码
 			Nickname:       nickname,
 			Avatar:         avatar,
 			Status:         1,
