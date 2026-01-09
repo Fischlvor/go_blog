@@ -452,6 +452,39 @@ VITE_API_BASE_URL=http://localhost:8000/api
 
 ## 📝 开发日志
 
+### 2026-01-09
+
+#### Added
+- **实现 SSO 主页和登录页主题化功能**
+  - **SSO 主页 (Home.vue)**：
+    - 新增公共应用列表展示功能
+    - 实现左右分栏布局（左侧展示区 + 右侧应用卡片）
+    - 添加动态渐变背景动画（3色渐变 + 15秒循环）
+    - 支持应用图标展示（自适应矩形/正方形）
+    - 实现应用点击跳转到 OAuth 授权流程
+    - 后端新增 `/api/oauth/applications` API，返回已启用的公共应用列表
+    - 根据环境变量 `APP_ENV` 自动选择生产/测试环境的 `redirect_uri`
+  - **登录页主题化 (Login.vue)**：
+    - 根据 `app_id` 参数动态切换主题（Blog蓝色、MCP绿色、默认紫色）
+    - 实现对称渐变背景（浅色 → 深色 → 浅色），配合 `background-position` 动画
+    - 主题色方案：
+      - **Blog蓝色**：#bfdbfe（浅蓝）→ #a5f3fc（青色）→ #bfdbfe（浅蓝）
+      - **MCP绿色**：#a7f3d0（浅绿）→ #fde68a（黄绿）→ #a7f3d0（浅绿）
+      - **默认紫色**：#ddd6fe（浅紫）→ #fbcfe8（粉色）→ #ddd6fe（浅紫）
+    - 动态调整圆形动画、Logo颜色、标题渐变、按钮样式等元素的主题色
+    - 添加 `gradientShift` 动画（15秒循环，背景位置移动）
+  - **后端改动**：
+    - 新增 `ApplicationService.GetPublicApplications()` 方法
+    - 新增 `PublicApplicationInfo` 响应结构体
+    - 新增 `IsProduction()` 环境检测工具函数
+    - OAuth 路由新增 `GET /api/oauth/applications` 端点
+  - **前端改动**：
+    - 新增 `web-auth-service/src/api/oauth.js` API 封装
+    - 新增 `web-auth-service/src/views/Home.vue` 主页组件
+    - 修改 `web-auth-service/src/views/Login.vue` 添加主题化逻辑
+    - 修改 `web-auth-service/src/main.js` 添加主页路由
+  - **涉及文件**：11个文件（新增3个，修改8个）
+
 ### 2026-01-06
 
 #### Fixed

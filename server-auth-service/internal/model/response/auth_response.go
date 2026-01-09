@@ -78,6 +78,15 @@ type UserAppPermission struct {
 	Status  int    `json:"status"`
 }
 
+// PublicApplicationInfo 公开应用信息（用于SSO主页）
+type PublicApplicationInfo struct {
+	ID          uint   `json:"id"`
+	AppKey      string `json:"app_key"`
+	AppName     string `json:"app_name"`
+	Icon        string `json:"icon"`
+	RedirectURI string `json:"redirect_uri"` // 根据环境返回单个URL
+}
+
 // PageResponse 分页响应
 type PageResponse struct {
 	List     interface{} `json:"list"`

@@ -17,6 +17,20 @@ import (
 type OAuthApi struct {
 }
 
+// GetPublicApplications 获取所有公开应用列表
+// GET /api/oauth/applications
+func (h *OAuthApi) GetPublicApplications(c *gin.Context) {
+	applicationService := service.ServiceGroupApp.ApplicationService
+
+	apps, err := applicationService.GetPublicApplications()
+	if err != nil {
+		response.Error(c, 2001, "获取应用列表失败")
+		return
+	}
+
+	response.Success(c, apps)
+}
+
 // Authorize OAuth 2.0 授权端点（检查 Session，实现静默登录）
 // GET /api/oauth/authorize?app_id=blog&redirect_uri=xxx&state=xxx
 func (h *OAuthApi) Authorize(c *gin.Context) {

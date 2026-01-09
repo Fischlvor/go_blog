@@ -1,5 +1,5 @@
 <template>
-  <div class="login-container">
+  <div class="login-container" :data-app-theme="appTheme">
     <!-- 背景装饰 -->
     <div class="background-decoration">
       <div class="circle circle-1"></div>
@@ -264,24 +264,39 @@ const redirectUri = urlParams.get('redirect_uri') || defaultRedirectUri
 const returnUrl = urlParams.get('return_url') || '/'
 const state = urlParams.get('state') || ''
 
+// 根据app_id设置主题
+const appTheme = ref('default')
+
 onMounted(() => {
   appName.value = getAppName(appId)
+  appTheme.value = getAppTheme(appId)
   // 不再自动加载验证码，改为懒加载
   
   // 调试信息
   console.log('登录页面参数:', {
     appId,
     redirectUri,
-    returnUrl
+    returnUrl,
+    theme: appTheme.value
   })
 })
 
 function getAppName(appId) {
   const appNames = {
     'blog': 'Go博客系统',
-    'manage': 'SSO管理中心'
+    'manage': 'SSO管理中心',
+    'mcp': 'MCP文档系统'
   }
   return appNames[appId] || '应用'
+}
+
+function getAppTheme(appId) {
+  const themes = {
+    'blog': 'blue',
+    'mcp': 'green',
+    'manage': 'purple'
+  }
+  return themes[appId] || 'purple'
 }
 
 const router = useRouter()
@@ -474,6 +489,42 @@ async function qqLogin() {
   box-sizing: border-box;
   width: 100%;
   max-width: 100vw;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* Blog 主题背景 - 蓝色主导+青色点缀 */
+.login-container[data-app-theme="blue"] {
+  background: linear-gradient(135deg, #bfdbfe 0%, #a5f3fc 50%, #bfdbfe 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* MCP 主题背景 - 绿色主导+黄绿点缀 */
+.login-container[data-app-theme="green"] {
+  background: linear-gradient(135deg, #a7f3d0 0%, #fde68a 50%, #a7f3d0 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* 默认/Manage 主题背景 - 紫色主导+粉色点缀 */
+.login-container[data-app-theme="purple"] {
+  background: linear-gradient(135deg, #ddd6fe 0%, #fbcfe8 50%, #ddd6fe 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* 背景装饰 */
@@ -490,8 +541,22 @@ async function qqLogin() {
 .circle {
   position: absolute;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
   animation: float 20s infinite ease-in-out;
+}
+
+/* Blog 主题 - 浅蓝色 */
+.login-container[data-app-theme="blue"] .circle {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%);
+}
+
+/* MCP 主题 - 绿色 */
+.login-container[data-app-theme="green"] .circle {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%);
+}
+
+/* 默认/Manage 主题 - 紫色 */
+.login-container[data-app-theme="purple"] .circle {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
 }
 
 .circle-1 {
@@ -572,6 +637,21 @@ async function qqLogin() {
   animation: pulse 2s infinite;
 }
 
+/* Blog 主题 Logo */
+.login-container[data-app-theme="blue"] .logo-icon {
+  color: #3b82f6;
+}
+
+/* MCP 主题 Logo */
+.login-container[data-app-theme="green"] .logo-icon {
+  color: #10b981;
+}
+
+/* 默认/Manage 主题 Logo */
+.login-container[data-app-theme="purple"] .logo-icon {
+  color: #667eea;
+}
+
 .logo-text {
   flex: 1;
   text-align: left;
@@ -601,6 +681,30 @@ async function qqLogin() {
   margin-bottom: 4px;
   letter-spacing: -0.5px;
   line-height: 1.2;
+}
+
+/* Blog 主题标题 */
+.login-container[data-app-theme="blue"] .title {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* MCP 主题标题 */
+.login-container[data-app-theme="green"] .title {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 默认/Manage 主题标题 */
+.login-container[data-app-theme="purple"] .title {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .subtitle {
@@ -639,6 +743,21 @@ async function qqLogin() {
   background: #fff;
   color: #667eea;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Blog 主题激活标签 */
+.login-container[data-app-theme="blue"] .tab-item.active {
+  color: #3b82f6;
+}
+
+/* MCP 主题激活标签 */
+.login-container[data-app-theme="green"] .tab-item.active {
+  color: #10b981;
+}
+
+/* 默认/Manage 主题激活标签 */
+.login-container[data-app-theme="purple"] .tab-item.active {
+  color: #667eea;
 }
 
 .login-form {
@@ -713,17 +832,46 @@ async function qqLogin() {
   color: white;
   border: none;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
-  transition: all 0.3s;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
   flex-shrink: 0;
+}
+
+/* Blog 主题发送按钮 */
+.login-container[data-app-theme="blue"] .btn-send-code {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+/* MCP 主题发送按钮 */
+.login-container[data-app-theme="green"] .btn-send-code {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+/* 默认/Manage 主题发送按钮 */
+.login-container[data-app-theme="purple"] .btn-send-code {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .btn-send-code:hover:not(:disabled) {
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Blog 主题发送按钮悬停 */
+.login-container[data-app-theme="blue"] .btn-send-code:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* MCP 主题发送按钮悬停 */
+.login-container[data-app-theme="green"] .btn-send-code:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+/* 默认/Manage 主题发送按钮悬停 */
+.login-container[data-app-theme="purple"] .btn-send-code:hover:not(:disabled) {
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
@@ -841,13 +989,27 @@ async function qqLogin() {
   color: white;
   border: none;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
   position: relative;
   overflow: hidden;
+}
+
+/* Blog 主题登录按钮 */
+.login-container[data-app-theme="blue"] .btn-login {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+/* MCP 主题登录按钮 */
+.login-container[data-app-theme="green"] .btn-login {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+/* 默认/Manage 主题登录按钮 */
+.login-container[data-app-theme="purple"] .btn-login {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .btn-login::before {
@@ -863,13 +1025,23 @@ async function qqLogin() {
   transition: width 0.6s, height 0.6s;
 }
 
-.btn-login:hover:not(:disabled)::before {
-  width: 300px;
-  height: 300px;
-}
-
 .btn-login:hover:not(:disabled) {
   transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+}
+
+/* Blog 主题登录按钮悬停 */
+.login-container[data-app-theme="blue"] .btn-login:hover:not(:disabled) {
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.5);
+}
+
+/* MCP 主题登录按钮悬停 */
+.login-container[data-app-theme="green"] .btn-login:hover:not(:disabled) {
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.5);
+}
+
+/* 默认/Manage 主题登录按钮悬停 */
+.login-container[data-app-theme="purple"] .btn-login:hover:not(:disabled) {
   box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
 }
 

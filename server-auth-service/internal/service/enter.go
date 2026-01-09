@@ -5,6 +5,7 @@ type ServiceGroup struct {
 	DeviceService
 	ManageService
 	QQService
+	ApplicationService
 }
 
 var ServiceGroupApp = new(ServiceGroup)
