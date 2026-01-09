@@ -17,6 +17,12 @@ func getConfigFile() string {
 	return "configs/config.yaml"
 }
 
+// IsProduction 判断是否为生产环境
+func IsProduction() bool {
+	env := os.Getenv("APP_ENV")
+	return env == "prod" || env == "production"
+}
+
 // InitConfig 初始化配置
 func InitConfig() *config.Config {
 	configFile := getConfigFile()

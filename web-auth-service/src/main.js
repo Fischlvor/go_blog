@@ -4,6 +4,7 @@ import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import App from './App.vue'
+import Home from './views/Home.vue'
 import Login from './views/Login.vue'
 import Register from './views/Register.vue'
 import ForgotPassword from './views/ForgotPassword.vue'
@@ -14,7 +15,7 @@ import Security from './views/manage/Security.vue'
 import Activity from './views/manage/Activity.vue'
 
 const routes = [
-  { path: '/', redirect: '/login' },
+  { path: '/', component: Home, name: 'Home' },
   { path: '/login', component: Login },
   { path: '/register', component: Register },
   { path: '/forgot-password', component: ForgotPassword },
@@ -41,6 +42,18 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
+  // 检查 /login 路由的 app_id 参数
+  if (to.path === '/login') {
+    const appId = to.query.app_id
+    const validAppIds = ['blog', 'mcp', 'manage']
+    
+    // 没有 app_id 或 app_id 不在有效列表中，重定向到主页
+    if (!appId || !validAppIds.includes(appId)) {
+      next('/')
+      return
+    }
+  }
+  
   if (to.meta.requiresAuth) {
     // 检查是否已登录
     const token = localStorage.getItem('access_token')
