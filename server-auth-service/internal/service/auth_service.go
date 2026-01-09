@@ -859,6 +859,8 @@ func (s *AuthService) handleDeviceLimit(userUUID uuid.UUID, appID uint, maxDevic
 			zap.String("user_uuid", userUUID.String()),
 			zap.String("device_id", oldestDevice.DeviceID),
 			zap.String("device_name", oldestDevice.DeviceName),
+			zap.String("ip_address", oldestDevice.IPAddress),
+			zap.String("user_agent", oldestDevice.UserAgent),
 		)
 	}
 
@@ -883,7 +885,7 @@ func (s *AuthService) KickDevice(c *gin.Context, userUUID uuid.UUID, deviceID st
 	if c != nil {
 		s.LogActionWithContext(c, userUUID, appID, action, deviceID, message, 1)
 	} else {
-		s.LogAction(userUUID, appID, action, deviceID, message, 1)
+		s.LogAction(userUUID, appID, action, deviceID, message, 1, "", "")
 	}
 
 	return nil
@@ -904,18 +906,20 @@ func (s *AuthService) kickDeviceInternal(userUUID uuid.UUID, deviceID string, ap
 	}
 
 	// 3. 记录日志（无IP和UA信息）
-	s.LogAction(userUUID, appID, action, deviceID, message, 1)
+	s.LogAction(userUUID, appID, action, deviceID, message, 1, "", "")
 
 	return nil
 }
 
-// LogAction 统一的日志记录方法
-func (s *AuthService) LogAction(userUUID uuid.UUID, appID uint, action, deviceID, message string, status int) {
+// LogAction 统一的日志记录方法（带IP和UA参数）
+func (s *AuthService) LogAction(userUUID uuid.UUID, appID uint, action, deviceID, message string, status int, ipAddress, userAgent string) {
 	log := database.SSOLoginLog{
 		UserUUID:  userUUID,
 		AppID:     appID,
 		Action:    action,
 		DeviceID:  deviceID,
+		IPAddress: ipAddress,
+		UserAgent: userAgent,
 		Status:    status,
 		Message:   message,
 		CreatedAt: time.Now(),
