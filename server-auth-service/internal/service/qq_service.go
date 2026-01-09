@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -260,8 +261,15 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 		global.DB.Create(&device)
 
 		// 记录新设备QQ登录日志
+		global.Log.Info("QQ新设备登录成功",
+			zap.String("user_uuid", user.UUID.String()),
+			zap.String("device_id", deviceID),
+			zap.String("device_name", deviceName),
+			zap.String("ip_address", ipAddress),
+			zap.String("user_agent", userAgent),
+		)
 		authService := &AuthService{}
-		authService.LogAction(user.UUID, app.ID, "qq_login", deviceID, "QQ新设备登录成功", 1)
+		authService.LogAction(user.UUID, app.ID, "qq_login", deviceID, "QQ新设备登录成功", 1, ipAddress, userAgent)
 	} else {
 		global.DB.Model(&existDevice).Updates(map[string]interface{}{
 			"last_active_at": time.Now(),
@@ -271,8 +279,15 @@ func (s *QQService) QQLogin(openID, appID, deviceID, deviceName, deviceType, ipA
 		})
 
 		// 记录现有设备QQ登录日志
+		global.Log.Info("QQ设备登录成功",
+			zap.String("user_uuid", user.UUID.String()),
+			zap.String("device_id", deviceID),
+			zap.String("device_name", deviceName),
+			zap.String("ip_address", ipAddress),
+			zap.String("user_agent", userAgent),
+		)
 		authService := &AuthService{}
-		authService.LogAction(user.UUID, app.ID, "qq_login", deviceID, "QQ设备登录成功", 1)
+		authService.LogAction(user.UUID, app.ID, "qq_login", deviceID, "QQ设备登录成功", 1, ipAddress, userAgent)
 	}
 
 	// 生成Token

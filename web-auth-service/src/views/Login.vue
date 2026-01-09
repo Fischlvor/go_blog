@@ -182,6 +182,7 @@ import { ElMessage } from 'element-plus'
 import { getCaptcha, sendEmailVerificationCode, getQQLoginURL } from '@/api/base'
 import { login } from '@/api/auth'
 import { encodeState, generateNonce } from '@/utils/state'
+import { getDeviceId, getBrowserName } from '@/utils/device'
 import AuthLayout from '@/components/AuthLayout.vue'
 import CaptchaDialog from '@/components/CaptchaDialog.vue'
 
@@ -316,10 +317,22 @@ onUnmounted(() => {
 async function handleLogin() {
   loading.value = true
   try {
+    // 生成state参数
+    const stateData = {
+      nonce: generateNonce(),
+      app_id: appId,
+      device_id: getDeviceId(),
+      redirect_uri: redirectUri,
+      return_url: returnUrl
+    }
+    const encodedState = encodeState(stateData)
+
     const loginData = {
       email: form.value.email,
       app_id: appId,
-      state: state || `redirect_uri=${encodeURIComponent(redirectUri)}`
+      state: encodedState,
+      device_name: getBrowserName(),
+      device_type: 'web'
     }
 
     if (loginType.value === 'password') {
@@ -333,15 +346,13 @@ async function handleLogin() {
     const response = await login(loginData)
 
     if (response.data.code === 0) {
-      ElMessage.success('登录成功！')
       const data = response.data.data
-      if (data.redirect_url) {
-        window.location.href = data.redirect_url
-      } else if (returnUrl && returnUrl !== '/') {
-        window.location.href = returnUrl
-      } else {
-        router.push('/')
+      // OAuth 2.0 流程：构造回调URL
+      let callbackUrl = `${data.redirect_uri}?code=${data.code}`
+      if (data.return_url) {
+        callbackUrl += `&return_url=${encodeURIComponent(data.return_url)}`
       }
+      window.location.href = callbackUrl
     } else {
       ElMessage.error(response.data.message || '登录失败')
       if (loginType.value === 'password') {
@@ -352,8 +363,7 @@ async function handleLogin() {
   } catch (err) {
     ElMessage.error(err.response?.data?.message || '登录失败，请重试')
     if (loginType.value === 'password') {
-      await refreshCaptcha()
-      form.value.captcha = ''
+      refreshCaptcha()
     }
   } finally {
     loading.value = false
@@ -365,6 +375,7 @@ async function qqLogin() {
     const stateData = {
       nonce: generateNonce(),
       app_id: appId,
+      device_id: getDeviceId(),
       redirect_uri: redirectUri,
       return_url: returnUrl
     }

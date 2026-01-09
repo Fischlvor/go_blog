@@ -34,6 +34,9 @@ export function encodeState(data) {
   if (!data.app_id) {
     throw new Error('app_id不能为空')
   }
+  if (!data.device_id) {
+    throw new Error('device_id不能为空')
+  }
   if (!data.redirect_uri) {
     throw new Error('redirect_uri不能为空')
   }
