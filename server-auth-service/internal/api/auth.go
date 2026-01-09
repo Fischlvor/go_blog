@@ -5,6 +5,7 @@ import (
 	"auth-service/internal/model/request"
 	"auth-service/internal/model/response"
 	"auth-service/internal/service"
+	customerrors "auth-service/pkg/errors"
 	"auth-service/pkg/global"
 	"auth-service/pkg/utils"
 	"fmt"
@@ -26,12 +27,6 @@ func (h *AuthApi) Register(c *gin.Context) {
 	var req request.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "参数错误: "+err.Error())
-		return
-	}
-
-	// 验证验证码
-	if !captchaStore.Verify(req.CaptchaID, req.Captcha, true) {
-		response.Error(c, 1000, "验证码错误")
 		return
 	}
 
@@ -422,7 +417,17 @@ func (h *AuthApi) SendEmailVerificationCode(c *gin.Context) {
 	}
 
 	// 发送邮箱验证码
-	if err := authService.SendEmailVerificationCode(req.Email); err != nil {
+	if err := authService.SendEmailVerificationCode(req.Email, req.Scene); err != nil {
+		// 检查是否是冷却错误（使用类型断言）
+		if cooldownErr, ok := err.(*customerrors.CooldownError); ok {
+			// 返回业务错误代码 1013 (发送频率限制) 和剩余时间
+			c.JSON(200, gin.H{
+				"code":              1013,
+				"message":           cooldownErr.Error(),
+				"remaining_seconds": cooldownErr.RemainingSeconds,
+			})
+			return
+		}
 		response.Error(c, 1010, err.Error())
 		return
 	}
@@ -471,7 +476,7 @@ func (h *AuthApi) QQLoginURL(c *gin.Context) {
 		"redirect_uri=" + url.QueryEscape(redirectURI)
 	// state参数只需要在授权URL中传递一次，QQ会原样返回
 	if state != "" {
-		authURL = authURL + "&state=" + url.QueryEscape(state)
+		authURL = authURL + "&state=" + state
 	}
 	response.Success(c, gin.H{"url": authURL})
 }

@@ -12,7 +12,7 @@ type SSOUser struct {
 	global.MODEL
 	UUID           uuid.UUID               `json:"uuid" gorm:"type:char(36);uniqueIndex"`
 	Username       string                  `json:"username" gorm:"size:50"`
-	PasswordHash   string                  `json:"-" gorm:"size:255;column:password_hash"`
+	PasswordHash   *string                 `json:"-" gorm:"size:255;column:password_hash;default:null"`
 	Email          *string                 `json:"email" gorm:"size:100;uniqueIndex;default:null"`
 	Phone          string                  `json:"phone" gorm:"size:20;uniqueIndex;default:null"`
 	Nickname       string                  `json:"nickname" gorm:"size:50"`

@@ -454,6 +454,46 @@ VITE_API_BASE_URL=http://localhost:8000/api
 
 ### 2026-01-09
 
+#### Fixed
+- **修复 QQ 登录 state 参数编码问题**
+  - **问题描述**：QQ 登录回调时 state 参数解析失败，报错 "invalid character '%' looking for beginning of value"
+  - **根本原因**：
+    - 前端 Login.vue 中存在错误的本地 `encodeState` 函数：`btoa(encodeURIComponent(JSON.stringify(data)))`
+    - 导致 state 被多次编码：JSON → URL编码 → Base64编码
+    - 后端 QQLoginURL 函数对 state 进行了多余的 `url.QueryEscape(state)`
+  - **修复内容**：
+    - 删除 Login.vue 中错误的本地 `encodeState` 函数
+    - 导入并使用 `@/utils/state.js` 中的正确实现
+    - 添加 `nonce` 字段到 stateData（符合 OAuth 2.0 规范）
+    - 移除后端 `auth.go` 中对 state 的多余 URL 编码
+    - 保持 `state.go` 中简单的 Base64 解码逻辑
+  - **编码流程优化**：
+    - 修复前：JSON → URL编码 → Base64 → URL编码（后端）→ 3层编码
+    - 修复后：JSON → Base64 → 1层编码
+  - **影响文件**：
+    - `web-auth-service/src/views/Login.vue`
+    - `server-auth-service/internal/api/auth.go`
+    - `server-auth-service/pkg/utils/state.go`
+
+- **完善邮箱验证码冷却机制**
+  - **实现内容**：
+    - 使用 Go 自定义错误类型 `CooldownError` 代替字符串解析
+    - 创建 `pkg/errors/email_errors.go` 定义冷却错误
+    - 后端返回业务错误代码 1013（发送频率限制）
+    - 前端根据 `remaining_seconds` 字段动态设置倒计时
+    - 图形验证码弹窗在确认后立即关闭
+  - **用户体验优化**：
+    - 点击发送后立即禁用表单和按钮并变灰
+    - 成功则保持禁用，失败则恢复可用
+    - 刷新页面后仍显示正确的剩余冷却时间
+  - **符合 Go 最佳实践**：使用自定义错误类型而非错误码或字符串前缀判断
+
+- **优化登录按钮禁用逻辑**
+  - 添加 `canLogin` 计算属性验证表单完整性
+  - 密码登录：必须填写邮箱、密码和图形验证码
+  - 验证码登录：必须填写邮箱和邮箱验证码
+  - 防止提交不完整的表单
+
 #### Added
 - **实现 SSO 主页和登录页主题化功能**
   - **SSO 主页 (Home.vue)**：

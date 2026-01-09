@@ -2,12 +2,11 @@ package request
 
 // RegisterRequest 注册请求
 type RegisterRequest struct {
-	Email     string `json:"email" binding:"required,email"`
-	Password  string `json:"password" binding:"required,min=8,max=20"`
-	Nickname  string `json:"nickname" binding:"required"`
-	AppID     string `json:"app_id" binding:"required"`
-	CaptchaID string `json:"captcha_id" binding:"required"`
-	Captcha   string `json:"captcha" binding:"required,len=6"`
+	Email            string `json:"email" binding:"required,email"`
+	Password         string `json:"password" binding:"required,min=8,max=20"`
+	Nickname         string `json:"nickname" binding:"required"`
+	AppID            string `json:"app_id" binding:"required"`
+	VerificationCode string `json:"verification_code" binding:"required,len=6"` // 邮箱验证码
 }
 
 // LoginRequest 登录请求
@@ -78,6 +77,7 @@ type QQLoginRequest struct {
 // SendEmailVerificationCodeRequest 发送邮箱验证码请求
 type SendEmailVerificationCodeRequest struct {
 	Email     string `json:"email" binding:"required,email"`
+	Scene     string `json:"scene" binding:"required,oneof=register login forgot_password"` // 场景：register/login/forgot_password
 	CaptchaID string `json:"captcha_id" binding:"required"`
 	Captcha   string `json:"captcha" binding:"required,len=6"`
 }

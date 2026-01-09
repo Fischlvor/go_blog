@@ -6,6 +6,7 @@ import (
 	"auth-service/internal/model/request"
 	"auth-service/internal/model/response"
 	"auth-service/pkg/crypto"
+	customerrors "auth-service/pkg/errors"
 	"auth-service/pkg/global"
 	"auth-service/pkg/jwt"
 	"auth-service/pkg/utils"
@@ -41,9 +42,19 @@ func (s *AuthService) GetAppByKey(appKey string) (*database.SSOApplication, erro
 
 // Register 用户注册
 func (s *AuthService) Register(req request.RegisterRequest) error {
+	// 验证邮箱验证码
+	key := fmt.Sprintf("email_verification_code:register:%s", req.Email)
+	storedCode, err := global.Redis.Get(key).Result()
+	if err != nil {
+		return errors.New("验证码已过期或不存在")
+	}
+	if storedCode != req.VerificationCode {
+		return errors.New("验证码错误")
+	}
+
 	// 检查邮箱是否已注册
 	var existUser database.SSOUser
-	err := global.DB.Where("email = ?", req.Email).First(&existUser).Error
+	err = global.DB.Where("email = ?", req.Email).First(&existUser).Error
 	if err == nil {
 		return errors.New("邮箱已被注册")
 	}
@@ -61,7 +72,7 @@ func (s *AuthService) Register(req request.RegisterRequest) error {
 	user := database.SSOUser{
 		UUID:           uuid.Must(uuid.NewV4()),
 		Username:       req.Email, // 默认用邮箱作为用户名
-		PasswordHash:   passwordHash,
+		PasswordHash:   &passwordHash,
 		Email:          &req.Email,
 		Nickname:       req.Nickname,
 		Avatar:         "https://image.hsk423.cn/blog/aaca0f5eb4d2d98a6ce6dffa99f8254b-20251108151238.jpg",
@@ -102,7 +113,15 @@ func (s *AuthService) Register(req request.RegisterRequest) error {
 		return fmt.Errorf("授权应用失败: %w", err)
 	}
 
-	return tx.Commit().Error
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	// 注册成功后删除验证码，防止重复使用
+	global.Redis.Del(key)
+
+	return nil
 }
 
 // Login 用户登录
@@ -123,12 +142,12 @@ func (s *AuthService) Login(c *gin.Context, req request.LoginRequest) (*response
 	// 根据登录方式验证
 	if req.Password != "" {
 		// 密码登录：验证密码
-		if !crypto.CheckPassword(req.Password, user.PasswordHash) {
+		if user.PasswordHash == nil || !crypto.CheckPassword(req.Password, *user.PasswordHash) {
 			return nil, errors.New("邮箱或密码错误")
 		}
 	} else if req.VerificationCode != "" {
 		// 验证码登录：验证邮箱验证码
-		key := fmt.Sprintf("email_verification_code:%s", req.Email)
+		key := fmt.Sprintf("email_verification_code:login:%s", req.Email)
 		storedCode, err := global.Redis.Get(key).Result()
 		if err != nil {
 			return nil, errors.New("验证码已过期或不存在")
@@ -469,7 +488,7 @@ func (s *AuthService) UpdatePasswordByUUID(userUUID uuid.UUID, req request.Updat
 	}
 
 	// 验证旧密码
-	if !crypto.CheckPassword(req.OldPassword, user.PasswordHash) {
+	if user.PasswordHash == nil || !crypto.CheckPassword(req.OldPassword, *user.PasswordHash) {
 		return errors.New("原密码错误")
 	}
 
@@ -578,13 +597,27 @@ func (s *AuthService) QQLogin(c *gin.Context, req request.QQLoginRequest, ipAddr
 }
 
 // SendEmailVerificationCode 发送邮箱验证码
-func (s *AuthService) SendEmailVerificationCode(email string) error {
+func (s *AuthService) SendEmailVerificationCode(email, scene string) error {
+	// 检查发送冷却时间（60秒）
+	cooldownKey := fmt.Sprintf("email_verification_cooldown:%s:%s", scene, email)
+	exists, err := global.Redis.Exists(cooldownKey).Result()
+	if err != nil {
+		global.Log.Warn("检查冷却时间失败", zap.Error(err))
+	}
+	if exists > 0 {
+		// 获取剩余冷却时间
+		ttl, _ := global.Redis.TTL(cooldownKey).Result()
+		remainingSeconds := int(ttl.Seconds())
+		// 返回冷却错误
+		return customerrors.NewCooldownError(remainingSeconds)
+	}
+
 	// 生成6位验证码
 	verificationCode := utils.GenerateVerificationCode(6)
 	expireTime := 5 * time.Minute
 
-	// 存储到Redis，key格式：email_verification_code:{email}
-	key := fmt.Sprintf("email_verification_code:%s", email)
+	// 存储到Redis，key格式：email_verification_code:{scene}:{email}
+	key := fmt.Sprintf("email_verification_code:%s:%s", scene, email)
 	if err := global.Redis.Set(key, verificationCode, expireTime).Err(); err != nil {
 		return fmt.Errorf("存储验证码失败: %w", err)
 	}
@@ -616,13 +649,19 @@ func (s *AuthService) SendEmailVerificationCode(email string) error {
 		// return fmt.Errorf("发送邮件失败: %w", err)
 	}
 
+	// 设置冷却时间（60秒）
+	cooldownTime := 60 * time.Second
+	if err := global.Redis.Set(cooldownKey, "1", cooldownTime).Err(); err != nil {
+		global.Log.Warn("设置冷却时间失败", zap.Error(err))
+	}
+
 	return nil
 }
 
 // ForgotPassword 忘记密码
 func (s *AuthService) ForgotPassword(req request.ForgotPasswordRequest) error {
 	// 从Redis获取验证码
-	key := fmt.Sprintf("email_verification_code:%s", req.Email)
+	key := fmt.Sprintf("email_verification_code:forgot_password:%s", req.Email)
 	storedCode, err := global.Redis.Get(key).Result()
 	if err != nil {
 		return errors.New("验证码已过期或不存在")
