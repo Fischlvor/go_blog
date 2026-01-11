@@ -15,6 +15,15 @@ type ResourceApi struct{}
 
 var resourceService = &service.ResourceService{}
 
+// GetMaxFileSize 获取最大文件大小
+// GET /api/admin/resources/max-size
+func (r *ResourceApi) GetMaxFileSize(c *gin.Context) {
+	maxSize := resourceService.GetMaxFileSize()
+	response.OkWithData(gin.H{
+		"max_size": maxSize,
+	}, c)
+}
+
 // Check 检查文件（秒传/续传检测）
 // POST /api/admin/resources/check
 func (r *ResourceApi) Check(c *gin.Context) {
