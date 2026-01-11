@@ -87,6 +87,13 @@ export interface ResourceItem {
 // ==================== API 方法 ====================
 
 /**
+ * 获取最大文件大小
+ */
+export function getMaxFileSize(): Promise<ApiResponse<{ max_size: number }>> {
+  return service.get('/resources/max-size')
+}
+
+/**
  * 检查文件（秒传/续传检测）
  */
 export function checkResource(data: ResourceCheckRequest): Promise<ApiResponse<ResourceCheckResponse>> {
@@ -112,7 +119,8 @@ export function uploadChunk(taskId: string, chunkNumber: number, chunkData: Blob
   return service.post('/resources/upload-chunk', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    timeout: 300000 // 5分钟超时，避免大文件上传超时
   })
 }
 

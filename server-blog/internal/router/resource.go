@@ -16,6 +16,7 @@ func (r *ResourceRouter) InitResourceRouter(AdminRouter *gin.RouterGroup) {
 
 	{
 		// 上传相关
+		resourceAdminRouter.GET("max-size", resourceApi.GetMaxFileSize)   // 获取最大文件大小
 		resourceAdminRouter.POST("check", resourceApi.Check)              // 检查文件（秒传/续传检测）
 		resourceAdminRouter.POST("init", resourceApi.Init)                // 初始化上传任务
 		resourceAdminRouter.POST("upload-chunk", resourceApi.UploadChunk) // 上传分片

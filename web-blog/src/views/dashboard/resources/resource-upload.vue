@@ -16,7 +16,7 @@
       </div>
       <template #tip>
         <div class="el-upload__tip">
-          支持图片、视频、音频、文档等格式，单文件最大 500MB
+          支持图片、视频、音频、文档等格式，单文件最大 {{ maxFileSizeText }}
         </div>
       </template>
     </el-upload>
@@ -89,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from 'vue'
+import { reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled, Document } from '@element-plus/icons-vue'
 import type { UploadFile } from 'element-plus'
@@ -100,7 +100,8 @@ import {
   completeResource,
   cancelResource,
   calculateFileMD5,
-  formatFileSize
+  formatFileSize,
+  getMaxFileSize
 } from '@/api/resource'
 
 const emit = defineEmits<{
@@ -132,6 +133,23 @@ const uploadState = reactive<UploadState>({
   fileUrl: '',
   errorMsg: '',
   abortController: null
+})
+
+// 最大文件大小（字节）
+let maxFileSize = 500 * 1024 * 1024 // 默认 500MB
+let maxFileSizeText = '500MB'
+
+// 初始化：获取最大文件大小
+onMounted(async () => {
+  try {
+    const res = await getMaxFileSize()
+    if (res.code === 0 && res.data?.max_size) {
+      maxFileSize = res.data.max_size
+      maxFileSizeText = formatFileSize(maxFileSize)
+    }
+  } catch (error) {
+    console.warn('获取最大文件大小失败，使用默认值 500MB', error)
+  }
 })
 
 const progressStatus = computed(() => {
@@ -248,6 +266,13 @@ const uploadChunksWithRetry = async (
 
 const handleFileChange = async (uploadFile: UploadFile) => {
   if (!uploadFile.raw) return
+
+  // 前端初步检查：文件大小限制
+  if (uploadFile.raw.size > maxFileSize) {
+    const msg = `文件大小超过限制，最大允许 ${maxFileSizeText}，当前文件 ${formatFileSize(uploadFile.raw.size)}`
+    ElMessage.error(msg)
+    return
+  }
 
   uploadState.file = uploadFile.raw
   uploadState.status = 'hashing'

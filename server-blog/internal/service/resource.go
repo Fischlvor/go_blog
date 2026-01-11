@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"server/pkg/global"
 	"server/pkg/resource"
 
+	"github.com/go-redis/redis"
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 )
@@ -38,8 +40,57 @@ func (s *ResourceService) getValidator() *resource.DefaultValidator {
 	return resource.NewDefaultValidator()
 }
 
+// validateFileSize 验证文件大小（从 Redis 获取限制）
+func (s *ResourceService) validateFileSize(fileSize int64) error {
+	validator := s.getValidator()
+
+	// 从 Redis 获取文件大小限制
+	val, err := global.Redis.Get("upload:max_size").Result()
+	if err == nil {
+		// 成功获取，转换为 int64
+		if size, err := strconv.ParseInt(val, 10, 64); err == nil && size > 0 {
+			validator.SetMaxSize(size)
+		}
+	} else if err == redis.Nil {
+		// key 不存在，设置为默认值 500MB
+		defaultMaxSize := int64(500 * 1024 * 1024)
+		global.Redis.Set("upload:max_size", defaultMaxSize, 0)
+	}
+	// 其他错误（如连接失败），使用默认值
+
+	// 验证文件大小
+	return validator.ValidateSize(fileSize)
+}
+
+// GetMaxFileSize 获取最大文件大小
+func (s *ResourceService) GetMaxFileSize() int64 {
+	// 默认值：500MB
+	defaultMaxSize := int64(500 * 1024 * 1024)
+
+	// 从 Redis 获取文件大小限制
+	val, err := global.Redis.Get("upload:max_size").Result()
+	if err == nil {
+		// 成功获取，转换为 int64
+		if size, err := strconv.ParseInt(val, 10, 64); err == nil && size > 0 {
+			return size
+		}
+	} else if err == redis.Nil {
+		// key 不存在，设置为默认值 500MB
+		global.Redis.Set("upload:max_size", defaultMaxSize, 0)
+		return defaultMaxSize
+	}
+	// 其他错误（如连接失败），使用默认值
+
+	return defaultMaxSize
+}
+
 // Check 检查文件（秒传/续传检测）
 func (s *ResourceService) Check(req request.ResourceCheck, userUUID uuid.UUID) (*response.ResourceCheckResponse, error) {
+	// 验证文件大小（从 Redis 获取限制）
+	if err := s.validateFileSize(req.FileSize); err != nil {
+		return nil, err
+	}
+
 	// 1. 检查当前用户是否已有相同hash的资源（避免重复记录）
 	var userResource database.Resource
 	err := global.DB.Where("file_hash = ? AND user_uuid = ?", req.FileHash, userUUID).First(&userResource).Error
@@ -104,8 +155,8 @@ func (s *ResourceService) Init(req request.ResourceInit, userUUID uuid.UUID) (*r
 		return nil, err
 	}
 
-	// 验证文件大小
-	if err := s.getValidator().ValidateSize(req.FileSize); err != nil {
+	// 验证文件大小（从 Redis 获取限制）
+	if err := s.validateFileSize(req.FileSize); err != nil {
 		return nil, err
 	}
 
