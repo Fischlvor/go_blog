@@ -452,6 +452,60 @@ VITE_API_BASE_URL=http://localhost:8000/api
 
 ## 📝 开发日志
 
+### 2026-02-03
+
+#### Fixed
+- **修复 JWT 解析错误日志问题**
+  - **问题描述**：日志中频繁出现 `"that's not even a token"` 和 `"couldn't handle this token"` 错误
+  - **根本原因**：
+    - `RateLimitMiddleware` 全局应用，在 SSO 中间件之前执行
+    - `RateLimitKeyGetter` 调用 `utils.GetUUID(c)` 触发 JWT 解析
+    - 公开接口没有 token，导致解析失败并记录错误日志
+    - `LoginRecord` 中间件在公开路由上调用 `GetUUID`
+  - **修复内容**：
+    1. **调整限流中间件顺序**：
+       - 公开接口：直接限流（按 IP/设备ID）
+       - 私有接口：SSO 认证 → 限流（按用户 UUID）
+       - 管理员接口：SSO 认证 → Admin 认证 → 限流
+    2. **修改 `RateLimitKeyGetter`**：直接从 context 获取 claims，不调用 `GetUUID`
+    3. **修改 `LoginRecord`**：直接从 context 获取 `user_uuid`，不调用 `GetUUID`
+    4. **简化 `GetClaims`**：只从 context 获取 claims，移除 token 解析逻辑
+  - **影响文件**：
+    - `internal/initialize/router.go`
+    - `internal/middleware/ratelimit.go`
+    - `internal/middleware/login_record.go`
+    - `pkg/utils/claims.go`
+
+#### Refactor
+- **AI 模型配置迁移到配置文件**
+  - **问题描述**：`ai_tables.go` 中硬编码了 AI API Key
+  - **修复内容**：
+    1. 新增 `pkg/config/conf_ai.go` 定义 AI 配置结构
+    2. 修改 `InitDefaultAIModels` 从配置文件读取默认模型
+    3. 更新 `config.yaml`、`config.prod.yaml`、`config.example.yaml`
+    4. 添加环境变量替换支持（`${ENV_VAR}` 格式）
+  - **配置示例**：
+    ```yaml
+    ai:
+        default_models:
+            - name: deepseek-r1
+              display_name: DeepSeek R1 (七牛云)
+              provider: qiniu
+              endpoint: https://openai.qiniu.com/v1/chat/completions
+              api_key: your_api_key_here
+              max_tokens: 4096
+              temperature: 0.7
+              is_active: true
+    ```
+  - **影响文件**：
+    - `pkg/config/conf_ai.go`（新增）
+    - `pkg/config/enter.go`
+    - `pkg/utils/yaml.go`
+    - `internal/initialize/ai_tables.go`
+    - `configs/config.yaml`
+    - `configs/config.prod.yaml`
+    - `configs/config.example.yaml`
+
 ### 2026-01-09
 
 #### Fixed

@@ -1,6 +1,7 @@
 package config
 
 type Config struct {
+	AI      AI      `json:"ai" yaml:"ai"`
 	Captcha Captcha `json:"captcha" yaml:"captcha"`
 	Email   Email   `json:"email" yaml:"email"`
 	ES      ES      `json:"es" yaml:"es"`

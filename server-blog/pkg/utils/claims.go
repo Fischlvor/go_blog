@@ -4,11 +4,10 @@ import (
 	"net"
 	"server/internal/model/appTypes"
 	"server/internal/model/request"
-	"server/pkg/global"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
-	"go.uber.org/zap"
 )
 
 // SetRefreshToken 设置Refresh Token的cookie
@@ -46,10 +45,13 @@ func setCookie(c *gin.Context, name, value string, maxAge int, host string) {
 }
 
 // GetAccessToken 从请求头获取Access Token
+// 格式：Authorization: Bearer <token> (SSO 标准格式)
 func GetAccessToken(c *gin.Context) string {
-	// 获取x-access-token头部值
-	token := c.Request.Header.Get("x-access-token")
-	return token
+	auth := c.Request.Header.Get("Authorization")
+	if strings.HasPrefix(auth, "Bearer ") {
+		return strings.TrimPrefix(auth, "Bearer ")
+	}
+	return ""
 }
 
 // GetRefreshToken 从cookie获取Refresh Token
@@ -59,19 +61,18 @@ func GetRefreshToken(c *gin.Context) string {
 	return token
 }
 
-// GetClaims 从Gin的Context中解析并获取JWT的Claims
+// GetClaims 从Gin的Context中获取JWT的Claims
+// SSO模式下，claims由SSOJWTAuth中间件设置到context中
+// 注意：此函数只应在私有路由（有SSO中间件）中调用
 func GetClaims(c *gin.Context) (*request.JwtCustomClaims, error) {
-	// 获取请求头中的Access Token
-	token := GetAccessToken(c)
-	// 创建JWT实例
-	j := NewJWT()
-	// 解析Access Token
-	claims, err := j.ParseAccessToken(token)
-	if err != nil {
-		// 如果解析失败，记录错误日志
-		global.Log.Error("Failed to retrieve JWT parsing information from Gin's Context. Please check if the request header contains 'x-access-token' and if the claims structure is correct.", zap.Error(err))
+	// 从context中获取claims（SSO中间件已设置）
+	if claims, exists := c.Get("claims"); exists {
+		if jwtClaims, ok := claims.(*request.JwtCustomClaims); ok {
+			return jwtClaims, nil
+		}
 	}
-	return claims, err
+	// 没有claims说明未经过SSO中间件认证
+	return nil, TokenMalformed
 }
 
 // GetRefreshClaims 从Gin的Context中解析并获取Refresh Token的Claims
@@ -82,10 +83,6 @@ func GetRefreshClaims(c *gin.Context) (*request.JwtCustomRefreshClaims, error) {
 	j := NewJWT()
 	// 解析Refresh Token
 	claims, err := j.ParseRefreshToken(token)
-	if err != nil {
-		// 如果解析失败，记录错误日志
-		global.Log.Error("Failed to retrieve JWT parsing information from Gin's Context. Please check if the request header contains 'x-refresh-token' and if the claims structure is correct.", zap.Error(err))
-	}
 	return claims, err
 }
 

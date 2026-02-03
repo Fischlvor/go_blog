@@ -1,6 +1,18 @@
 # 博客服务配置文件示例
 # 使用说明：复制此文件为 config.yaml 并根据实际情况修改配置
 
+# AI模型配置
+ai:
+    default_models:
+        - name: deepseek-r1
+          display_name: DeepSeek R1 (七牛云)
+          provider: qiniu
+          endpoint: https://openai.qiniu.com/v1/chat/completions
+          api_key: your_ai_api_key_here  # AI模型API密钥
+          max_tokens: 4096
+          temperature: 0.7
+          is_active: true
+
 # 验证码配置
 captcha:
     height: 80

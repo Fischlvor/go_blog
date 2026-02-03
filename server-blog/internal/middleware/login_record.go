@@ -4,9 +4,9 @@ import (
 	"server/internal/model/database"
 	"server/internal/service"
 	"server/pkg/global"
-	"server/pkg/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/ua-parser/uap-go/uaparser"
 	"go.uber.org/zap"
 )
@@ -31,9 +31,14 @@ func LoginRecord() gin.HandlerFunc {
 			os, deviceInfo, browserInfo := parseUserAgent(userAgent)
 
 			// 创建登录记录
-			userUUID := utils.GetUUID(c)
+			// 注意：登录接口是公开路由，没有 SSO 中间件
+			// TokenNext 设置的是 "user_uuid"，不是 "claims"
+			var userUUID uuid.UUID
+			if val, exists := c.Get("user_uuid"); exists {
+				userUUID = val.(uuid.UUID)
+			}
 			login := database.Login{
-				UserUUID:    userUUID, // ✅ 使用UUID
+				UserUUID:    userUUID, // 从 context 获取（登录成功时设置）
 				LoginMethod: loginMethod,
 				IP:          ip,
 				Address:     address,

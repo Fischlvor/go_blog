@@ -22,8 +22,7 @@ func InitRouter() *gin.Engine {
 	// 使用日志记录中间件
 	Router.Use(middleware.GinLogger(), middleware.GinRecovery(true))
 
-	// 使用限流中间件
-	Router.Use(middleware.RateLimitMiddleware(global.RateLimiter))
+	// 注意：限流中间件移到路由组级别，以支持用户级别限流
 
 	// 使用gin会话路由 - 复用全局Redis配置参数
 	// 注意：这里复用global.Config.Redis的配置，但gin-contrib/sessions/redis使用不同的Redis库
@@ -52,14 +51,20 @@ func InitRouter() *gin.Engine {
 	// 创建路由组
 	routerGroup := router.RouterGroupApp
 
+	// 公开接口：按 IP / 设备ID 限流
 	publicGroup := Router.Group(global.Config.System.RouterPrefix)
+	publicGroup.Use(middleware.RateLimitMiddleware(global.RateLimiter))
 
-	// ✅ 使用SSO JWT中间件
+	// 私有接口：先 SSO JWT 认证，再按用户 UUID 限流
 	privateGroup := Router.Group(global.Config.System.RouterPrefix)
 	privateGroup.Use(middleware.SSOJWTAuth())
+	privateGroup.Use(middleware.RateLimitMiddleware(global.RateLimiter))
 
+	// 管理员接口：先 SSO JWT + Admin 认证，再按用户 UUID 限流
 	adminGroup := Router.Group(global.Config.System.RouterPrefix)
-	adminGroup.Use(middleware.SSOJWTAuth()).Use(middleware.AdminAuth())
+	adminGroup.Use(middleware.SSOJWTAuth())
+	adminGroup.Use(middleware.AdminAuth())
+	adminGroup.Use(middleware.RateLimitMiddleware(global.RateLimiter))
 
 	// 基础 路由
 	{
