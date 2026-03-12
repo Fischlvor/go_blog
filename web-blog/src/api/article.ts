@@ -1,47 +1,76 @@
 import type {Hit, PageInfo, PageResult} from "@/api/common";
 import type {ApiResponse} from "@/utils/request";
-import service from "@/utils/request";
+import service, { adminService } from "@/utils/request";
 
-export interface Article {
-    created_at: string;
-    updated_at: string;
+export interface ArticleAuthor {
+    uuid: string;
+    nickname: string;
+    avatar: string;
+}
 
-    cover: string;
-    title: string;
-    keyword: string;
-    category: string;
-    tags: string[];
-    abstract: string;
-    content: string;
-
-    views: number;
-    comments: number;
+export interface ArticleLikeInfo {
+    liked?: boolean;
     likes: number;
 }
 
+export interface ArticleCategory {
+    id: number;
+    name: string;
+    slug: string;
+}
+
+export interface ArticleTagItem {
+    id: number;
+    name: string;
+    slug: string;
+}
+
+export interface Article {
+    id: number;
+    title: string;
+    slug: string;
+    excerpt: string;
+    abstract?: string;
+    cover?: string;
+    featured_image: string;
+    author_uuid: string;
+    author: ArticleAuthor;
+    status: string;
+    read_time: number;
+    views: number;
+    like: ArticleLikeInfo;
+    is_featured: boolean;
+    published_at: string | null;
+    created_at: string;
+    updated_at: string;
+    category: ArticleCategory;
+    tags: ArticleTagItem[];
+    content?: string;
+    meta_title?: string;
+    meta_description?: string;
+}
+
 export interface ArticleLikeRequest {
-    article_id: string;
+    slug: string;
 }
 
-export const articleLike = (data: ArticleLikeRequest): Promise<ApiResponse<undefined>> => {
+export const articleLike = (slug: string): Promise<ApiResponse<undefined>> => {
     return service({
-        url: '/article/like',
+        url: `/article/${slug}/like`,
         method: 'post',
-        data: data
     })
 }
 
-export const articleIsLike = (data: ArticleLikeRequest): Promise<ApiResponse<boolean>> => {
+export const articleUnlike = (slug: string): Promise<ApiResponse<undefined>> => {
     return service({
-        url: '/article/isLike',
-        method: 'get',
-        params: data
+        url: `/article/${slug}/like`,
+        method: 'delete',
     })
 }
 
-export const articleLikesList = (data: PageInfo): Promise<ApiResponse<PageResult<Hit<Article>>>> => {
+export const articleLikesList = (data: PageInfo): Promise<ApiResponse<PageResult<Article>>> => {
     return service({
-        url: '/article/likesList',
+        url: '/article/likes',
         method: 'get',
         params: data
     })
@@ -57,7 +86,7 @@ export interface ArticleCreateRequest {
 }
 
 export const articleCreate = (data: ArticleCreateRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/article/create',
         method: 'post',
         data: data
@@ -69,7 +98,7 @@ export interface ArticleDeleteRequest {
 }
 
 export const articleDelete = (data: ArticleDeleteRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/article/delete',
         method: 'delete',
         data: data
@@ -87,7 +116,7 @@ export interface ArticleUpdateRequest {
 }
 
 export const articleUpdate = (data: ArticleUpdateRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/article/update',
         method: 'put',
         data: data
@@ -100,8 +129,8 @@ export interface ArticleListRequest extends PageInfo {
     abstract: string | null;
 }
 
-export const articleList = (data: ArticleListRequest): Promise<ApiResponse<PageResult<Hit<Article>>>> => {
-    return service({
+export const articleList = (data: ArticleListRequest): Promise<ApiResponse<PageResult<Article>>> => {
+    return adminService({
         url: '/article/list',
         method: 'get',
         params: data,
@@ -123,7 +152,7 @@ export interface ArticleSearchRequest extends PageInfo {
     order: string;
 }
 
-export const articleSearch = (data: ArticleSearchRequest): Promise<ApiResponse<PageResult<Hit<Article>>>> => {
+export const articleSearch = (data: ArticleSearchRequest): Promise<ApiResponse<PageResult<Article>>> => {
     return service({
         url: '/article/search',
         method: 'get',
@@ -131,24 +160,32 @@ export const articleSearch = (data: ArticleSearchRequest): Promise<ApiResponse<P
     });
 }
 
-export interface ArticleCategory {
-    category: string;
-    number: number;
+export interface CategoryDetail {
+    id: number;
+    name: string;
+    slug: string;
+    article_count: number;
+    created_at: string;
+    updated_at: string;
 }
 
-export const articleCategory = (): Promise<ApiResponse<ArticleCategory[]>> => {
+export const articleCategory = (): Promise<ApiResponse<CategoryDetail[]>> => {
     return service({
         url: '/article/category',
         method: 'get',
     });
 }
 
-export interface ArticleTag {
-    tag: string;
-    number: number;
+export interface TagDetail {
+    id: number;
+    name: string;
+    slug: string;
+    article_count: number;
+    created_at: string;
+    updated_at: string;
 }
 
-export const articleTags = (): Promise<ApiResponse<ArticleTag[]>> => {
+export const articleTags = (): Promise<ApiResponse<TagDetail[]>> => {
     return service({
         url: '/article/tags',
         method: 'get',

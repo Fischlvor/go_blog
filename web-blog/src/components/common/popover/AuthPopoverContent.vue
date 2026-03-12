@@ -40,9 +40,9 @@ const redirectToSSO = async (action: 'login' | 'register' | 'forgot-password') =
     const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
     
     // 通过 Blog 后端获取 SSO URL
-    const response = await axios.get(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
+    const response = await axios.get(`/api/v1/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
     
-    if (response.data.code === 0) {
+    if (response.data.code === "0000") {
       // 构建完整的SSO URL，根据action添加不同的路径
       let ssoURL = response.data.data.sso_login_url;
       

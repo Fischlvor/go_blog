@@ -9,7 +9,7 @@
             </template>
             <template #default>
               <user-card :uuid="''"
-                         :user-card-info="{uuid:item.user.uuid,username:item.user.username,avatar:item.user.avatar,address:item.user.address,signature:item.user.signature}"/>
+                         :user-card-info="{uuid:item.user.uuid,username:item.user.username,avatar:item.user.avatar,address:item.user.address || '',signature:item.user.signature || ''}"/>
             </template>
           </el-popover>
           <div class="name">
@@ -152,13 +152,13 @@ const changeEmojiListState = () => {
 
 const submitReply = async (item: Comment) => {
   const commentCreateRequest: CommentCreateRequest = {
-    article_id: item.article_id,
-    p_id: item.id,
+    article_slug: item.article_slug,
+    parent_id: item.id,
     content: content.value,
   }
   const res = await commentCreate(commentCreateRequest)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     layoutStore.show("shouldRefreshCommentList")
     //layoutStore.state.shouldRefreshCommentList = true
     replyFlag.value = 0
@@ -173,8 +173,8 @@ const handleDelete = async (id: number) => {
     ids: ids
   }
   const res = await commentDelete(commentDeleteRequest)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     layoutStore.show("shouldRefreshCommentList")
     //layoutStore.state.shouldRefreshCommentList = true
     //console.log(layoutStore.state.shouldRefreshCommentList)

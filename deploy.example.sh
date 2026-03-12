@@ -8,8 +8,8 @@
 set -e  # 遇到错误立即退出
 
 # ==================== 配置区域 ====================
-# 远程服务器配置
-REMOTE_HOST="8.148.64.96"     # 服务器IP
+# 远程服务器配置（请修改为实际值）
+REMOTE_HOST="your_server_ip"  # 服务器IP
 REMOTE_USER="root"            # SSH用户名
 REMOTE_PORT="22"              # SSH端口，默认22
 
@@ -22,6 +22,14 @@ REMOTE_DEPLOY_DIR="${REMOTE_BASE_DIR}/deploy"
 # 本地项目根目录
 LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# ==================== 服务名称配置（修改这里即可切换版本） ====================
+# 服务目录名（本地构建目录）
+SERVER_BLOG_DIR="server-blog-v2"
+SERVER_AUTH_DIR="server-auth-service"
+WEB_BLOG_DIR="web-blog"
+WEB_AUTH_DIR="web-auth-service"
+NGINX_DIR="nginx"
+
 # Docker镜像名称和标签
 IMAGE_TAG="latest"
 SERVER_BLOG_IMAGE="server-blog:${IMAGE_TAG}"
@@ -29,6 +37,17 @@ SERVER_AUTH_IMAGE="server-auth:${IMAGE_TAG}"
 WEB_BLOG_IMAGE="web-blog:${IMAGE_TAG}"
 WEB_AUTH_IMAGE="web-auth:${IMAGE_TAG}"
 NGINX_IMAGE="nginx-proxy:${IMAGE_TAG}"
+
+# tar 文件名
+SERVER_BLOG_TAR="server-blog.tar"
+SERVER_AUTH_TAR="server-auth.tar"
+WEB_BLOG_TAR="web-blog.tar"
+WEB_AUTH_TAR="web-auth.tar"
+NGINX_TAR="nginx.tar"
+
+# 远程部署目录名
+SERVER_BLOG_DEPLOY="server-blog"
+SERVER_AUTH_DEPLOY="server-auth"
 
 # 颜色输出
 RED='\033[0;31m'
@@ -72,23 +91,23 @@ step_build_images() {
     log_info "开始构建Docker镜像..."
     
     log_info "构建 server-blog 镜像..."
-    cd "${LOCAL_PROJECT_DIR}/server-blog"
+    cd "${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}"
     docker build -t ${SERVER_BLOG_IMAGE} .
     
     log_info "构建 server-auth 镜像..."
-    cd "${LOCAL_PROJECT_DIR}/server-auth-service"
+    cd "${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}"
     docker build -t ${SERVER_AUTH_IMAGE} .
     
     log_info "构建 web-blog 镜像..."
-    cd "${LOCAL_PROJECT_DIR}/web-blog"
+    cd "${LOCAL_PROJECT_DIR}/${WEB_BLOG_DIR}"
     docker build -t ${WEB_BLOG_IMAGE} .
     
     log_info "构建 web-auth 镜像..."
-    cd "${LOCAL_PROJECT_DIR}/web-auth-service"
+    cd "${LOCAL_PROJECT_DIR}/${WEB_AUTH_DIR}"
     docker build -t ${WEB_AUTH_IMAGE} .
     
     log_info "构建 nginx 镜像..."
-    cd "${LOCAL_PROJECT_DIR}/nginx"
+    cd "${LOCAL_PROJECT_DIR}/${NGINX_DIR}"
     docker build -t ${NGINX_IMAGE} .
     
     log_info "所有镜像构建完成！"
@@ -107,27 +126,27 @@ step_build_single_image() {
     case "$service" in
         server-blog)
             log_info "构建 server-blog 镜像..."
-            cd "${LOCAL_PROJECT_DIR}/server-blog"
+            cd "${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}"
             docker build -t ${SERVER_BLOG_IMAGE} .
             ;;
         server-auth)
             log_info "构建 server-auth 镜像..."
-            cd "${LOCAL_PROJECT_DIR}/server-auth-service"
+            cd "${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}"
             docker build -t ${SERVER_AUTH_IMAGE} .
             ;;
         web-blog)
             log_info "构建 web-blog 镜像..."
-            cd "${LOCAL_PROJECT_DIR}/web-blog"
+            cd "${LOCAL_PROJECT_DIR}/${WEB_BLOG_DIR}"
             docker build -t ${WEB_BLOG_IMAGE} .
             ;;
         web-auth)
             log_info "构建 web-auth 镜像..."
-            cd "${LOCAL_PROJECT_DIR}/web-auth-service"
+            cd "${LOCAL_PROJECT_DIR}/${WEB_AUTH_DIR}"
             docker build -t ${WEB_AUTH_IMAGE} .
             ;;
         nginx)
             log_info "构建 nginx 镜像..."
-            cd "${LOCAL_PROJECT_DIR}/nginx"
+            cd "${LOCAL_PROJECT_DIR}/${NGINX_DIR}"
             docker build -t ${NGINX_IMAGE} .
             ;;
         *)
@@ -152,11 +171,11 @@ step_save_and_upload() {
     TEMP_DIR=$(mktemp -d)
     cd ${TEMP_DIR}
     
-    docker save ${SERVER_BLOG_IMAGE} -o server-blog.tar
-    docker save ${SERVER_AUTH_IMAGE} -o server-auth.tar
-    docker save ${WEB_BLOG_IMAGE} -o web-blog.tar
-    docker save ${WEB_AUTH_IMAGE} -o web-auth.tar
-    docker save ${NGINX_IMAGE} -o nginx.tar
+    docker save ${SERVER_BLOG_IMAGE} -o ${SERVER_BLOG_TAR}
+    docker save ${SERVER_AUTH_IMAGE} -o ${SERVER_AUTH_TAR}
+    docker save ${WEB_BLOG_IMAGE} -o ${WEB_BLOG_TAR}
+    docker save ${WEB_AUTH_IMAGE} -o ${WEB_AUTH_TAR}
+    docker save ${NGINX_IMAGE} -o ${NGINX_TAR}
     
     log_info "镜像保存完成！"
     
@@ -165,13 +184,13 @@ step_save_and_upload() {
     ssh -T -q -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} << EOF
         mkdir -p ${REMOTE_IMAGE_DIR}
         mkdir -p ${REMOTE_COMPOSE_DIR}
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/configs
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/uploads
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/log
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/keys
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/configs
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/log
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/keys
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/configs
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/uploads
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/log
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/keys
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_AUTH_DEPLOY}/configs
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_AUTH_DEPLOY}/log
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_AUTH_DEPLOY}/keys
 EOF
     
     # 上传镜像文件
@@ -186,39 +205,39 @@ EOF
     log_info "检查并上传正式环境配置文件..."
     
     # 复制 server-blog 正式环境配置文件到挂载位置
-    if [ -f "${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml" ]; then
+    if [ -f "${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/configs/config.prod.yaml" ]; then
         log_info "上传 server-blog 正式环境配置文件..."
-        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/configs/ || log_warn "上传正式环境配置文件失败"
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/configs/ || log_warn "上传正式环境配置文件失败"
     else
-        log_warn "server-blog 正式环境配置文件不存在于本地: ${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml"
+        log_warn "server-blog 正式环境配置文件不存在于本地: ${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/configs/config.prod.yaml"
     fi
     
     # 上传 server-blog 限流配置文件
-    if [ -f "${LOCAL_PROJECT_DIR}/server-blog/configs/rate_limit.yaml" ]; then
+    if [ -f "${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/configs/rate_limit.yaml" ]; then
         log_info "上传 server-blog 限流配置文件..."
-        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-blog/configs/rate_limit.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/configs/ || log_warn "上传限流配置文件失败"
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/configs/rate_limit.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/configs/ || log_warn "上传限流配置文件失败"
     else
-        log_warn "server-blog 限流配置文件不存在于本地: ${LOCAL_PROJECT_DIR}/server-blog/configs/rate_limit.yaml"
+        log_warn "server-blog 限流配置文件不存在于本地: ${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/configs/rate_limit.yaml"
     fi
     
     # 复制 server-auth 正式环境配置文件到挂载位置
-    if [ -f "${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml" ]; then
+    if [ -f "${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/configs/config.prod.yaml" ]; then
         log_info "上传 server-auth 正式环境配置文件..."
-        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-auth/configs/ || log_warn "上传正式环境配置文件失败"
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/${SERVER_AUTH_DEPLOY}/configs/ || log_warn "上传正式环境配置文件失败"
     else
-        log_warn "server-auth 正式环境配置文件不存在于本地: ${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml"
+        log_warn "server-auth 正式环境配置文件不存在于本地: ${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/configs/config.prod.yaml"
     fi
     
     # 上传 server-blog 密钥文件
-    if [ -d "${LOCAL_PROJECT_DIR}/server-blog/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/server-blog/keys 2>/dev/null)" ]; then
+    if [ -d "${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/keys 2>/dev/null)" ]; then
         log_info "上传 server-blog 密钥文件..."
-        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/server-blog/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/keys/ 2>/dev/null || log_warn "密钥文件已存在，跳过上传"
+        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/keys/ 2>/dev/null || log_warn "密钥文件已存在，跳过上传"
     fi
     
     # 上传 server-auth 密钥文件
-    if [ -d "${LOCAL_PROJECT_DIR}/server-auth-service/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/server-auth-service/keys 2>/dev/null)" ]; then
+    if [ -d "${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/keys 2>/dev/null)" ]; then
         log_info "上传 server-auth 密钥文件..."
-        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/server-auth-service/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-auth/keys/ 2>/dev/null || log_warn "密钥文件已存在，跳过上传"
+        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/${SERVER_AUTH_DEPLOY}/keys/ 2>/dev/null || log_warn "密钥文件已存在，跳过上传"
     fi
     
     # 清理本地临时文件
@@ -239,11 +258,11 @@ step_save_and_upload_single() {
     local tar_name=""
     local image_name=""
     case "$service" in
-        server-blog) tar_name="server-blog.tar"; image_name="${SERVER_BLOG_IMAGE}" ;;
-        server-auth) tar_name="server-auth.tar"; image_name="${SERVER_AUTH_IMAGE}" ;;
-        web-blog)   tar_name="web-blog.tar";   image_name="${WEB_BLOG_IMAGE}" ;;
-        web-auth)   tar_name="web-auth.tar";   image_name="${WEB_AUTH_IMAGE}" ;;
-        nginx)      tar_name="nginx.tar";      image_name="${NGINX_IMAGE}" ;;
+        server-blog) tar_name="${SERVER_BLOG_TAR}"; image_name="${SERVER_BLOG_IMAGE}" ;;
+        server-auth) tar_name="${SERVER_AUTH_TAR}"; image_name="${SERVER_AUTH_IMAGE}" ;;
+        web-blog)   tar_name="${WEB_BLOG_TAR}";   image_name="${WEB_BLOG_IMAGE}" ;;
+        web-auth)   tar_name="${WEB_AUTH_TAR}";   image_name="${WEB_AUTH_IMAGE}" ;;
+        nginx)      tar_name="${NGINX_TAR}";      image_name="${NGINX_IMAGE}" ;;
         *)
             log_error "未知服务: $service"
             exit 1
@@ -258,33 +277,33 @@ step_save_and_upload_single() {
     ssh -T -q -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} << EOF
         mkdir -p ${REMOTE_IMAGE_DIR}
         mkdir -p ${REMOTE_COMPOSE_DIR}
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/configs
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/uploads
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/log
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-blog/keys
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/configs
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/log
-        mkdir -p ${REMOTE_DEPLOY_DIR}/server-auth/keys
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/configs
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/uploads
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/log
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/keys
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_AUTH_DEPLOY}/configs
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_AUTH_DEPLOY}/log
+        mkdir -p ${REMOTE_DEPLOY_DIR}/${SERVER_AUTH_DEPLOY}/keys
 EOF
     log_info "上传 tar 到远程..."
     scp -P ${REMOTE_PORT} "${tar_name}" ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_IMAGE_DIR}/
     log_info "上传 docker-compose 文件..."
     scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/docker-compose.prod.yml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_COMPOSE_DIR}/docker-compose.prod.yml
     # 上传必要配置与密钥（尽量幂等）
-    if [ -f "${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml" ]; then
-        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-blog/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/configs/ 2>/dev/null || true
+    if [ -f "${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/configs/config.prod.yaml" ]; then
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/configs/ 2>/dev/null || true
     fi
-    if [ -f "${LOCAL_PROJECT_DIR}/server-blog/configs/rate_limit.yaml" ]; then
-        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-blog/configs/rate_limit.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/configs/ 2>/dev/null || true
+    if [ -f "${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/configs/rate_limit.yaml" ]; then
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/configs/rate_limit.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/configs/ 2>/dev/null || true
     fi
-    if [ -f "${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml" ]; then
-        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/server-auth-service/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-auth/configs/ 2>/dev/null || true
+    if [ -f "${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/configs/config.prod.yaml" ]; then
+        scp -P ${REMOTE_PORT} ${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/configs/config.prod.yaml ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/${SERVER_AUTH_DEPLOY}/configs/ 2>/dev/null || true
     fi
-    if [ -d "${LOCAL_PROJECT_DIR}/server-blog/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/server-blog/keys 2>/dev/null)" ]; then
-        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/server-blog/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-blog/keys/ 2>/dev/null || true
+    if [ -d "${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/keys 2>/dev/null)" ]; then
+        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/${SERVER_BLOG_DIR}/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/${SERVER_BLOG_DEPLOY}/keys/ 2>/dev/null || true
     fi
-    if [ -d "${LOCAL_PROJECT_DIR}/server-auth-service/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/server-auth-service/keys 2>/dev/null)" ]; then
-        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/server-auth-service/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/server-auth/keys/ 2>/dev/null || true
+    if [ -d "${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/keys" ] && [ "$(ls -A ${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/keys 2>/dev/null)" ]; then
+        scp -P ${REMOTE_PORT} -r ${LOCAL_PROJECT_DIR}/${SERVER_AUTH_DIR}/keys/* ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DEPLOY_DIR}/${SERVER_AUTH_DEPLOY}/keys/ 2>/dev/null || true
     fi
     rm -rf ${TEMP_DIR}
     log_info "步骤2(单服务) 完成！"
@@ -303,11 +322,11 @@ step_deploy() {
         
         echo "加载Docker镜像..."
         cd ${REMOTE_IMAGE_DIR}
-        docker load -i server-blog.tar
-        docker load -i server-auth.tar
-        docker load -i web-blog.tar
-        docker load -i web-auth.tar
-        docker load -i nginx.tar
+        docker load -i ${SERVER_BLOG_TAR}
+        docker load -i ${SERVER_AUTH_TAR}
+        docker load -i ${WEB_BLOG_TAR}
+        docker load -i ${WEB_AUTH_TAR}
+        docker load -i ${NGINX_TAR}
         
         # 停止旧业务服务容器（如果存在）
         cd ${REMOTE_COMPOSE_DIR}
@@ -347,11 +366,11 @@ step_deploy_single() {
     log_info "=========================================="
     local tar_name=""
     case "$service" in
-        server-blog) tar_name="server-blog.tar" ;;
-        server-auth) tar_name="server-auth.tar" ;;
-        web-blog)   tar_name="web-blog.tar" ;;
-        web-auth)   tar_name="web-auth.tar" ;;
-        nginx)      tar_name="nginx.tar" ;;
+        server-blog) tar_name="${SERVER_BLOG_TAR}" ;;
+        server-auth) tar_name="${SERVER_AUTH_TAR}" ;;
+        web-blog)   tar_name="${WEB_BLOG_TAR}" ;;
+        web-auth)   tar_name="${WEB_AUTH_TAR}" ;;
+        nginx)      tar_name="${NGINX_TAR}" ;;
         *)
             log_error "未知服务: $service"
             exit 1

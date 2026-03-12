@@ -102,17 +102,17 @@ const friendLinkCreateFormData = reactive<FriendLinkCreateRequest>({
   description: "",
 })
 const handleSuccess = (res: ApiResponse<ImageUploadResponse>) => {
-  if (res.code === 0) {
+  if (res.code === "0000") {
     friendLinkCreateFormData.logo = res.data.url
-    ElMessage.success(res.msg)
+    ElMessage.success(res.message)
   }
 }
 
 
 const submitForm = async () => {
   const res = await friendLinkCreate(friendLinkCreateFormData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     layoutStore.state.shouldRefreshFriendLinkTable = true
     layoutStore.state.friendLinkCreateVisible = false
   }

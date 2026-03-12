@@ -1,5 +1,5 @@
 import type {ApiResponse} from "@/utils/request";
-import service from "@/utils/request";
+import service, { adminService } from "@/utils/request";
 import type {Website} from "@/api/config";
 
 export const websiteInfo = (): Promise<ApiResponse<Website>> => {
@@ -78,7 +78,7 @@ export interface WebsiteCarouselOperation {
 }
 
 export const websiteAddCarousel = (data: WebsiteCarouselOperation): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/website/addCarousel',
         method: 'post',
         data: data,
@@ -86,7 +86,7 @@ export const websiteAddCarousel = (data: WebsiteCarouselOperation): Promise<ApiR
 }
 
 export const websiteCancelCarousel = (data: WebsiteCarouselOperation): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/website/cancelCarousel',
         method: 'put',
         data: data,
@@ -94,7 +94,7 @@ export const websiteCancelCarousel = (data: WebsiteCarouselOperation): Promise<A
 }
 
 export const websiteCreateFooterLink = (data: FooterLink): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/website/createFooterLink',
         method: 'post',
         data: data,
@@ -102,7 +102,7 @@ export const websiteCreateFooterLink = (data: FooterLink): Promise<ApiResponse<u
 }
 
 export const websiteDeleteFooterLink = (data: FooterLink): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/website/deleteFooterLink',
         method: 'delete',
         data: data,

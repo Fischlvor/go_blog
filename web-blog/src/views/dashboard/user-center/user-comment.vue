@@ -3,7 +3,7 @@
     <el-row class="title">我的评论</el-row>
     <div class="table-data" v-for="item in userCommentTableData">
       <div class="link">
-        <el-link :href="'/article/'+item.article_id">{{ item.article_id }}</el-link>
+        <el-link :href="'/article/'+item.article_slug">{{ item.article_slug }}</el-link>
       </div>
       <div class="item">
         <comment-item :comments="[item]"/>
@@ -23,7 +23,7 @@ const userCommentTableData = ref<Comment[]>()
 const getUserCommentTableData = async () => {
   const table = await commentInfo()
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     userCommentTableData.value = table.data
   }
 }

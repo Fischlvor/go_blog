@@ -47,7 +47,7 @@ initializeTimer()
 
 const getCalendarInfo = async () => {
   const res = await websiteCalendar()
-  if (res.code == 0) {
+  if (res.code === "0000") {
     calendarInfo.value = res.data
   }
 }

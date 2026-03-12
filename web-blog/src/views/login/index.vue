@@ -35,13 +35,13 @@ const loginIn = async () => {
     code: code,
   }
   const res = await qqLogin(qqLoginRequest)
-  if (res.code === 0) {
+  if (res.code === "0000") {
     const userStore = useUserStore()
     userStore.state.userInfo = res.data.user
     userStore.state.accessToken = res.data.access_token
     userStore.state.isUserLoggedInBefore = true
     router.push({name: 'index'}).then(() => {
-      ElMessage.success(res.msg)
+      ElMessage.success(res.message)
     })
   } else {
     router.push({name: 'index'}).then()

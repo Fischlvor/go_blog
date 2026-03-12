@@ -6,22 +6,8 @@
 
     <div class="user-list-request">
       <el-form :inline="true" :model="userListRequest">
-        <el-form-item label="uuid">
-          <el-input v-model="userListRequest.uuid" placeholder="请输入用户UUID" clearable/>
-        </el-form-item>
-        <el-form-item label="注册来源">
-          <el-select
-              v-model="userListRequest.register"
-              placeholder="Select"
-              style="width: 200px"
-          >
-            <el-option
-                v-for="item in registerOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-            />
-          </el-select>
+        <el-form-item label="关键字">
+          <el-input v-model="userListRequest.keyword" placeholder="请输入用户名或邮箱" clearable/>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" icon="Search" @click="getUserTableData">查询</el-button>
@@ -39,7 +25,7 @@
       </el-table-column>
       <el-table-column prop="username" label="用户名"/>
       <el-table-column prop="uuid" label="UUID" width="320px"/>
-      <el-table-column prop="address" label="地址"/>
+      <el-table-column prop="email" label="邮箱"/>
       <el-table-column label="注册时间" width="250px">
         <template #default="scope:{ row: User, column: any, $index: number }">
           {{ getTime(scope.row.created_at) }}
@@ -50,8 +36,7 @@
           {{ scope.row.role_id === 2 ? "管理员" : "普通用户" }}
         </template>
       </el-table-column>
-      <el-table-column prop="register" label="注册来源"/>
-      <el-table-column label="操作">
+            <el-table-column label="操作">
         <template #default="scope:{ row: User, column: any, $index: number }">
           <el-button
               v-if="scope.row.role_id===1"
@@ -107,24 +92,8 @@ const total = ref(0)
 
 const layoutStore = useLayoutStore()
 
-const registerOptions=[
-  {
-    value: '',
-    label: '全部',
-  },
-  {
-    value: 'QQ',
-    label: 'QQ',
-  },
-  {
-    value: '邮箱',
-    label: '邮箱',
-  },
-]
-
 const userListRequest = reactive<UserListRequest>({
-  uuid: null,
-  register:null,
+  keyword: null,
   page: 1,
   page_size: 10,
 })
@@ -133,8 +102,7 @@ const route = useRoute()
 const router = useRouter()
 
 onMounted(() => {
-  userListRequest.uuid = route.query.uuid as string || null
-  userListRequest.register = route.query.register as string || null
+  userListRequest.keyword = route.query.keyword as string || null
   page.value = Number(route.query.page) || 1
   page_size.value = Number(route.query.page_size) || 10
 })
@@ -145,11 +113,8 @@ const getTime = (date: Date): string => {
 }
 
 const getUserTableData = async () => {
-  if (userListRequest.uuid === "") {
-    userListRequest.uuid = null
-  }
-  if (userListRequest.register === "") {
-    userListRequest.register = null
+  if (userListRequest.keyword === "") {
+    userListRequest.keyword = null
   }
 
   userListRequest.page = page.value
@@ -157,15 +122,14 @@ const getUserTableData = async () => {
 
   const table = await userList(userListRequest)
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     userTableData.value = table.data.list
-    total.value = table.data.total
+    total.value = table.data.total_items
 
     await router.push({
       path: router.currentRoute.value.path,
       query: {
-        uuid: userListRequest.uuid,
-        register: userListRequest.register,
+        keyword: userListRequest.keyword,
         page: userListRequest.page,
         page_size: userListRequest.page_size,
       },
@@ -174,8 +138,7 @@ const getUserTableData = async () => {
 }
 
 watch(() => route.query, (newQuery) => {
-  userListRequest.uuid = newQuery.uuid as string || null
-  userListRequest.register = newQuery.register as string || null
+  userListRequest.keyword = newQuery.keyword as string || null
   userListRequest.page = Number(newQuery.page) || 1
   userListRequest.page_size = Number(newQuery.page_size) || 10
 }, {immediate: true})
@@ -194,15 +157,15 @@ const handleFreeze = async (id: number, freeze: boolean) => {
   }
   if (freeze) {
     const res = await userUnfreeze(userOperationRequest)
-    if (res.code === 0) {
-      ElMessage.success(res.msg)
+    if (res.code === "0000") {
+      ElMessage.success(res.message)
     }
     userFreezeVisible.value = false
     layoutStore.state.shouldRefreshUserTable = true
   } else {
     const res = await userFreeze(userOperationRequest)
-    if (res.code === 0) {
-      ElMessage.success(res.msg)
+    if (res.code === "0000") {
+      ElMessage.success(res.message)
     }
     userFreezeVisible.value = false
     layoutStore.state.shouldRefreshUserTable = true

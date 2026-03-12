@@ -49,7 +49,7 @@ const jwtInfo = ref<Jwt>({
 
 const getJwtInfo = async () => {
   const res = await getJwt()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     jwtInfo.value = res.data
   }
 }
@@ -67,8 +67,8 @@ watch(() => shouldRefreshInfo.value, (newVal) => {
 const updateJwtInfo = async () => {
   const res = await updateJwt(jwtInfo.value)
   console.log(jwtInfo.value)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   } else {
     shouldRefreshInfo.value = true
   }

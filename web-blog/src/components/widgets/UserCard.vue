@@ -38,7 +38,7 @@ const getUserCard = async () => {
     }
 
     const res = await userCard(userCardRequest)
-    if (res.code === 0) {
+    if (res.code === "0000") {
       userCardInfo.value = res.data
       sendDataToParent(res.data)
     }

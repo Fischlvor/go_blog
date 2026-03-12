@@ -56,7 +56,7 @@ const qiniuInfo = ref<Qiniu>({
 
 const getQiniuInfo = async () => {
   const res = await getQiniu()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     qiniuInfo.value = res.data
   }
 }
@@ -74,8 +74,8 @@ watch(() => shouldRefreshInfo.value, (newVal) => {
 const updateQiniuInfo = async () => {
   const res = await updateQiniu(qiniuInfo.value)
   console.log(qiniuInfo.value)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   } else {
     shouldRefreshInfo.value = true
   }

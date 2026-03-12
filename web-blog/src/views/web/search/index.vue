@@ -49,33 +49,29 @@
 
           <el-table :data="articleTableData" :show-header="false" :row-style="{height: '150px'}">
             <el-table-column label="cover" width="200">
-              <template #default="scope:{ row: any, column: any, $index: number }">
-                <el-image style="width: 160px; height: 100px" :src="scope.row._source.cover" alt=""/>
+              <template #default="scope:{ row: Article, column: any, $index: number }">
+                <el-image style="width: 160px; height: 100px" :src="scope.row.featured_image" alt=""/>
               </template>
             </el-table-column>
             <el-table-column label="description">
-              <template #default="scope:{ row: Hit<Article>, column: any, $index: number }">
-                <div class="description" @click="handleArticleJumps(scope.row._id)">
-                  <el-row class="title">{{ scope.row._source.title }}</el-row>
-                  <el-text class="abstract" size="large">{{ scope.row._source.abstract }}</el-text>
+              <template #default="scope:{ row: Article, column: any, $index: number }">
+                <div class="description" @click="handleArticleJumps(scope.row.slug)">
+                  <el-row class="title">{{ scope.row.title }}</el-row>
+                  <el-text class="abstract" size="large">{{ scope.row.excerpt }}</el-text>
                   <el-text class="footer">
                     <div class="tags">
-                      <el-tag v-for="item in scope.row._source.tags">{{ item }}</el-tag>
+                      <el-tag v-for="item in scope.row.tags" :key="item.id">{{ item.name }}</el-tag>
                     </div>
                     <div class="status">
-                      发布时间：{{ scope.row._source.created_at }}
+                      发布时间：{{ scope.row.created_at }}
                       <el-icon>
                         <component is="View"/>
                       </el-icon>
-                      {{ scope.row._source.views }}
-                      <el-icon>
-                        <component is="ChatDotRound"/>
-                      </el-icon>
-                      {{ scope.row._source.comments }}
+                      {{ scope.row.views }}
                       <el-icon>
                         <component is="Star"/>
                       </el-icon>
-                      {{ scope.row._source.likes }}
+                      {{ scope.row.like.likes }}
                     </div>
                   </el-text>
                 </div>
@@ -100,8 +96,7 @@
 
 <script setup lang="ts">
 import WebNavbar from "@/components/layout/WebNavbar.vue";
-import type {Hit} from "@/api/common";
-import {type Article, articleCategory, articleSearch, type ArticleSearchRequest, articleTags} from "@/api/article";
+import {type Article, type CategoryDetail, type TagDetail, articleCategory, articleSearch, type ArticleSearchRequest, articleTags} from "@/api/article";
 import {computed, nextTick, onMounted, reactive, ref, watch} from "vue";
 import {useRoute, useRouter} from "vue-router";
 
@@ -141,9 +136,9 @@ const handleSortClick = () => {
 
 const getArticleCategory = async () => {
   const res = await articleCategory()
-  if (res.code === 0) {
-    res.data.forEach((item) => {
-      categoryArr.value.push(item.category)
+  if (res.code === "0000") {
+    res.data.forEach((item: CategoryDetail) => {
+      categoryArr.value.push(item.name)
     })
   }
 }
@@ -152,9 +147,9 @@ getArticleCategory()
 
 const getArticleTags = async () => {
   const res = await articleTags()
-  if (res.code === 0) {
-    res.data.forEach((item) => {
-      tagArr.value.push(item.tag)
+  if (res.code === "0000") {
+    res.data.forEach((item: TagDetail) => {
+      tagArr.value.push(item.name)
     })
   }
 }
@@ -164,7 +159,7 @@ getArticleTags()
 const page = ref(1)
 const page_size = ref(10)
 const total = ref(0)
-const articleTableData = ref<Hit<Article>[]>()
+const articleTableData = ref<Article[]>()
 
 onMounted(() => {
   articleSearchRequest.query = route.query.query as string || ""
@@ -183,9 +178,9 @@ const getArticleSearchTableData = async () => {
 
   const table = await articleSearch(articleSearchRequest)
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     articleTableData.value = table.data.list;
-    total.value = table.data.total;
+    total.value = table.data.total_items;
   }
 
   await router.push({
@@ -220,8 +215,8 @@ const changeArticleSearchItem = () => {
   getArticleSearchTableData()
 }
 
-const handleArticleJumps = (id: string) => {
-  window.open("/article/" + id)
+const handleArticleJumps = (slug: string) => {
+  window.open("/article/" + slug)
 }
 
 const handleSizeChange = (val: number) => {

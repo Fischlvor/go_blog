@@ -123,19 +123,18 @@
 </template>
 
 <script setup lang="ts">
-import {defineProps, nextTick, reactive, ref} from "vue";
+import {nextTick, reactive, ref} from "vue";
 import {type DrawerProps, ElMessage, type InputInstance} from "element-plus";
 import {type Article, articleUpdate, type ArticleUpdateRequest} from "@/api/article";
 import type {ApiResponse} from "@/utils/request";
 import type {ImageUploadResponse} from "@/api/image";
 import {useUserStore} from "@/stores/user";
 import {useLayoutStore} from "@/stores/layout";
-import type {Hit} from "@/api/common";
 import {MdEditor} from 'md-editor-v3';
 import axios, {type AxiosResponse} from "axios";
 
 const props = defineProps<{
-  article: Hit<Article>;
+  article: Article;
 }>();
 
 const userStore = useUserStore()
@@ -144,13 +143,13 @@ const layoutStore = useLayoutStore()
 const path = ref(import.meta.env.VITE_BASE_API)
 
 const articleUpdateFormData = reactive<ArticleUpdateRequest>({
-  id: props.article._id,
-  cover: props.article._source.cover,
-  title: props.article._source.title,
-  category: props.article._source.category,
-  tags: props.article._source.tags,
-  abstract: props.article._source.abstract,
-  content: props.article._source.content,
+  id: String(props.article.id),
+  cover: props.article.cover || props.article.featured_image || '',
+  title: props.article.title,
+  category: props.article.category?.slug || '',
+  tags: props.article.tags?.map(t => t.slug) || [],
+  abstract: props.article.abstract || props.article.excerpt || '',
+  content: props.article.content || '',
 })
 
 const inputValue = ref('')
@@ -177,9 +176,9 @@ const handleInputConfirm = () => {
 }
 
 const handleSuccess = (res: ApiResponse<ImageUploadResponse>) => {
-  if (res.code === 0) {
+  if (res.code === "0000") {
     articleUpdateFormData.cover = res.data.url
-    ElMessage.success(res.msg)
+    ElMessage.success(res.message)
   }
 }
 
@@ -211,8 +210,8 @@ const onUploadImg = async (files: File[], callback: (urls: string[]) => void): P
 
 const submitForm = async () => {
   const res = await articleUpdate(articleUpdateFormData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     layoutStore.state.articleUpdateVisible = false
   }
 }

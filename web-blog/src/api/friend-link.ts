@@ -1,4 +1,4 @@
-import service from "@/utils/request";
+import service, { adminService } from "@/utils/request";
 import type {ApiResponse} from "@/utils/request";
 import type {Model, PageInfo, PageResult} from "@/api/common";
 
@@ -9,12 +9,8 @@ export interface FriendLink extends Model {
     description: string;
 }
 
-export interface FriendLinkInfoResponse {
-    list: FriendLink[]
-    total: number
-}
-
-export const friendLinkInfo = (): Promise<ApiResponse<FriendLinkInfoResponse>> => {
+// 后端直接返回数组
+export const friendLinkInfo = (): Promise<ApiResponse<FriendLink[]>> => {
     return service({
         url: '/friendLink/info',
         method: 'get',
@@ -29,7 +25,7 @@ export interface FriendLinkCreateRequest {
 }
 
 export const friendLinkCreate = (data: FriendLinkCreateRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/friendLink/create',
         method: 'post',
         data: data
@@ -41,7 +37,7 @@ export interface FriendLinkDeleteRequest {
 }
 
 export const friendLinkDelete = (data: FriendLinkDeleteRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/friendLink/delete',
         method: 'delete',
         data: data
@@ -58,7 +54,7 @@ export interface FriendLinkUpdateRequest {
 }
 
 export const friendLinkUpdate = (data: FriendLinkUpdateRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/friendLink/update',
         method: 'put',
         data: data
@@ -71,7 +67,7 @@ export interface FriendLinkListRequest extends PageInfo {
 }
 
 export const friendLinkList = (data: FriendLinkListRequest): Promise<ApiResponse<PageResult<FriendLink>>> => {
-    return service({
+    return adminService({
         url: '/friendLink/list',
         method: 'get',
         params: data,

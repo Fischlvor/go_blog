@@ -163,7 +163,7 @@ const getList = async () => {
     const res = await aiSessionApi.list(params)
     console.log('会话列表数据:', res.data.list)
     tableData.value = res.data.list
-    pagination.total = res.data.total
+    pagination.total = res.data.total_items
   } catch (error) {
     console.error('获取AI会话列表失败:', error)
     ElMessage.error('获取AI会话列表失败')

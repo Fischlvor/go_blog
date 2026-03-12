@@ -79,7 +79,7 @@ const getNewsTableData = async (source: string) => {
       source: source
     }
     const res = await websiteNews(newsRequest)
-    if (res.code === 0) {
+    if (res.code === "0000") {
       newsMap.set(source, res.data.hot_list.slice(0, 7))
     }
   }

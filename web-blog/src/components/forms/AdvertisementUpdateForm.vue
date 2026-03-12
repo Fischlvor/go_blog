@@ -69,8 +69,8 @@ const advertisementUpdateFormData = reactive<AdvertisementUpdateRequest>({
 
 const submitForm = async () => {
   const res = await advertisementUpdate(advertisementUpdateFormData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     layoutStore.state.shouldRefreshAdvertisementTable = true
     layoutStore.state.advertisementUpdateVisible = false
   }

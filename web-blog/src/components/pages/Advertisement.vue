@@ -18,7 +18,7 @@ import {type Advertisement, advertisementInfo} from "@/api/advertisement";
 const advertisementList = ref<Advertisement[]>()
 const getAdvertisementList = async () => {
   const res = await advertisementInfo()
-  if (res.code == 0) {
+  if (res.code === "0000") {
     advertisementList.value = res.data.list
   }
 }

@@ -212,9 +212,9 @@ const getFriendLinkTableData = async () => {
 
   const table = await friendLinkList(friendLinkListRequest);
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     friendLinkTableData.value = table.data.list;
-    total.value = table.data.total;
+    total.value = table.data.total_items;
 
     await router.push({
       path: router.currentRoute.value.path,
@@ -265,8 +265,8 @@ const handleDelete = async (id: number) => {
   };
 
   const res = await friendLinkDelete(requestData);
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   friendLinkDeleteVisible.value = false
   layoutStore.state.shouldRefreshFriendLinkTable = true
@@ -290,8 +290,8 @@ const handleBulkDelete = async (ids: number[]) => {
 
 
   const res = await friendLinkDelete(requestData);
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   friendLinkBulkDeleteVisible.value = false
   layoutStore.state.shouldRefreshFriendLinkTable = true

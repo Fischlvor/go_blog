@@ -54,26 +54,26 @@
     >
       <el-table-column type="selection" width="60"/>
       <el-table-column label="封面" width="100">
-        <template #default="scope:{ row: Hit<Article>, column: any, $index: number }">
-          <el-image :src="scope.row._source.cover" alt=""/>
+        <template #default="scope:{ row: Article, column: any, $index: number }">
+          <el-image :src="scope.row.featured_image" alt=""/>
         </template>
       </el-table-column>
-      <el-table-column prop="_source.title" label="标题" width="150"/>
-      <el-table-column prop="_source.category" label="类别" width="80"/>
+      <el-table-column prop="title" label="标题" width="150"/>
+      <el-table-column prop="category.name" label="类别" width="80"/>
       <el-table-column label="标签" width="120">
-        <template #default="scope:{ row: Hit<Article>, column: any, $index: number }">
-          <el-tag v-for="tag in scope.row._source.tags">{{ tag }}</el-tag>
+        <template #default="scope:{ row: Article, column: any, $index: number }">
+          <el-tag v-for="tag in scope.row.tags" :key="tag.id">{{ tag.name }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="简介">
-        <template #default="scope:{ row: Hit<Article>, column: any, $index: number }">
-          <el-text line-clamp="5">{{ scope.row._source.abstract }}</el-text>
+        <template #default="scope:{ row: Article, column: any, $index: number }">
+          <el-text line-clamp="5">{{ scope.row.excerpt }}</el-text>
         </template>
       </el-table-column>
-      <el-table-column prop="_source.created_at" label="发布时间" width="102"/>
+      <el-table-column prop="created_at" label="发布时间" width="102"/>
       <el-table-column label="文章id" width="220">
-        <template #default="scope:{ row: Hit<Article>, column: any, $index: number }">
-          <el-link :href="'/article/'+scope.row._id">{{ scope.row._id }}</el-link>
+        <template #default="scope:{ row: Article, column: any, $index: number }">
+          <el-link :href="'/article/'+scope.row.slug">{{ scope.row.slug }}</el-link>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="160">
@@ -120,7 +120,7 @@
       </template>
       您已选中 [1] 项资源，删除后将无法恢复，是否确认删除？
       <template #footer>
-        <el-button type="primary" @click="handleDelete(articleInfo._id)">
+        <el-button type="primary" @click="handleDelete(String(articleInfo.id))">
           确定
         </el-button>
         <el-button @click="articleDeleteVisible = false">取消</el-button>
@@ -156,7 +156,7 @@ import {type Tag, useTagStore} from "@/stores/tag";
 
 
 const multipleArticleTableRef = ref()
-const articleTableData = ref<Hit<Article>[]>()
+const articleTableData = ref<Article[]>()
 const page = ref(1)
 const page_size = ref(10)
 const total = ref(0)
@@ -195,8 +195,8 @@ const handleBulkDelete = async (ids: string[]) => {
     ids: ids
   }
   const res = await articleDelete(requestData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   articleBulkDeleteVisible.value = false
   layoutStore.state.shouldRefreshArticleTable = true
@@ -237,9 +237,9 @@ const getArticleTableData = async () => {
 
   const table = await articleList(articleListRequest)
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     articleTableData.value = table.data.list
-    total.value = table.data.total
+    total.value = table.data.total_items
 
     await router.push({
       path: router.currentRoute.value.path,
@@ -266,7 +266,7 @@ nextTick(() => {
   getArticleTableData()
 })
 
-let articleInfo: Hit<Article>
+let articleInfo: Article
 const articleDeleteVisible = ref(false)
 
 const articleUpdateVisible = ref(layoutStore.state.articleUpdateVisible)
@@ -290,8 +290,8 @@ const handleDelete = async (id: string) => {
   }
 
   const res = await articleDelete(requestData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   articleDeleteVisible.value = false
   layoutStore.state.shouldRefreshArticleTable = true

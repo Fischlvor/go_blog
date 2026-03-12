@@ -52,7 +52,7 @@ const emailInfo = ref<Email>({
 
 const getEmailInfo = async () => {
   const res = await getEmail()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     emailInfo.value = res.data
   }
 }
@@ -70,8 +70,8 @@ watch(() => shouldRefreshInfo.value, (newVal) => {
 const updateEmailInfo = async () => {
   const res = await updateEmail(emailInfo.value)
   console.log(emailInfo.value)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   } else {
     shouldRefreshInfo.value = true
   }

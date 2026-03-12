@@ -32,9 +32,9 @@ const redirectToSSO = async () => {
     // 通过 Blog 后端获取 SSO 授权 URL
     const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback')
     const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
-    const response = await axios.get(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`)
+    const response = await axios.get(`/api/v1/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`)
     
-    if (response.data.code === 0) {
+    if (response.data.code === "0000") {
       // 跳转到 SSO 授权端点
       // 如果用户已登录（有 Session），SSO 会自动返回授权码
       // 如果用户未登录，SSO 会重定向到登录页面

@@ -102,17 +102,17 @@ const advertisementCreateFormData = reactive<AdvertisementCreateRequest>({
   content: "",
 })
 const handleSuccess = (res: ApiResponse<ImageUploadResponse>) => {
-  if (res.code === 0) {
+  if (res.code === "0000") {
     advertisementCreateFormData.ad_image = res.data.url
-    ElMessage.success(res.msg)
+    ElMessage.success(res.message)
   }
 }
 
 
 const submitForm = async () => {
   const res = await advertisementCreate(advertisementCreateFormData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     layoutStore.state.shouldRefreshAdvertisementTable = true
     layoutStore.state.advertisementCreateVisible = false
   }

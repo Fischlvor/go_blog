@@ -91,7 +91,7 @@ const weatherInfo = ref('')
 
 const getWeatherInfo = async () => {
   const res = await userWeather()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     weatherInfo.value = res.data
   }
 }
@@ -187,7 +187,7 @@ const isShow = ref(false)
 const getChartInfo = async () => {
   isShow.value = false
   const res = await userChart(userChartRequest.value)
-  if (res.code === 0) {
+  if (res.code === "0000") {
     chart.value = res.data
     isShow.value = true
   }

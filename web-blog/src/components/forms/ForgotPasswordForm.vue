@@ -151,10 +151,10 @@ const isFormValid = computed(() => isEmailValid.value && isCaptchaValid.value);
 const sendCode = async () => {
   emailRequest.email = forgotPasswordFormData.email
   const res = await sendEmailVerificationCode(emailRequest)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   } else {
-    ElMessage.error(res.msg)
+    ElMessage.error(res.message)
     emailVerify()
   }
 }
@@ -169,8 +169,8 @@ const submitForm = async () => {
   if (isValid) {
     const res = await forgotPassword(forgotPasswordFormData)
 
-    if (res.code===0) {
-      ElMessage.success(res.msg)
+    if (res.code==="0000") {
+      ElMessage.success(res.message)
       layoutStore.state.forgotPasswordVisible = false
       layoutStore.state.popoverVisible = false
     }

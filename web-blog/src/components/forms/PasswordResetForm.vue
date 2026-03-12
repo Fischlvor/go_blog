@@ -83,8 +83,8 @@ const submitForm = async () => {
 
   if (isValid) {
     const res = await userResetPassword(passwordResetFormData)
-    if (res.code === 0) {
-      ElMessage.success(res.msg)
+    if (res.code === "0000") {
+      ElMessage.success(res.message)
       layoutStore.state.passwordResetVisible = false
       router.push({name: "index"}).then(
           userStore.reset

@@ -1,24 +1,24 @@
 import type {Model, PageInfo, PageResult} from "@/api/common";
-import service from "@/utils/request";
+import service, { adminService } from "@/utils/request";
 import type {ApiResponse} from "@/utils/request";
 import type {User} from "@/api/user";
 
 export interface Comment extends Model {
-    article_id: string;
-    p_id: number | null;
-    children: Comment[];
+    article_slug: string;
     user_uuid: string;
+    parent_id: number | null;
+    children: Comment[];
     user: User;
     content: string;
 }
 
 export interface CommentCreateRequest {
-    article_id: string;
-    p_id: number | null;
+    article_slug: string;
+    parent_id: number | null;
     content: string;
 }
 
-export const commentCreate = (data: CommentCreateRequest): Promise<ApiResponse<undefined>> => {
+export const commentCreate = (data: CommentCreateRequest): Promise<ApiResponse<{id: number}>> => {
     return service({
         url: '/comment/create',
         method: 'post',
@@ -45,9 +45,9 @@ export const commentInfo = (): Promise<ApiResponse<Comment[]>> => {
     });
 }
 
-export const commentInfoByArticleID = (article_id: string): Promise<ApiResponse<Comment[]>> => {
+export const commentInfoByArticleSlug = (article_slug: string): Promise<ApiResponse<Comment[]>> => {
     return service({
-        url: '/comment/' + article_id,
+        url: '/comment/' + article_slug,
         method: 'get',
     })
 }
@@ -60,13 +60,13 @@ export const commentNew = (): Promise<ApiResponse<Comment[]>> => {
 }
 
 export interface CommentListRequest extends PageInfo {
-    article_id: string | null;
+    article_slug: string | null;
     user_uuid: string | null;
     content: string | null;
 }
 
 export const commentList = (data: CommentListRequest): Promise<ApiResponse<PageResult<Comment>>> => {
-    return service({
+    return adminService({
         url: '/comment/list',
         method: 'get',
         params: data,

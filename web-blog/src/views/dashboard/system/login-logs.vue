@@ -26,7 +26,7 @@
             </template>
             <template #default>
               <user-card :uuid="''"
-                         :user-card-info="{uuid:scope.row.user.uuid,username:scope.row.user.username,avatar:scope.row.user.avatar,address:scope.row.user.address,signature:scope.row.user.signature}"/>
+                         :user-card-info="{uuid:scope.row.user.uuid,username:scope.row.user.username,avatar:scope.row.user.avatar,address:'',signature:''}"/>
             </template>
           </el-popover>
         </template>
@@ -102,9 +102,9 @@ const getUserLoginTableData = async () => {
 
   const table = await userLoginList(userLoginListRequest)
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     userLoginTableData.value = table.data.list
-    total.value = table.data.total
+    total.value = table.data.total_items
 
     await router.push({
       path: router.currentRoute.value.path,

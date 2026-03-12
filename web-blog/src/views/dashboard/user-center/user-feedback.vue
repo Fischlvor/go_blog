@@ -30,7 +30,7 @@ const userFeedbackTableData = ref<Feedback[]>()
 const getUserFeedbackTableData = async () => {
   const table = await feedbackInfo()
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     userFeedbackTableData.value = table.data
   }
 }

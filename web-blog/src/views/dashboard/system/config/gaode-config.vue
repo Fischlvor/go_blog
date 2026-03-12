@@ -36,7 +36,7 @@ const gaodeInfo = ref<Gaode>({
 
 const getGaodeInfo = async () => {
   const res = await getGaode()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     gaodeInfo.value = res.data
   }
 }
@@ -54,8 +54,8 @@ watch(() => shouldRefreshInfo.value, (newVal) => {
 const updateGaodeInfo = async () => {
   const res = await updateGaode(gaodeInfo.value)
   console.log(gaodeInfo.value)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   } else {
     shouldRefreshInfo.value = true
   }

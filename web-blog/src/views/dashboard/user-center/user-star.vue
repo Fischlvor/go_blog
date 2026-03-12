@@ -6,26 +6,26 @@
         :data="articleLikesListData"
     >
       <el-table-column label="封面" width="100">
-        <template #default="scope:{ row: Hit<Article>, column: any, $index: number }">
-          <el-image :src="scope.row._source.cover" alt=""/>
+        <template #default="scope:{ row: Article, column: any, $index: number }">
+          <el-image :src="scope.row.featured_image" alt=""/>
         </template>
       </el-table-column>
-      <el-table-column prop="_source.title" label="标题" width="120"/>
-      <el-table-column prop="_source.category" label="类别" width="80"/>
+      <el-table-column prop="title" label="标题" width="120"/>
+      <el-table-column prop="category.name" label="类别" width="80"/>
       <el-table-column label="标签" width="120">
-        <template #default="scope:{ row: Hit<Article>, column: any, $index: number }">
-          <el-tag v-for="tag in scope.row._source.tags">{{ tag }}</el-tag>
+        <template #default="scope:{ row: Article, column: any, $index: number }">
+          <el-tag v-for="tag in scope.row.tags" :key="tag.id">{{ tag.name }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="简介">
-        <template #default="scope:{ row: Hit<Article>, column: any, $index: number }">
-          <el-text line-clamp="5">{{ scope.row._source.abstract }}</el-text>
+        <template #default="scope:{ row: Article, column: any, $index: number }">
+          <el-text line-clamp="5">{{ scope.row.excerpt }}</el-text>
         </template>
       </el-table-column>
-      <el-table-column prop="_source.created_at" label="发布时间" width="102"/>
+      <el-table-column prop="created_at" label="发布时间" width="102"/>
       <el-table-column label="文章id" width="200">
-        <template #default="scope:{ row: Hit<Article>, column: any, $index: number }">
-          <el-link :href="'/article/'+scope.row._id">{{ scope.row._id }}</el-link>
+        <template #default="scope:{ row: Article, column: any, $index: number }">
+          <el-link :href="'/article/'+scope.row.slug">{{ scope.row.slug }}</el-link>
         </template>
       </el-table-column>
     </el-table>
@@ -50,7 +50,7 @@ import type {Hit, PageInfo} from "@/api/common";
 import {articleLikesList} from "@/api/article";
 
 
-const articleLikesListData = ref<Hit<Article>[]>()
+const articleLikesListData = ref<Article[]>()
 const page = ref(1)
 const page_size = ref(10)
 const total = ref(0)
@@ -74,9 +74,9 @@ const getArticleLikesListData = async () => {
 
   const table = await articleLikesList(articleLikesListRequest)
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     articleLikesListData.value = table.data.list
-    total.value = table.data.total
+    total.value = table.data.total_items
 
     await router.push({
       path: router.currentRoute.value.path,

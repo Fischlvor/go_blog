@@ -184,7 +184,7 @@ const getList = async () => {
     }
     const res = await aiModelApi.list(params)
     tableData.value = res.data.list
-    pagination.total = res.data.total
+    pagination.total = res.data.total_items
   } catch (error) {
     console.error('获取AI模型列表失败:', error)
     ElMessage.error('获取AI模型列表失败')

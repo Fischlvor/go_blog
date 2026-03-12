@@ -63,10 +63,11 @@ const menuList: MenuItem[] = [
     title: "新闻",
     name: "/news",
   },
-  {
-    title: "AI助手",
-    name: "/ai-assistant",
-  },
+  // AI 助手暂时隐藏
+  // {
+  //   title: "AI助手",
+  //   name: "/ai-assistant",
+  // },
   {
     title: "友链",
     name: "/friend-link",

@@ -33,10 +33,10 @@ onMounted(async () => {
     }
 
     // ✅ OAuth 2.0: 用code向应用后端换取token
-    const response = await fetch(`/api/auth/callback?code=${code}&redirect_uri=${encodeURIComponent(window.location.origin + '/sso-callback')}`)
+    const response = await fetch(`/api/v1/auth/callback?code=${code}&redirect_uri=${encodeURIComponent(window.location.origin + '/sso-callback')}`)
     const data = await response.json()
 
-    if (data.code !== 0) {
+    if (data.code !== "0000") {
       ElMessage.error('登录失败：' + data.message)
       router.push({ name: 'index' })
       return

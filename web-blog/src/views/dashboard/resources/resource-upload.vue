@@ -143,7 +143,7 @@ let maxFileSizeText = '500MB'
 onMounted(async () => {
   try {
     const res = await getMaxFileSize()
-    if (res.code === 0 && res.data?.max_size) {
+    if (res.code === "0000" && res.data?.max_size) {
       maxFileSize = res.data.max_size
       maxFileSizeText = formatFileSize(maxFileSize)
     }
@@ -211,8 +211,8 @@ const uploadChunksWithRetry = async (
 
           const res = await uploadChunk(taskId, task.chunkNumber, chunkData)
 
-          if (res.code !== 0) {
-            throw new Error(res.msg || `块 ${task.chunkNumber} 上传失败`)
+          if (res.code !== '0000') {
+            throw new Error(res.message || `块 ${task.chunkNumber} 上传失败`)
           }
 
           task.status = 'success'
@@ -292,8 +292,8 @@ const handleFileChange = async (uploadFile: UploadFile) => {
       file_name: uploadFile.raw.name
     })
 
-    if (checkRes.code !== 0) {
-      throw new Error(checkRes.msg || '检查文件失败')
+    if (checkRes.code !== '0000') {
+      throw new Error(checkRes.message || '检查文件失败')
     }
 
     // 秒传成功
@@ -319,8 +319,8 @@ const handleFileChange = async (uploadFile: UploadFile) => {
         mime_type: uploadFile.raw.type || 'application/octet-stream'
       })
 
-      if (initRes.code !== 0) {
-        throw new Error(initRes.msg || '初始化任务失败')
+      if (initRes.code !== '0000') {
+        throw new Error(initRes.message || '初始化任务失败')
       }
 
       taskId = initRes.data.task_id
@@ -353,8 +353,8 @@ const handleFileChange = async (uploadFile: UploadFile) => {
     uploadState.status = 'merging'
     const completeRes = await completeResource({ task_id: taskId })
 
-    if (completeRes.code !== 0) {
-      throw new Error(completeRes.msg || '合并文件失败')
+    if (completeRes.code !== '0000') {
+      throw new Error(completeRes.message || '合并文件失败')
     }
 
     uploadState.status = 'success'

@@ -60,25 +60,25 @@ export const useUserStore = defineStore('user', () => {
     /* 登录*/
     const loginIn = async (loginInfo: LoginRequest) => {
         const res = await login(loginInfo)
-        if (res.code === 0) {
+        if (res.code === "0000") {
             state.value.userInfo = res.data.user
             state.value.accessToken = res.data.access_token
             state.value.isUserLoggedInBefore = true
-            return { message: res.msg ,flag: true };
+            return { message: res.message ,flag: true };
         } else {
-            return { message: res.msg ,flag: false }
+            return { message: res.message ,flag: false }
         }
     }
     /* 注册*/
     const registerIn = async (registerInfo: RegisterRequest)=>{
         const res = await register(registerInfo)
-        if (res.code===0){
+        if (res.code==="0000"){
             state.value.userInfo = res.data.user
             state.value.accessToken = res.data.access_token
             state.value.isUserLoggedInBefore = true
-            return { message: res.msg ,flag: true };
+            return { message: res.message ,flag: true };
         } else {
-            return { message: res.msg ,flag: false };
+            return { message: res.message ,flag: false };
         }
     }
     /* 登出*/
@@ -113,7 +113,7 @@ export const useUserStore = defineStore('user', () => {
             
             try {
                 const res = await userInfo();
-                if (res.code === 0) {
+                if (res.code === "0000") {
                     state.value.userInfo = res.data;
                 } else {
                     // 如果获取用户信息失败，清除登录状态

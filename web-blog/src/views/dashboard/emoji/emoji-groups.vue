@@ -199,10 +199,10 @@ const fetchGroupList = async () => {
   loading.value = true
   try {
     const result = await getEmojiGroups()
-    if (result.code === 0) {
+    if (result.code === "0000") {
       groupList.value = result.data || []
     } else {
-      ElMessage.error(result.msg || '获取表情组列表失败')
+      ElMessage.error(result.message || '获取表情组列表失败')
     }
   } catch (error) {
     console.error('获取表情组列表失败:', error)
@@ -261,14 +261,14 @@ const saveGroup = async () => {
       result = await createEmojiGroup(data)
     }
 
-    if (result.code === 0) {
+    if (result.code === "0000") {
       ElMessage.success(editingGroup.value ? '更新成功' : '创建成功')
       showCreateDialog.value = false
       editingGroup.value = null
       resetForm()
       fetchGroupList()
     } else {
-      ElMessage.error(result.msg || '操作失败')
+      ElMessage.error(result.message || '操作失败')
     }
   } catch (error) {
     console.error('保存表情组失败:', error)
@@ -297,11 +297,11 @@ const deleteGroup = async (group: EmojiGroup) => {
     )
 
     const result = await apiDeleteEmojiGroup(group.id)
-    if (result.code === 0) {
+    if (result.code === "0000") {
       ElMessage.success('删除成功')
       fetchGroupList()
     } else {
-      ElMessage.error(result.msg || '删除失败')
+      ElMessage.error(result.message || '删除失败')
     }
   } catch (error) {
     if (error !== 'cancel') {

@@ -30,8 +30,8 @@
 
     <div class="comment-list-request">
       <el-form :inline="true" :model="commentListRequest">
-        <el-form-item label="文章id">
-          <el-input v-model="commentListRequest.article_id" placeholder="请输入文章id" clearable/>
+        <el-form-item label="文章slug">
+          <el-input v-model="commentListRequest.article_slug" placeholder="请输入文章slug" clearable/>
         </el-form-item>
         <el-form-item label="用户uuid">
           <el-input v-model="commentListRequest.user_uuid" placeholder="请输入用户uuid" clearable/>
@@ -50,14 +50,14 @@
         :data="commentTableData"
     >
       <el-table-column type="selection" width="60"/>
-      <el-table-column label="文章id" width="200">
+      <el-table-column label="文章slug" width="200">
         <template #default="scope:{ row: Comment, column: any, $index: number }">
-          <el-link :href="'/article/'+scope.row.article_id">{{ scope.row.article_id }}</el-link>
+          <el-link :href="'/article/'+scope.row.article_slug">{{ scope.row.article_slug }}</el-link>
         </template>
       </el-table-column>
       <el-table-column label="用户" width="80">
         <template #default="scope:{ row: Comment, column: any, $index: number }">
-          <user-card-popover :uuid="scope.row.user_uuid"/>
+          <user-card-popover :uuid="scope.row.user?.uuid ?? ''"/>
         </template>
       </el-table-column>
       <el-table-column label="内容">
@@ -147,15 +147,15 @@ const handleBulkDelete = async (ids: number[]) => {
     ids: ids
   }
   const res = await commentDelete(requestData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   commentBulkDeleteVisible.value = false
   layoutStore.state.shouldRefreshCommentTable = true
 }
 
 const commentListRequest = reactive<CommentListRequest>({
-  article_id: null,
+  article_slug: null,
   user_uuid: null,
   content: null,
   page: 1,
@@ -166,7 +166,7 @@ const route = useRoute()
 const router = useRouter()
 
 onMounted(() => {
-  commentListRequest.article_id = route.query.article_id as string || null
+  commentListRequest.article_slug = route.query.article_slug as string || null
   commentListRequest.user_uuid = route.query.user_uuid as string || null
   commentListRequest.content = route.query.content as string || null
   page.value = Number(route.query.page) || 1
@@ -174,8 +174,8 @@ onMounted(() => {
 })
 
 const getCommentTableData = async () => {
-  if (commentListRequest.article_id === "") {
-    commentListRequest.article_id = null
+  if (commentListRequest.article_slug === "") {
+    commentListRequest.article_slug = null
   }
   if (commentListRequest.user_uuid === "") {
     commentListRequest.user_uuid = null
@@ -189,14 +189,14 @@ const getCommentTableData = async () => {
 
   const table = await commentList(commentListRequest)
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     commentTableData.value = table.data.list
-    total.value = table.data.total
+    total.value = table.data.total_items
 
     await router.push({
       path: router.currentRoute.value.path,
       query: {
-        article_id: commentListRequest.article_id,
+        article_slug: commentListRequest.article_slug,
         user_uuid: commentListRequest.user_uuid,
         content: commentListRequest.content,
         page: commentListRequest.page,
@@ -207,7 +207,7 @@ const getCommentTableData = async () => {
 }
 
 watch(() => route.query, (newQuery) => {
-  commentListRequest.article_id = newQuery.article_id as string || null
+  commentListRequest.article_slug = newQuery.article_slug as string || null
   commentListRequest.user_uuid = newQuery.user_uuid as string || null
   commentListRequest.content = newQuery.content as string || null
   commentListRequest.page = Number(newQuery.page) || 1
@@ -230,8 +230,8 @@ const handleDelete = async (id: number) => {
   }
 
   const res = await commentDelete(requestData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   commentDeleteVisible.value = false
   layoutStore.state.shouldRefreshCommentTable = true
