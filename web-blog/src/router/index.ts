@@ -57,15 +57,16 @@ const routes = [
           title: "文章"
         }
       },
-      {
-        path: "ai-assistant",
-        name: "ai-assistant",
-        component: () => import('@/views/web/ai-assistant/index.vue'),
-        meta: {
-          title: "AI助手",
-          requiresAuth: true
-        }
-      }
+      // AI 助手暂时隐藏
+      // {
+      //   path: "ai-assistant",
+      //   name: "ai-assistant",
+      //   component: () => import('@/views/web/ai-assistant/index.vue'),
+      //   meta: {
+      //     title: "AI助手",
+      //     requiresAuth: true
+      //   }
+      // }
 
     ]
   },

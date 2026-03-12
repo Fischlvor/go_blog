@@ -9,12 +9,8 @@ export interface FriendLink extends Model {
     description: string;
 }
 
-export interface FriendLinkInfoResponse {
-    list: FriendLink[]
-    total: number
-}
-
-export const friendLinkInfo = (): Promise<ApiResponse<FriendLinkInfoResponse>> => {
+// 后端直接返回数组
+export const friendLinkInfo = (): Promise<ApiResponse<FriendLink[]>> => {
     return service({
         url: '/friendLink/info',
         method: 'get',
