@@ -61,7 +61,7 @@
   const footerLinkList = ref<FooterLink[]>([])
   const getFooterLinkList = async() => {
     const res = await websiteFooterLink()
-    if (res.code===0){
+    if (res.code==="0000"){
       footerLinkList.value = res.data
     }
   }

@@ -1,4 +1,4 @@
-import service, { type ApiResponse } from '@/utils/request'
+import service, { adminService, type ApiResponse } from '@/utils/request'
 import type { PageInfo, PageResult } from './common'
 
 // ==================== 请求类型 ====================
@@ -82,6 +82,7 @@ export interface ResourceItem {
   transcode_status: number  // 转码状态：0=无需转码, 1=转码中, 2=成功, 3=失败
   transcode_url?: string    // 转码后视频URL
   thumbnail_url?: string    // 缩略图URL
+  created_at: string
 }
 
 // ==================== API 方法 ====================
@@ -90,21 +91,21 @@ export interface ResourceItem {
  * 获取最大文件大小
  */
 export function getMaxFileSize(): Promise<ApiResponse<{ max_size: number }>> {
-  return service.get('/resources/max-size')
+  return adminService.get('/resources/max-size')
 }
 
 /**
  * 检查文件（秒传/续传检测）
  */
 export function checkResource(data: ResourceCheckRequest): Promise<ApiResponse<ResourceCheckResponse>> {
-  return service.post('/resources/check', data)
+  return adminService.post('/resources/check', data)
 }
 
 /**
  * 初始化上传任务
  */
 export function initResource(data: ResourceInitRequest): Promise<ApiResponse<ResourceInitResponse>> {
-  return service.post('/resources/init', data)
+  return adminService.post('/resources/init', data)
 }
 
 /**
@@ -116,7 +117,7 @@ export function uploadChunk(taskId: string, chunkNumber: number, chunkData: Blob
   formData.append('chunk_number', chunkNumber.toString())
   formData.append('chunk_data', chunkData)
   
-  return service.post('/resources/upload-chunk', formData, {
+  return adminService.post('/resources/upload-chunk', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     },
@@ -128,21 +129,21 @@ export function uploadChunk(taskId: string, chunkNumber: number, chunkData: Blob
  * 完成上传
  */
 export function completeResource(data: ResourceCompleteRequest): Promise<ApiResponse<ResourceCompleteResponse>> {
-  return service.post('/resources/complete', data)
+  return adminService.post('/resources/complete', data)
 }
 
 /**
  * 取消上传
  */
 export function cancelResource(data: ResourceCancelRequest): Promise<ApiResponse<null>> {
-  return service.post('/resources/cancel', data)
+  return adminService.post('/resources/cancel', data)
 }
 
 /**
  * 查询上传进度
  */
 export function getResourceProgress(taskId: string): Promise<ApiResponse<ResourceProgressResponse>> {
-  return service.get('/resources/progress', {
+  return adminService.get('/resources/progress', {
     params: { task_id: taskId }
   })
 }
@@ -151,14 +152,14 @@ export function getResourceProgress(taskId: string): Promise<ApiResponse<Resourc
  * 资源列表
  */
 export function getResourceList(params: ResourceListRequest): Promise<ApiResponse<PageResult<ResourceItem>>> {
-  return service.get('/resources/list', { params })
+  return adminService.get('/resources/list', { params })
 }
 
 /**
  * 删除资源
  */
 export function deleteResource(data: ResourceDeleteRequest): Promise<ApiResponse<null>> {
-  return service.post('/resources/delete', data)
+  return adminService.post('/resources/delete', data)
 }
 
 // ==================== 工具函数 ====================

@@ -1,37 +1,36 @@
 <template>
   <el-card class="tag-cloud">
     <el-row class="title">标签云</el-row>
-    <el-tag v-for="item in tagCloudArray" :key="item.tag" :type="item.type" size="large" effect="plain"
-            @click="handleSearchJumps(item.tag)">
-      {{ item.tag }} {{ item.number }}
+    <el-tag v-for="item in tagCloudArray" :key="item.name" :type="item.type" size="large" effect="plain"
+            @click="handleSearchJumps(item.name)">
+      {{ item.name }} {{ item.article_count }}
     </el-tag>
   </el-card>
 </template>
 
 <script setup lang="ts">
 import {ref} from "vue";
-import {type ArticleTag, articleTags} from "@/api/article";
+import {type TagDetail, articleTags} from "@/api/article";
 
 const tagTypes = ["primary", "success", "info", "warning", "danger"]
 
 interface TagCloudItem {
-  tag: string;
-  number: number;
+  name: string;
+  article_count: number;
   type: string;
 }
 
 const tagCloudArray = ref<TagCloudItem[]>([])
 
 const getTagCloudArray = async () => {
-  let tagsArray: ArticleTag[]
   const res = await articleTags()
-  if (res.code === 0) {
-    tagsArray = res.data
+  if (res.code === "0000") {
+    const tagsArray: TagDetail[] = res.data
     for (let i = 0; i < tagsArray.length; i++) {
       const item = tagsArray[i];
       const tagCloud: TagCloudItem = {
-        tag: item.tag,
-        number: item.number,
+        name: item.name,
+        article_count: item.article_count,
         type: tagTypes[i % tagTypes.length]
       }
       tagCloudArray.value.push(tagCloud);

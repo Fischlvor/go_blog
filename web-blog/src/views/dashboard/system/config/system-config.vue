@@ -63,7 +63,7 @@ const ossTypeOptions =[
 
 const getSystemInfo = async () => {
   const res = await getSystem()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     systemInfo.value = res.data
   }
 }
@@ -81,8 +81,8 @@ watch(() => shouldRefreshInfo.value, (newVal) => {
 const updateSystemInfo = async () => {
   const res = await updateSystem(systemInfo.value)
   console.log(systemInfo.value)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   } else {
     shouldRefreshInfo.value = true
   }

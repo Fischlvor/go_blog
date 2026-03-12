@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.workflow
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# 文档
+*.md
+README*
+docs/
+
+# 日志
+*.log
+log/
+logs/
+
+# 测试
+*_test.go
+test/
+tests/
+
+# 临时文件
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# 构建产物
+main
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 上传文件 (构建时不需要)
+uploads/
+
+# 配置文件 (根据需要调整)
+# configs/
+
+# 密钥文件
+keys/
+*.pem
+*.key

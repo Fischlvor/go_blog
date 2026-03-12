@@ -32,34 +32,6 @@
         <el-form-item label="图片名称">
           <el-input v-model="imageListRequest.name" placeholder="请输入图片名称" clearable/>
         </el-form-item>
-        <el-form-item label="图片类别">
-          <el-select
-              v-model="imageListRequest.category"
-              placeholder="Select"
-              style="width: 200px"
-          >
-            <el-option
-                v-for="item in categoryOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="存储类型">
-          <el-select
-              v-model="imageListRequest.storage"
-              placeholder="Select"
-              style="width: 200px"
-          >
-            <el-option
-                v-for="item in storageOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
         <el-form-item>
           <el-button type="primary" icon="Search" @click="getImageTableData">查询</el-button>
         </el-form-item>
@@ -78,12 +50,9 @@
       </el-table-column>
       <el-table-column prop="name" label="名称" width="320"/>
       <el-table-column prop="url" label="URL" width="340"/>
-      <el-table-column prop="category" label="类别"/>
-      <el-table-column prop="storage" label="存储"/>
       <el-table-column label="操作">
         <template #default="scope:{ row: Image, column: any, $index: number }">
           <el-button
-              v-if="scope.row.category==='未使用'"
               type="danger"
               @click="imageDeleteVisible=true;imageInfo=scope.row"
           >
@@ -139,7 +108,7 @@ const total = ref(0)
 
 const layoutStore = useLayoutStore()
 
-const selectable = (row: Image) => row.category==='未使用'
+const selectable = (row: Image) => true
 
 const imageBulkDeleteVisible = ref(false)
 let idsToDelete: number[]
@@ -158,67 +127,16 @@ const handleBulkDelete = async (ids: number[]) => {
     ids: ids
   }
   const res = await imageDelete(requestData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   imageBulkDeleteVisible.value = false
   layoutStore.state.shouldRefreshImageTable = true
 }
 
-const categoryOptions = [
-  {
-    value: '',
-    label: '全部',
-  },
-  {
-    value: '未使用',
-    label: '未使用',
-  },
-  {
-    value: '系统',
-    label: '系统',
-  },
-  {
-    value: '背景',
-    label: '背景',
-  },
-  {
-    value: '封面',
-    label: '封面',
-  },
-  {
-    value: '插图',
-    label: '插图',
-  },
-  {
-    value: '广告',
-    label: '广告',
-  },
-  {
-    value: '友链',
-    label: '友链',
-  },
-]
-
-const storageOptions = [
-  {
-    value: '',
-    label: '全部',
-  },
-  {
-    value: '本地',
-    label: '本地',
-  },
-  {
-    value: '七牛云',
-    label: '七牛云',
-  },
-]
-
 const imageListRequest = reactive<ImageListRequest>({
   name: null,
-  category: null,
-  storage: null,
+  mime_type: null,
   page: 1,
   page_size: 10,
 })
@@ -228,8 +146,6 @@ const router = useRouter()
 
 onMounted(() => {
   imageListRequest.name = route.query.name as string || null
-  imageListRequest.category = route.query.category as string || null
-  imageListRequest.storage = route.query.storage as string || null
   page.value = Number(route.query.page) || 1
   page_size.value = Number(route.query.page_size) || 10
 })
@@ -238,28 +154,20 @@ const getImageTableData = async () => {
   if (imageListRequest.name === "") {
     imageListRequest.name = null
   }
-  if (imageListRequest.category === "") {
-    imageListRequest.category = null
-  }
-  if (imageListRequest.storage === "") {
-    imageListRequest.storage = null
-  }
 
   imageListRequest.page = page.value
   imageListRequest.page_size = page_size.value
 
   const table = await imageList(imageListRequest)
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     imageTableData.value = table.data.list
-    total.value = table.data.total
+    total.value = table.data.total_items
 
     await router.push({
       path: router.currentRoute.value.path,
       query: {
-        title: imageListRequest.name,
-        content: imageListRequest.category,
-        storage: imageListRequest.storage,
+        name: imageListRequest.name,
         page: imageListRequest.page,
         page_size: imageListRequest.page_size,
       },
@@ -269,8 +177,6 @@ const getImageTableData = async () => {
 
 watch(() => route.query, (newQuery) => {
   imageListRequest.name = newQuery.name as string || null
-  imageListRequest.category = newQuery.category as string || null
-  imageListRequest.storage = newQuery.storage as string || null
   imageListRequest.page = Number(newQuery.page) || 1
   imageListRequest.page_size = Number(newQuery.page_size) || 10
 }, {immediate: true})
@@ -291,8 +197,8 @@ const handleDelete = async (id: number) => {
   }
 
   const res = await imageDelete(requestData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   imageDeleteVisible.value = false
   layoutStore.state.shouldRefreshImageTable = true

@@ -34,7 +34,7 @@ export const useWebsiteStore = defineStore('website', () => {
     const initializeWebsite = async () => {
         if (!state.value.websiteInfoInitialized) {
             const res = await websiteInfo()
-            if (res.code === 0) {
+            if (res.code === "0000") {
                 state.value.websiteInfo = res.data // 更新 website
                 state.value.websiteInfoInitialized = true
             }

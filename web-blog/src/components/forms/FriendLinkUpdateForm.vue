@@ -96,9 +96,9 @@ const friendLinkUpdateFormData = reactive<FriendLinkUpdateRequest>({
 })
 
 const handleSuccess = (res: ApiResponse<ImageUploadResponse>) => {
-  if (res.code === 0) {
+  if (res.code === "0000") {
     friendLinkUpdateFormData.logo = res.data.url
-    ElMessage.success(res.msg)
+    ElMessage.success(res.message)
   }
 }
 
@@ -108,8 +108,8 @@ const submitForm = async () => {
     delete friendLinkUpdateFormData.oldLogo
   }
   const res = await friendLinkUpdate(friendLinkUpdateFormData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     layoutStore.state.shouldRefreshFriendLinkTable = true
     layoutStore.state.friendLinkUpdateVisible = false
   }

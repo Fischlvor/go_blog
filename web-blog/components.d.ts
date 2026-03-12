@@ -102,7 +102,7 @@ declare module 'vue' {
     WebFooter: typeof import('./src/components/layout/WebFooter.vue')['default']
     WebNavbar: typeof import('./src/components/layout/WebNavbar.vue')['default']
   }
-  export interface ComponentCustomProperties {
+  export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }

@@ -151,17 +151,17 @@ const handleInputConfirm = () => {
 }
 
 const handleSuccess = (res: ApiResponse<ImageUploadResponse>) => {
-  if (res.code === 0) {
+  if (res.code === "0000") {
     articleCreateFormData.cover = res.data.url
-    ElMessage.success(res.msg)
+    ElMessage.success(res.message)
   }
 }
 
 
 const submitForm = async () => {
   const res = await articleCreate(articleCreateFormData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     layoutStore.state.articleCreateVisible = false
   }
 }

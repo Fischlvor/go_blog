@@ -10,9 +10,145 @@ const service = axios.create({
     timeout: 10000,
 })
 
+// Admin API 请求实例
+const adminService = axios.create({
+    baseURL: import.meta.env.VITE_ADMIN_API,
+    timeout: 10000,
+})
+
+// 处理具体错误状态（提前定义，供拦截器使用）
+const handleSpecificError = (status: number, error: AxiosError) => {
+    const errorMessages: { [key: number]: string } = {
+        500: `
+            <p>检测到接口错误: ${error.message}</p>
+            <p>错误码：<span style="color:red">500</span></p>
+            <p>此类错误通常由后台服务器发生不可预料的错误（如panic）引起。请先查看后台日志以获取更多信息。</p>
+            <p>如果此错误影响您的正常使用，建议您清理缓存并重新登录。</p>
+        `,
+        404: `
+            <p>检测到接口错误: ${error.message}</p>
+            <p>错误码：<span style="color:red">404</span></p>
+            <p>此错误通常表示请求的接口未注册（或服务未重启）或请求路径（方法）与API路径（方法）不符。</p>
+            <p>请检查您请求的URL和方法，确保它们正确无误。</p>
+        `,
+        403: `
+            <p>检测到权限错误: ${error.message}</p>
+            <p>错误码：<span style="color:red">403</span></p>
+            <p>您没有权限访问此路由（admin）。请确认您的用户角色是否具备访问该页面的权限。</p>
+            <p>如果您认为这是一个错误，请联系系统管理员获取帮助。</p>
+        `,
+    }
+
+    ElMessageBox.confirm(errorMessages[status], '接口报错', {
+        dangerouslyUseHTMLString: true,
+        distinguishCancelAndClose: true,
+        confirmButtonText: '清理缓存',
+        cancelButtonText: '取消',
+    }).then(() => {
+        const userStore = useUserStore()
+        userStore.$reset()
+        const layoutStore = useLayoutStore()
+        localStorage.clear()
+        router.push({name: 'index', replace: true}).then(() => {
+            layoutStore.state.popoverVisible = true
+            layoutStore.state.loginVisible = true
+        });
+    });
+
+    return Promise.reject(error)
+};
+
+// 通用请求拦截器
+const setupRequestInterceptor = (instance: typeof service) => {
+    instance.interceptors.request.use(
+        (config: AxiosRequestConfig) => {
+            const userStore = useUserStore();
+            config.headers = {
+                'Content-Type': 'application/json',
+                'Authorization': userStore.state.accessToken ? `Bearer ${userStore.state.accessToken}` : '',
+                'X-Device-Id': getDeviceId(),
+                ...config.headers,
+            }
+            return config as InternalAxiosRequestConfig
+        },
+        (error: AxiosError) => {
+            ElMessage.error({
+                showClose: true,
+                message: error.message,
+                type: 'error',
+            })
+            return Promise.reject(error)
+        }
+    )
+}
+
+// 通用响应拦截器
+const setupResponseInterceptor = (instance: typeof service) => {
+    instance.interceptors.response.use(
+        (response: AxiosResponse) => {
+            const userStore = useUserStore()
+            const newAccessToken = response.headers['x-new-access-token'] || response.headers['X-New-Access-Token']
+            if (newAccessToken) {
+                userStore.state.accessToken = newAccessToken
+                console.log('✓ Token已自动刷新')
+            }
+            if (response.data.code !== "0000") {
+                if (!response.config.url?.includes('/user/info')) {
+                    ElMessage.error(response.data.message)
+                }
+
+                if (response.data.data && response.data.data.reload) {
+                    userStore.reset()
+                    const layoutStore = useLayoutStore()
+                    localStorage.clear()
+                    router.push({name: 'index', replace: true}).then(() => {
+                        layoutStore.state.popoverVisible = true
+                        layoutStore.state.loginVisible = true
+                    })
+                }
+            }
+            return response.data
+        },
+        (error: AxiosError) => {
+            if (!error.response) {
+                ElMessageBox.confirm(`
+            <p>检测到请求错误</p>
+            <p>${error.message}</p>
+          `, '请求报错', {
+                    dangerouslyUseHTMLString: true,
+                    distinguishCancelAndClose: true,
+                    confirmButtonText: '稍后重试',
+                    cancelButtonText: '取消',
+                }).then()
+                return Promise.reject(error)
+            }
+
+            switch (error.response.status) {
+                case 500:
+                    return handleSpecificError(500, error)
+                case 404:
+                    return handleSpecificError(404, error)
+                case 403:
+                    if (error.config?.url?.includes('/user/info')) {
+                        const userStore = useUserStore()
+                        userStore.reset()
+                        console.warn('Token无效，已清除登录状态')
+                        return Promise.reject(error)
+                    }
+                    return handleSpecificError(403, error)
+            }
+            return Promise.reject(error)
+        }
+    )
+}
+
+// 为 adminService 设置拦截器
+setupRequestInterceptor(adminService)
+setupResponseInterceptor(adminService)
+
 export interface ApiResponse<T> {
-    code: number;
-    msg: string;
+    code: string;
+    message: string;
     data: T;
 }
 
@@ -48,10 +184,10 @@ service.interceptors.response.use(
             userStore.state.accessToken = newAccessToken
             console.log('✓ Token已自动刷新')
         }
-        if (response.data.code !== 0) {
+        if (response.data.code !== "0000") {
             // ✅ 只有非静默接口才显示错误提示
             if (!response.config.url?.includes('/user/info')) {
-                ElMessage.error(response.data.msg)
+                ElMessage.error(response.data.message)
             }
 
             if (response.data.data && response.data.data.reload) {
@@ -99,49 +235,8 @@ service.interceptors.response.use(
     }
 );
 
-// 处理具体错误状态
-const handleSpecificError = (status: number, error: AxiosError) => {
-    const errorMessages: { [key: number]: string } = {
-        500: `
-            <p>检测到接口错误: ${error.message}</p>
-            <p>错误码：<span style="color:red">500</span></p>
-            <p>此类错误通常由后台服务器发生不可预料的错误（如panic）引起。请先查看后台日志以获取更多信息。</p>
-            <p>如果此错误影响您的正常使用，建议您清理缓存并重新登录。</p>
-        `,
-        404: `
-            <p>检测到接口错误: ${error.message}</p>
-            <p>错误码：<span style="color:red">404</span></p>
-            <p>此错误通常表示请求的接口未注册（或服务未重启）或请求路径（方法）与API路径（方法）不符。</p>
-            <p>请检查您请求的URL和方法，确保它们正确无误。</p>
-        `,
-        403: `
-            <p>检测到权限错误: ${error.message}</p>
-            <p>错误码：<span style="color:red">403</span></p>
-            <p>您没有权限访问此路由（admin）。请确认您的用户角色是否具备访问该页面的权限。</p>
-            <p>如果您认为这是一个错误，请联系系统管理员获取帮助。</p>
-        `,
-    }
-
-    ElMessageBox.confirm(errorMessages[status], '接口报错', {
-        dangerouslyUseHTMLString: true,
-        distinguishCancelAndClose: true,
-        confirmButtonText: '清理缓存',
-        cancelButtonText: '取消',
-    }).then(() => {
-        const userStore = useUserStore()
-        userStore.$reset()
-        const layoutStore = useLayoutStore()
-        localStorage.clear()
-        router.push({name: 'index', replace: true}).then(() => {
-            layoutStore.state.popoverVisible = true
-            layoutStore.state.loginVisible = true
-        });
-    });
-
-    return Promise.reject(error)
-};
-
 export default service
+export { adminService }
 
 // 流式请求配置接口
 export interface StreamRequestConfig {
@@ -187,9 +282,11 @@ export const streamRequest = (
 
         // 创建XMLHttpRequest来处理流式数据
         const xhr = new XMLHttpRequest();
-        // 使用与axios相同的baseURL
+        // 使用与axios相同的baseURL，但支持绝对路径（以/api开头）
         const baseURL = import.meta.env.VITE_BASE_API;
-        const fullURL = config.url.startsWith('http') ? config.url : `${baseURL}${config.url}`;
+        const fullURL = config.url.startsWith('http') || config.url.startsWith('/api/') 
+            ? config.url 
+            : `${baseURL}${config.url}`;
         xhr.open(config.method?.toUpperCase() || 'POST', fullURL, true);
         
         // 设置默认头部（模拟拦截器行为）

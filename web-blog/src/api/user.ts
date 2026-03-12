@@ -1,18 +1,20 @@
-import service from "@/utils/request";
+import service, { adminService } from "@/utils/request";
 import type {ApiResponse} from "@/utils/request";
 import type {Model, PageInfo, PageResult} from "@/api/common";
 
 export interface User extends Model {
     uuid: string;
     username: string;
+    nickname?: string;
     email: string;
-    openid: string;
     avatar: string;
-    address: string;
-    signature: string;
     role_id: number;
-    register: string;
     freeze: boolean;
+    last_login?: string;
+    address?: string;
+    signature?: string;
+    register?: string;
+    openid?: string;
 }
 
 export interface RegisterRequest {
@@ -113,9 +115,11 @@ export const userInfo = (): Promise<ApiResponse<User>> => {
 }
 
 export interface UserChangeInfoRequest {
-    username: string;
-    address: string;
-    signature: string;
+    nickname: string;
+    avatar: string;
+    username?: string;
+    address?: string;
+    signature?: string;
 }
 
 export const userChangeInfo = (data: UserChangeInfoRequest): Promise<ApiResponse<undefined>> => {
@@ -153,12 +157,11 @@ export const userChart = (data: UserChartRequest): Promise<ApiResponse<UserChart
 
 
 export interface UserListRequest extends PageInfo {
-    uuid: string | null;
-    register: string | null;
+    keyword: string | null;
 }
 
 export const userList = (data: UserListRequest): Promise<ApiResponse<PageResult<User>>> => {
-    return service({
+    return adminService({
         url: '/user/list',
         method: 'get',
         params: data
@@ -170,7 +173,7 @@ export interface UserOperation {
 }
 
 export const userFreeze = (data: UserOperation): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/user/freeze',
         method: 'put',
         data: data
@@ -178,7 +181,7 @@ export const userFreeze = (data: UserOperation): Promise<ApiResponse<undefined>>
 }
 
 export const userUnfreeze = (data: UserOperation): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/user/unfreeze',
         method: 'put',
         data: data
@@ -202,7 +205,7 @@ export interface Login extends Model {
 }
 
 export const userLoginList = (data: UserLoginListRequest): Promise<ApiResponse<PageResult<Login>>> => {
-    return service({
+    return adminService({
         url: '/user/loginList',
         method: 'get',
         params: data

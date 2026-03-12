@@ -1,0 +1,52 @@
+app:
+  name: go-blog
+  version: 2.0.0
+
+log:
+  level: debug
+
+http:
+  port: 8080
+  use_prefork_mode: false
+
+postgres:
+  host: localhost
+  port: 5432
+  user: your_user
+  password: your_password
+  dbname: blog_db
+  sslmode: disable
+  time_zone: Asia/Shanghai
+  max_idle_conns: 10
+  max_open_conns: 100
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+
+elasticsearch:
+  addresses:
+    - http://localhost:9200
+  username: ""
+  password: ""
+
+qiniu:
+  access_key: your_access_key
+  secret_key: your_secret_key
+  bucket: your_bucket
+  domain: your_domain.com
+  use_https: true
+  path_prefix: blog
+
+sso:
+  public_key_path: ./keys/public.pem
+
+ai:
+  api_key: sk-your-api-key
+  base_url: https://api.deepseek.com
+  model: deepseek-chat
+
+swagger:
+  enabled: true

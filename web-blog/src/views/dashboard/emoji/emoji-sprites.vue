@@ -261,10 +261,10 @@ const fetchSpriteList = async () => {
     // 这里需要后端提供雪碧图列表接口
     // 暂时使用模拟数据
     const result = await getSpriteList()
-    if (result.code === 0) {
+    if (result.code === "0000") {
       spriteList.value = result.data || []
     } else {
-      ElMessage.error(result.msg || '获取雪碧图列表失败')
+      ElMessage.error(result.message || '获取雪碧图列表失败')
     }
   } catch (error) {
     console.error('获取雪碧图列表失败:', error)
@@ -288,7 +288,7 @@ const viewSpriteDetails = async (sprite: EmojiSprite) => {
 
     if (response.ok) {
       const result = await response.json()
-      if (result.code === 0) {
+      if (result.code === "0000") {
         spriteEmojis.value = result.data.list || []
       }
     }
@@ -420,7 +420,7 @@ const startTaskMonitoring = () => {
 
       if (response.ok) {
         const result = await response.json()
-        if (result.code === 0) {
+        if (result.code === "0000") {
           const task = result.data
           currentGroupSprites.value = task.progress
           taskStatus.value = task.status

@@ -167,10 +167,10 @@ const isFormValid = computed(() => isEmailValid.value && isCaptchaValid.value);
 const sendCode = async () => {
   emailRequest.email = registerFormData.email
   const res = await sendEmailVerificationCode(emailRequest)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   } else {
-    ElMessage.error(res.msg)
+    ElMessage.error(res.message)
     emailVerify()
   }
 }

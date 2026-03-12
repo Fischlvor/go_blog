@@ -95,9 +95,11 @@ const userInfo = ref(userStore.state.userInfo)
 const userChangeInfoForm = ref<FormInstance>()
 
 const userChangeInfoFormData = reactive<UserChangeInfoRequest>({
+  nickname: userInfo.value.nickname || userInfo.value.username,
+  avatar: userInfo.value.avatar,
   username: userInfo.value.username,
-  address: userInfo.value.address,
-  signature: userInfo.value.signature,
+  address: userInfo.value.address || '',
+  signature: userInfo.value.signature || '',
 })
 
 const rules = reactive<FormRules<UserChangeInfoRequest>>({
@@ -130,7 +132,7 @@ const updateUserInfo = async () => {
 
   if (isValid) {
     const res = await userChangeInfo(userChangeInfoFormData)
-    if (res.code === 0) {
+    if (res.code === "0000") {
       cardKey.value += 1
     }
   }

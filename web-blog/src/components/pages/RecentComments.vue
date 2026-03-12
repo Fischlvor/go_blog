@@ -37,7 +37,7 @@ const transformCommentsWithEmojis = async (list: Comment[]): Promise<Comment[]> 
 
 const getRecentCommentInfo = async ()=>{
   const res = await commentNew()
-  if (res.code===0){
+  if (res.code==="0000"){
     comments.value = await transformCommentsWithEmojis(res.data)
   }
 }

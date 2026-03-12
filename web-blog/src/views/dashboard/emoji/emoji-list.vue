@@ -376,11 +376,11 @@ const fetchEmojiList = async () => {
     }
 
     const result = await getEmojiList(params)
-    if (result.code === 0) {
+    if (result.code === "0000") {
       emojiList.value = result.data.list || []
-      pagination.total = result.data.total || 0
+      pagination.total = result.data.total_items || 0
     } else {
-      ElMessage.error(result.msg || '获取表情列表失败')
+      ElMessage.error(result.message || '获取表情列表失败')
     }
   } catch (error) {
     console.error('获取表情列表失败:', error)
@@ -394,7 +394,7 @@ const fetchEmojiList = async () => {
 const fetchEmojiGroups = async () => {
   try {
     const result = await getEmojiGroups()
-    if (result.code === 0) {
+    if (result.code === "0000") {
       emojiGroups.value = result.data || []
     }
   } catch (error) {
@@ -434,11 +434,11 @@ const deleteEmoji = async (emoji: Emoji) => {
     )
 
     const result = await apiDeleteEmoji(emoji.id)
-    if (result.code === 0) {
+    if (result.code === "0000") {
       ElMessage.success('删除成功')
       fetchEmojiList()
     } else {
-      ElMessage.error(result.msg || '删除失败')
+      ElMessage.error(result.message || '删除失败')
     }
   } catch (error) {
     if (error !== 'cancel') {
@@ -452,11 +452,11 @@ const deleteEmoji = async (emoji: Emoji) => {
 const restoreEmoji = async (emoji: Emoji) => {
   try {
     const result = await apiRestoreEmoji(emoji.id)
-    if (result.code === 0) {
+    if (result.code === "0000") {
       ElMessage.success('恢复成功')
       fetchEmojiList()
     } else {
-      ElMessage.error(result.msg || '恢复失败')
+      ElMessage.error(result.message || '恢复失败')
     }
   } catch (error) {
     console.error('恢复表情失败:', error)

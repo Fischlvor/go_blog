@@ -35,7 +35,7 @@
       <el-table-column type="selection" width="60"/>
       <el-table-column label="用户" width="80">
         <template #default="scope:{ row: Feedback, column: any, $index: number }">
-          <user-card-popover :uuid="scope.row.user_uuid"/>
+          <user-card-popover :uuid="scope.row.user_uuid ?? ''"/>
         </template>
       </el-table-column>
       <el-table-column label="时间" width="150">
@@ -145,8 +145,8 @@ const handleBulkDelete = async (ids: number[]) => {
     ids: ids
   }
   const res = await feedbackDelete(requestData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   feedbackBulkDeleteVisible.value = false
   layoutStore.state.shouldRefreshFeedbackTable = true
@@ -171,9 +171,9 @@ const getFeedbackTableData = async () => {
 
   const table = await feedbackList(feedbackListRequest)
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     feedbackTableData.value = table.data.list
-    total.value = table.data.total
+    total.value = table.data.total_items
 
     await router.push({
       path: router.currentRoute.value.path,
@@ -218,8 +218,8 @@ const handleDelete = async (id: number) => {
   }
 
   const res = await feedbackDelete(requestData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   feedbackDeleteVisible.value = false
   layoutStore.state.shouldRefreshFeedbackTable = true

@@ -1,11 +1,14 @@
 import type {ApiResponse} from "@/utils/request";
-import service from "@/utils/request";
+import service, { adminService } from "@/utils/request";
 import type {Model, PageInfo, PageResult} from "@/api/common";
 
 export interface Feedback extends Model{
-    user_uuid: string;
+    user_uuid?: string;
+    type: string;
     content: string;
-    reply: string;
+    contact?: string;
+    status: string;
+    reply?: string;
 }
 
 export interface FeedbackCreateRequest {
@@ -32,7 +35,7 @@ export interface FeedbackDeleteRequest {
 }
 
 export const feedbackDelete = (data: FeedbackDeleteRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/feedback/delete',
         method: 'delete',
         data: data
@@ -45,7 +48,7 @@ export interface FeedbackReplyRequest {
 }
 
 export const feedbackReply = (data: FeedbackReplyRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/feedback/reply',
         method: 'put',
         data: data
@@ -53,7 +56,7 @@ export const feedbackReply = (data: FeedbackReplyRequest): Promise<ApiResponse<u
 }
 
 export const feedbackList = (data: PageInfo): Promise<ApiResponse<PageResult<Feedback>>> => {
-    return service({
+    return adminService({
         url: '/feedback/list',
         method: 'get',
         params: data,

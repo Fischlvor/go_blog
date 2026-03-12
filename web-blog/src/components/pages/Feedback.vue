@@ -51,8 +51,8 @@ watch(() => shouldRefreshFeedbackInfoTable.value, (newVal) => {
 
 const submitForm = async () => {
   const res = await feedbackCreate(feedbackCreateFormData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     feedbackCreateFormData.content = ''
     shouldRefreshFeedbackInfoTable.value = true
   }
@@ -61,12 +61,12 @@ const submitForm = async () => {
 const getFeedbackNew = async () => {
   feedbackInfoList.value = []
   const res = await feedbackNew()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     res.data.forEach(value => {
       const date = new Date(value.created_at);
       const info: FeedbackNew = {
         content: value.content,
-        reply: value.reply,
+        reply: value.reply || '',
         time: date.toLocaleString(),
       }
       feedbackInfoList.value.push(info)

@@ -456,10 +456,10 @@ router.beforeEach((to, from, next) => {
               try {
                 const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback');
                 const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-                const response = await fetch(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
+                const response = await fetch(`/api/v1/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
                 const data = await response.json();
                 
-                if (data.code === 0) {
+                if (data.code === "0000") {
                   window.location.href = data.data.sso_login_url;
                 } else {
                   ElMessage.error(data.message || '获取登录地址失败');

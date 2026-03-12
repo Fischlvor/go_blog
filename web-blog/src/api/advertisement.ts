@@ -1,6 +1,6 @@
 import type {Model, PageInfo, PageResult} from "@/api/common";
 import type {ApiResponse} from "@/utils/request";
-import service from "@/utils/request";
+import service, { adminService } from "@/utils/request";
 
 export interface Advertisement extends Model {
     ad_image: string;
@@ -29,7 +29,7 @@ export interface AdvertisementCreateRequest {
 }
 
 export const advertisementCreate = (data: AdvertisementCreateRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/advertisement/create',
         method: 'post',
         data: data
@@ -41,7 +41,7 @@ export interface AdvertisementDeleteRequest {
 }
 
 export const advertisementDelete = (data: AdvertisementDeleteRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/advertisement/delete',
         method: 'delete',
         data: data
@@ -56,7 +56,7 @@ export interface AdvertisementUpdateRequest {
 }
 
 export const advertisementUpdate = (data: AdvertisementUpdateRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/advertisement/update',
         method: 'put',
         data: data
@@ -69,7 +69,7 @@ export interface AdvertisementListRequest extends PageInfo {
 }
 
 export const advertisementList = (data: AdvertisementListRequest): Promise<ApiResponse<PageResult<Advertisement>>> => {
-    return service({
+    return adminService({
         url: '/advertisement/list',
         method: 'get',
         params: data,

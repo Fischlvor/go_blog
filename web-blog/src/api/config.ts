@@ -1,5 +1,5 @@
 import type {ApiResponse} from "@/utils/request";
-import service from "@/utils/request";
+import service, { adminService } from "@/utils/request";
 
 export interface Website {
     logo: string;
@@ -31,7 +31,7 @@ export const getWebsite = (): Promise<ApiResponse<Website>> => {
 }
 
 export const updateWebsite = (data: Website): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/config/website',
         method: 'put',
         data: data,
@@ -45,14 +45,14 @@ export interface System{
 }
 
 export const getSystem = (): Promise<ApiResponse<System>> => {
-    return service({
+    return adminService({
         url: '/config/system',
         method: 'get',
     })
 }
 
 export const updateSystem = (data: System): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/config/system',
         method: 'put',
         data: data,
@@ -69,14 +69,14 @@ export interface Email {
 }
 
 export const getEmail = (): Promise<ApiResponse<Email>> => {
-    return service({
+    return adminService({
         url: '/config/email',
         method: 'get',
     })
 }
 
 export const updateEmail = (data: Email): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/config/email',
         method: 'put',
         data: data,
@@ -91,14 +91,14 @@ export interface QQ {
 }
 
 export const getQQ = (): Promise<ApiResponse<QQ>> => {
-    return service({
+    return adminService({
         url: '/config/qq',
         method: 'get',
     })
 }
 
 export const updateQQ = (data: QQ): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/config/qq',
         method: 'put',
         data: data,
@@ -116,14 +116,14 @@ export interface Qiniu {
 }
 
 export const getQiniu = (): Promise<ApiResponse<Qiniu>> => {
-    return service({
+    return adminService({
         url: '/config/qiniu',
         method: 'get',
     })
 }
 
 export const updateQiniu = (data: Qiniu): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/config/qiniu',
         method: 'put',
         data: data,
@@ -139,14 +139,14 @@ export interface Jwt {
 }
 
 export const getJwt = (): Promise<ApiResponse<Jwt>> => {
-    return service({
+    return adminService({
         url: '/config/jwt',
         method: 'get',
     })
 }
 
 export const updateJwt = (data: Jwt): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/config/jwt',
         method: 'put',
         data: data,
@@ -159,14 +159,14 @@ export interface Gaode {
 }
 
 export const getGaode = (): Promise<ApiResponse<Gaode>> => {
-    return service({
+    return adminService({
         url: '/config/gaode',
         method: 'get',
     })
 }
 
 export const updateGaode = (data: Gaode): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/config/gaode',
         method: 'put',
         data: data,

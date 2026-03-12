@@ -213,9 +213,9 @@ const getResourceTableData = async () => {
   listRequest.page_size = pageSize.value
 
   const res = await getResourceList(listRequest)
-  if (res.code === 0) {
+  if (res.code === "0000") {
     tableData.value = res.data.list || []
-    total.value = res.data.total
+    total.value = res.data.total_items
 
     await router.push({
       path: router.currentRoute.value.path,
@@ -249,8 +249,8 @@ const handleDeleteClick = (row: ResourceItem) => {
 
 const handleDelete = async () => {
   const res = await deleteResource({ ids: idsToDelete.value })
-  if (res.code === 0) {
-    ElMessage.success(res.msg || '删除成功')
+  if (res.code === "0000") {
+    ElMessage.success(res.message || '删除成功')
     deleteDialogVisible.value = false
     getResourceTableData()
   }

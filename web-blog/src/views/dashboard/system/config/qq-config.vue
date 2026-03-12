@@ -45,7 +45,7 @@ const qqInfo = ref<QQ>({
 
 const getQQInfo = async () => {
   const res = await getQQ()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     qqInfo.value = res.data
   }
 }
@@ -63,8 +63,8 @@ watch(() => shouldRefreshInfo.value, (newVal) => {
 const updateQQInfo = async () => {
   const res = await updateQQ(qqInfo.value)
   console.log(qqInfo.value)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   } else {
     shouldRefreshInfo.value = true
   }

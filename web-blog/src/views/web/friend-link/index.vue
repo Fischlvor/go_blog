@@ -31,7 +31,7 @@ const friendLinkList = ref<FriendLink[]>([])
 
 const getFriendLinkInfo = async () => {
   const res = await friendLinkInfo()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     friendLinkList.value = res.data.list
   }
 }

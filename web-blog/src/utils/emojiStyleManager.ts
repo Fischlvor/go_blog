@@ -72,8 +72,8 @@ export class EmojiStyleManager {
     this.loadingPromise = (async () => {
       try {
         const res = await getEmojiConfig()
-        if (res.code !== 0 || !res.data) {
-          throw new Error(res.msg || '获取emoji配置失败')
+        if (res.code !== '0000' || !res.data) {
+          throw new Error(res.message || '获取emoji配置失败')
         }
 
         const apiConfig = res.data as ApiEmojiConfig

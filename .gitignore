@@ -14,3 +14,9 @@ Thumbs.db
 *.tmp
 *.bak
 *.cache
+
+# 部署脚本（包含服务器 IP）
+deploy.sh
+
+# 迁移脚本（包含服务器 IP）
+scripts/

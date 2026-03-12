@@ -10,12 +10,12 @@
               <div class="time">
                 <el-text>发布：{{ articleInfo.created_at }} 更新：{{ articleInfo.updated_at }}</el-text>
               </div>
-              <el-row class="category">类别：{{ articleInfo.category }}</el-row>
+              <el-row class="category">类别：{{ articleInfo.category?.name }}</el-row>
               <el-row class="tags">标签：
-                <el-tag v-for="item in articleInfo.tags" :key="item" effect="plain">{{ item }}</el-tag>
+                <el-tag v-for="item in articleInfo.tags" :key="item.id" effect="plain">{{ item.name }}</el-tag>
               </el-row>
               <div class="abstract">
-                <el-text>{{ articleInfo.abstract }}</el-text>
+                <el-text>{{ articleInfo.excerpt }}</el-text>
               </div>
             </div>
             <MdPreview :id="mdID" :modelValue="articleInfo.content"/>
@@ -104,15 +104,11 @@
                 <component is="View"/>
               </el-icon>
               {{ articleInfo.views }}
-              <el-icon size="24">
-                <component is="ChatDotRound"/>
-              </el-icon>
-              {{ articleInfo.comments }}
               <el-icon size="24" @click="handelLike">
                 <component v-if="!isLike" is="Star"/>
                 <component v-else is="StarFilled"/>
               </el-icon>
-              {{ articleInfo.likes }}
+              {{ articleInfo.like?.likes || 0 }}
             </div>
           </div>
         </el-aside>
@@ -130,8 +126,8 @@ import {computed, onMounted, ref, watch} from "vue";
 import {MdPreview, MdCatalog} from 'md-editor-v3';
 import WebNavbar from "@/components/layout/WebNavbar.vue";
 import CommentItem from "@/components/common/CommentItem.vue";
-import {articleIsLike, articleLike, type ArticleLikeRequest} from "@/api/article";
-import {type Comment, commentCreate, type CommentCreateRequest, commentInfoByArticleID} from "@/api/comment";
+import {articleLike, articleUnlike} from "@/api/article";
+import {type Comment, commentCreate, type CommentCreateRequest, commentInfoByArticleSlug} from "@/api/comment";
 import {useLayoutStore} from "@/stores/layout";
 import { cdn } from '@/utils/cdn';
 import {useUserStore} from "@/stores/user";
@@ -141,18 +137,24 @@ import { ElMessage } from 'element-plus'
 const mdID = "md-id"
 
 const articleInfo = ref<Article>({
+  id: 0,
+  title: '',
+  slug: '',
+  excerpt: '',
+  featured_image: '',
+  author_uuid: '',
+  author: { uuid: '', nickname: '', avatar: '' },
+  status: '',
+  read_time: 0,
+  views: 0,
+  like: { likes: 0 },
+  is_featured: false,
+  published_at: null,
   created_at: '',
   updated_at: '',
-  cover: '',
-  title: '',
-  keyword: '',
-  category: '',
+  category: { id: 0, name: '', slug: '' },
   tags: [],
-  abstract: '',
   content: '',
-  comments: 0,
-  views: 0,
-  likes: 0,
 })
 
 const scrollElement = document.documentElement
@@ -194,10 +196,10 @@ const redirectToLogin = async () => {
     const redirectUri = encodeURIComponent(window.location.origin + '/sso-callback');
     const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
     
-    const response = await fetch(`/api/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
+    const response = await fetch(`/api/v1/auth/sso_login_url?redirect_uri=${redirectUri}&return_url=${returnUrl}`);
     const data = await response.json();
     
-    if (data.code === 0) {
+    if (data.code === "0000") {
       // 跳转到 SSO 授权端点
       window.location.href = data.data.sso_login_url;
     } else {
@@ -211,10 +213,16 @@ const redirectToLogin = async () => {
 
 const getArticleInfo = async () => {
   const res = await articleInfoByID(articleID.value as string)
-  if (res.code === 0) {
+  if (res.code === "0000") {
     const data = res.data
-    data.content = await renderContentWithEmojis(data.content || '')
-    articleInfo.value = data
+    articleInfo.value = {
+      ...data,
+      content: data.content || ''
+    }
+    if (data.content) {
+      const processedContent = await renderContentWithEmojis(data.content)
+      articleInfo.value.content = processedContent
+    }
   } else {
     await router.push({name: "404"})
   }
@@ -224,28 +232,21 @@ getArticleInfo()
 
 const isLike = ref(false)
 
-const getIsLikeInfo = async () => {
-  const req: ArticleLikeRequest = {
-    article_id: articleID.value as string
+// 点赞状态从文章详情中获取
+watch(() => articleInfo.value?.like?.liked, (liked) => {
+  if (liked !== undefined) {
+    isLike.value = liked
   }
-  const res = await articleIsLike(req)
-  if (res.code === 0) {
-    isLike.value = res.data
-  }
-}
-
-if (useUserStore().state.userInfo.role_id !== 0) {
-  getIsLikeInfo()
-}
+})
 
 const handelLike = async () => {
-  const req: ArticleLikeRequest = {
-    article_id: articleID.value as string
-  }
-  const res = await articleLike(req)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
-    articleInfo.value.likes += isLike.value ? -1 : 1
+  const slug = articleID.value as string
+  const res = isLike.value ? await articleUnlike(slug) : await articleLike(slug)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
+    if (articleInfo.value.like) {
+      articleInfo.value.like.likes += isLike.value ? -1 : 1
+    }
     isLike.value = !isLike.value
   }
 }
@@ -296,13 +297,13 @@ const hasMoreEmojis = computed(() => {
 
 const submitComment = async () => {
   const commentCreateRequest: CommentCreateRequest = {
-    article_id: articleID.value as string,
-    p_id: null,
+    article_slug: articleID.value as string,
+    parent_id: null,
     content: content.value,
   }
   const res = await commentCreate(commentCreateRequest)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     content.value = ''
     layoutStore.state.shouldRefreshCommentList = true
   }
@@ -326,8 +327,8 @@ const transformCommentsWithEmojis = async (list: Comment[]): Promise<Comment[]> 
 
 const getArticleCommentsInfo = async () => {
   comments.value = []
-  const res = await commentInfoByArticleID(articleID.value as string)
-  if (res.code === 0) {
+  const res = await commentInfoByArticleSlug(articleID.value as string)
+  if (res.code === "0000") {
     comments.value = await transformCommentsWithEmojis(res.data)
   }
 }

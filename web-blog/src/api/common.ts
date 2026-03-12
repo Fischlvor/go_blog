@@ -11,7 +11,10 @@ export interface PageInfo {
 
 export interface PageResult<T> {
     list: T[];
-    total: number;
+    current_page: number;
+    page_size: number;
+    total_items: number;
+    total_pages: number;
 }
 
 export interface Hit<T> {

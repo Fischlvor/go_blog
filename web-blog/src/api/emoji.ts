@@ -1,6 +1,6 @@
 import type {Model, PageInfo, PageResult} from "@/api/common";
 import type {ApiResponse} from "@/utils/request";
-import service, { streamRequest, type StreamRequestConfig } from "@/utils/request";
+import service, { adminService, streamRequest, type StreamRequestConfig } from "@/utils/request";
 
 // 表情接口
 export interface Emoji extends Model {
@@ -87,7 +87,7 @@ export interface EmojiGroupUpdateRequest {
 
 // 表情列表
 export const getEmojiList = (params: EmojiListRequest): Promise<ApiResponse<PageResult<Emoji>>> => {
-    return service({
+    return adminService({
         url: '/emoji/list',
         method: 'get',
         params: params,
@@ -104,7 +104,7 @@ export const getEmojiGroups = (): Promise<ApiResponse<EmojiGroup[]>> => {
 
 // 创建表情组
 export const createEmojiGroup = (data: EmojiGroupCreateRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: '/emoji/groups',
         method: 'post',
         data: data,
@@ -113,7 +113,7 @@ export const createEmojiGroup = (data: EmojiGroupCreateRequest): Promise<ApiResp
 
 // 更新表情组
 export const updateEmojiGroup = (id: number, data: EmojiGroupUpdateRequest): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: `/emoji/groups/${id}`,
         method: 'put',
         data: data,
@@ -122,7 +122,7 @@ export const updateEmojiGroup = (id: number, data: EmojiGroupUpdateRequest): Pro
 
 // 删除表情组
 export const deleteEmojiGroup = (id: number): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: `/emoji/groups/${id}`,
         method: 'delete',
     });
@@ -134,7 +134,7 @@ export const uploadEmoji = (formData: FormData): Promise<ApiResponse<{
     count: number;
     emojis: Emoji[];
 }>> => {
-    return service({
+    return adminService({
         url: '/emoji/upload',
         method: 'post',
         data: formData,
@@ -171,7 +171,7 @@ export const uploadEmojiStream = (formData: FormData, onProgress?: (event: strin
 
 // 删除表情
 export const deleteEmoji = (id: number): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: `/emoji/${id}`,
         method: 'delete',
     });
@@ -179,7 +179,7 @@ export const deleteEmoji = (id: number): Promise<ApiResponse<undefined>> => {
 
 // 恢复表情
 export const restoreEmoji = (id: number): Promise<ApiResponse<undefined>> => {
-    return service({
+    return adminService({
         url: `/emoji/${id}/restore`,
         method: 'put',
     });
@@ -188,7 +188,7 @@ export const restoreEmoji = (id: number): Promise<ApiResponse<undefined>> => {
 // 重新生成雪碧图（SSE流式）
 export const regenerateSpritesStream = (groupKeys: string[], onProgress?: (event: string, data: any) => void): Promise<void> => {
     const config: StreamRequestConfig = {
-        url: '/emoji/regenerate',
+        url: '/api/admin/emoji/regenerate',  // 使用完整路径，绕过 baseURL
         method: 'POST',
         data: {
             group_keys: groupKeys
@@ -213,7 +213,7 @@ export const regenerateSpritesStream = (groupKeys: string[], onProgress?: (event
 
 // 获取任务状态
 export const getTaskStatus = (id: number): Promise<ApiResponse<EmojiTask>> => {
-    return service({
+    return adminService({
         url: `/emoji/task/${id}`,
         method: 'get',
     });
@@ -221,7 +221,7 @@ export const getTaskStatus = (id: number): Promise<ApiResponse<EmojiTask>> => {
 
 // 获取雪碧图列表
 export const getSpriteList = (): Promise<ApiResponse<EmojiSprite[]>> => {
-    return service({
+    return adminService({
         url: '/emoji/sprites',
         method: 'get',
     });

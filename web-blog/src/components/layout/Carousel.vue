@@ -21,7 +21,7 @@ const imgList = ref<string[]>([
 
 const getWebsiteCarousel = async () => {
   const res = await websiteCarousel()
-  if (res.code === 0 && res.data.length !== 0) {
+  if (res.code === "0000" && res.data.length !== 0) {
     imgList.value = res.data
   }
 }

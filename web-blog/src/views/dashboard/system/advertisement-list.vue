@@ -188,8 +188,8 @@ const handleBulkDelete = async (ids: number[]) => {
     ids: ids
   }
   const res = await advertisementDelete(requestData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   advertisementBulkDeleteVisible.value = false
   layoutStore.state.shouldRefreshAdvertisementTable = true
@@ -225,9 +225,9 @@ const getAdvertisementTableData = async () => {
 
   const table = await advertisementList(advertisementListRequest)
 
-  if (table.code === 0) {
+  if (table.code === "0000") {
     advertisementTableData.value = table.data.list
-    total.value = table.data.total
+    total.value = table.data.total_items
 
     await router.push({
       path: router.currentRoute.value.path,
@@ -276,8 +276,8 @@ const handleDelete = async (id: number) => {
   }
 
   const res = await advertisementDelete(requestData)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
   advertisementDeleteVisible.value = false
   layoutStore.state.shouldRefreshAdvertisementTable = true

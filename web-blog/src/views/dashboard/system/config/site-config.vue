@@ -383,7 +383,7 @@ const websiteInfo = ref<Website>({
 
 const getWebsiteInfo = async () => {
   const res = await getWebsite()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     websiteInfo.value = res.data
     useWebsiteStore().state.websiteInfo = res.data
   }
@@ -402,17 +402,17 @@ watch(() => shouldRefreshInfo.value, (newVal) => {
 const updateWebsiteInfo = async () => {
   const res = await updateWebsite(websiteInfo.value)
   console.log(websiteInfo.value)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   } else {
     shouldRefreshInfo.value = true
   }
 }
 
 const handleLogoSuccess = (res: ApiResponse<ImageUploadResponse>) => {
-  if (res.code === 0) {
+  if (res.code === "0000") {
     websiteInfo.value.logo = res.data.url
-    ElMessage.success(res.msg)
+    ElMessage.success(res.message)
     updateWebsiteInfo()
   }
 }
@@ -439,9 +439,9 @@ const clearLogo = () => {
 }
 
 const handleFullLogoSuccess = (res: ApiResponse<ImageUploadResponse>) => {
-  if (res.code === 0) {
+  if (res.code === "0000") {
     websiteInfo.value.full_logo = res.data.url
-    ElMessage.success(res.msg)
+    ElMessage.success(res.message)
     updateWebsiteInfo()
   }
 }
@@ -468,9 +468,9 @@ const clearFullLogo = () => {
 }
 
 const handleQQImageSuccess = (res: ApiResponse<ImageUploadResponse>) => {
-  if (res.code === 0) {
+  if (res.code === "0000") {
     websiteInfo.value.qq_image = res.data.url
-    ElMessage.success(res.msg)
+    ElMessage.success(res.message)
     updateWebsiteInfo()
   }
 }
@@ -497,9 +497,9 @@ const clearQQImageLogo = () => {
 }
 
 const handleWechatImageSuccess = (res: ApiResponse<ImageUploadResponse>) => {
-  if (res.code === 0) {
+  if (res.code === "0000") {
     websiteInfo.value.wechat_image = res.data.url
-    ElMessage.success(res.msg)
+    ElMessage.success(res.message)
     updateWebsiteInfo()
   }
 }
@@ -529,7 +529,7 @@ const footerLinkList = ref<FooterLink[]>([])
 
 const getFooterLinkList = async () => {
   const res = await websiteFooterLink()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     footerLinkList.value = res.data
   }
 }
@@ -546,8 +546,8 @@ watch(() => shouldRefreshFooterLinkInfo.value, (newVal) => {
 
 const handleDeleteFooterLink = async (item: FooterLink) => {
   const res = await websiteDeleteFooterLink(item)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     shouldRefreshFooterLinkInfo.value = true
   }
 }
@@ -561,8 +561,8 @@ const footerLink = reactive<FooterLink>({
 
 const handleCreateFooterLink = async (footerLink: FooterLink) => {
   const res = await websiteCreateFooterLink(footerLink)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
     shouldRefreshFooterLinkInfo.value = true
   }
 }
@@ -572,7 +572,7 @@ const carouselList = ref<string[]>([])
 
 const getCarouseList = async () => {
   const res = await websiteCarousel()
-  if (res.code === 0) {
+  if (res.code === "0000") {
     carouselList.value = res.data
   }
 }
@@ -584,15 +584,15 @@ const addCarouse = async (url: string) => {
     url: url,
   }
   const res = await websiteAddCarousel(req)
-  if (res.code === 0) {
-    ElMessage.success(res.msg)
+  if (res.code === "0000") {
+    ElMessage.success(res.message)
   }
 }
 
 const handleCarouselSuccess = (res: ApiResponse<ImageUploadResponse>) => {
-  if (res.code === 0) {
+  if (res.code === "0000") {
     addCarouse(res.data.url)
-    ElMessage.success(res.msg)
+    ElMessage.success(res.message)
     getCarouseList()
   }
 }
@@ -611,8 +611,8 @@ const cancelCarousel = (url: string) => {
           url: url,
         }
         const res = await websiteCancelCarousel(req)
-        if (res.code === 0) {
-          ElMessage.success(res.msg)
+        if (res.code === "0000") {
+          ElMessage.success(res.message)
           await getCarouseList()
         }
       })
