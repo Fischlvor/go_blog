@@ -16,6 +16,7 @@ import (
 	"os"
 	"server-blog-v2/config"
 	"server-blog-v2/internal/controller/http"
+	"server-blog-v2/internal/controller/http/middleware"
 	"server-blog-v2/internal/repo"
 	"server-blog-v2/internal/repo/persistence"
 	"server-blog-v2/internal/repo/storage"
@@ -93,7 +94,9 @@ func InitializeApp(cfg *config.Config) (*App, func(), error) {
 	emoji := NewEmojiUseCase(cfg, emojiRepo, emojiSpriteRepo)
 	advertisementRepo := persistence.NewAdvertisementRepo(db)
 	advertisement := NewAdvertisementUseCase(cfg, advertisementRepo)
-	server := SetupHTTPServer(cfg, loggerInterface, publicKey, userRepo, content, comment, aiChat, aiModel, feedback, link, file, resource, user, website, emoji, advertisement)
+	sessionManager := NewSessionManager(redis, loggerInterface)
+	ssoClient := NewSSOClient(cfg)
+	server := SetupHTTPServer(cfg, loggerInterface, publicKey, userRepo, content, comment, aiChat, aiModel, feedback, link, file, resource, user, website, emoji, advertisement, sessionManager, ssoClient)
 	app := NewApp(appInfo, loggerInterface, server)
 	return app, func() {
 		cleanup2()
@@ -217,6 +220,15 @@ func NewLLMWebAPI(cfg *config.Config) repo.LLMWebAPI {
 	)
 }
 
+// NewSSOClient 创建 SSO 客户端。
+func NewSSOClient(cfg *config.Config) *webapi.SSOClient {
+	return webapi.NewSSOClient(
+		cfg.SSO.ServiceURL,
+		cfg.SSO.ClientID,
+		cfg.SSO.ClientSecret,
+	)
+}
+
 // NewContentUseCase 创建 Content UseCase。
 func NewContentUseCase(
 	cfg *config.Config,
@@ -291,6 +303,11 @@ func NewAdvertisementUseCase(cfg *config.Config, ads repo.AdvertisementRepo) use
 	return advertisement.New(cfg, ads)
 }
 
+// NewSessionManager 创建 Session 管理器。
+func NewSessionManager(redis2 *redis.Redis, l logger.Interface) *middleware.SessionManager {
+	return middleware.NewSessionManager(redis2, l)
+}
+
 func SetupHTTPServer(
 	cfg *config.Config,
 	l logger.Interface,
@@ -308,9 +325,11 @@ func SetupHTTPServer(
 	websiteUC usecase.Website,
 	emojiUC usecase.Emoji,
 	advertisementUC usecase.Advertisement,
+	sessionManager *middleware.SessionManager,
+	ssoClient *webapi.SSOClient,
 ) *httpserver.Server {
 	srv := httpserver.New(l, httpserver.WithPort(strconv.Itoa(cfg.HTTP.Port)), httpserver.WithPrefork(cfg.HTTP.UsePreforkMode))
-	http.NewRouter(srv.App, cfg, l, publicKey, userRepo, contentUC, commentUC, aiChatUC, aiModelUC, feedbackUC, linkUC, fileUC, resourceUC, userUC, websiteUC, emojiUC, advertisementUC)
+	http.NewRouter(srv.App, cfg, l, publicKey, userRepo, contentUC, commentUC, aiChatUC, aiModelUC, feedbackUC, linkUC, fileUC, resourceUC, userUC, websiteUC, emojiUC, advertisementUC, sessionManager, ssoClient)
 	return srv
 }
 
@@ -325,6 +344,7 @@ var ProviderSet = wire.NewSet(
 	NewRedis,
 	NewPublicKey, persistence.NewArticleRepo, persistence.NewArticleLikeRepo, persistence.NewArticleViewRepo, persistence.NewCategoryRepo, persistence.NewTagRepo, persistence.NewCommentRepo, persistence.NewUserRepo, persistence.NewChatSessionRepo, persistence.NewChatMessageRepo, persistence.NewFeedbackRepo, persistence.NewLinkRepo, persistence.NewFileRepo, persistence.NewResourceRepo, persistence.NewResourceUploadTaskRepo, persistence.NewAIModelRepo, persistence.NewEmojiRepo, persistence.NewEmojiSpriteRepo, persistence.NewAdvertisementRepo, persistence.NewFooterLinkRepo, NewObjectStore,
 	NewLLMWebAPI,
+	NewSSOClient,
 
 	NewContentUseCase,
 	NewCommentUseCase,
@@ -338,6 +358,8 @@ var ProviderSet = wire.NewSet(
 	NewWebsiteUseCase,
 	NewEmojiUseCase,
 	NewAdvertisementUseCase,
+
+	NewSessionManager,
 
 	SetupHTTPServer,
 )

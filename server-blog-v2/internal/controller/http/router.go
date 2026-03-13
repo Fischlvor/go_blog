@@ -12,6 +12,7 @@ import (
 	"server-blog-v2/internal/controller/http/qiniu"
 	v1 "server-blog-v2/internal/controller/http/v1"
 	"server-blog-v2/internal/repo"
+	"server-blog-v2/internal/repo/webapi"
 	"server-blog-v2/internal/usecase"
 	"server-blog-v2/pkg/logger"
 )
@@ -35,6 +36,8 @@ func NewRouter(
 	website usecase.Website,
 	emoji usecase.Emoji,
 	advertisement usecase.Advertisement,
+	sessionManager *middleware.SessionManager,
+	ssoClient *webapi.SSOClient,
 ) {
 	// 全局中间件
 	app.Use(middleware.Logger(l))
@@ -43,6 +46,7 @@ func NewRouter(
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"X-New-Access-Token", "X-Token-Expires-In"}, // 暴露给前端的响应头
 		AllowCredentials: true,
 	}))
 
@@ -56,7 +60,7 @@ func NewRouter(
 
 	// V1 公开 API
 	v1Group := api.Group("/v1")
-	v1.NewRoutes(v1Group, cfg, l, publicKey, content, comment, aiChat, feedback, link, file, user, website, emoji, advertisement)
+	v1.NewRoutes(v1Group, cfg, l, publicKey, content, comment, aiChat, feedback, link, file, user, website, emoji, advertisement, sessionManager, ssoClient, userRepo)
 
 	// Admin API
 	adminGroup := api.Group("/admin")

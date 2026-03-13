@@ -188,7 +188,7 @@ func IsAdmin(c fiber.Ctx) bool {
 }
 
 // NewSSOJWTMiddleware 创建 SSO JWT 认证中间件（支持自动刷新 token 和用户同步）。
-func NewSSOJWTMiddleware(cfg SSOJWTConfig) fiber.Handler {
+func NewSSOUserJWTMiddleware(cfg SSOJWTConfig) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		claims, err := parseToken(c, cfg.PublicKey)
 		if err != nil {

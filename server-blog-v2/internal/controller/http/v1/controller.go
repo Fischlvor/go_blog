@@ -12,19 +12,20 @@ import (
 
 // V1 公开 API 控制器。
 type V1 struct {
-	cfg           *config.Config
-	logger        logger.Interface
-	validate      *validator.Validate
-	content       usecase.Content
-	comment       usecase.Comment
-	aiChat        usecase.AIChat
-	feedback      usecase.Feedback
-	link          usecase.Link
-	file          usecase.File
-	user          usecase.User
-	website       usecase.Website
-	emoji         usecase.Emoji
-	advertisement usecase.Advertisement
+	cfg            *config.Config
+	logger         logger.Interface
+	validate       *validator.Validate
+	content        usecase.Content
+	comment        usecase.Comment
+	aiChat         usecase.AIChat
+	feedback       usecase.Feedback
+	link           usecase.Link
+	file           usecase.File
+	user           usecase.User
+	website        usecase.Website
+	emoji          usecase.Emoji
+	advertisement  usecase.Advertisement
+	sessionManager *middleware.SessionManager
 }
 
 // New 创建 V1 控制器。
@@ -41,21 +42,23 @@ func New(
 	website usecase.Website,
 	emoji usecase.Emoji,
 	advertisement usecase.Advertisement,
+	sessionManager *middleware.SessionManager,
 ) *V1 {
 	return &V1{
-		cfg:           cfg,
-		logger:        l,
-		validate:      validator.New(),
-		content:       content,
-		comment:       comment,
-		aiChat:        aiChat,
-		feedback:      feedback,
-		link:          link,
-		file:          file,
-		user:          user,
-		website:       website,
-		emoji:         emoji,
-		advertisement: advertisement,
+		cfg:            cfg,
+		logger:         l,
+		validate:       validator.New(),
+		content:        content,
+		comment:        comment,
+		aiChat:         aiChat,
+		feedback:       feedback,
+		link:           link,
+		file:           file,
+		user:           user,
+		website:        website,
+		emoji:          emoji,
+		advertisement:  advertisement,
+		sessionManager: sessionManager,
 	}
 }
 
