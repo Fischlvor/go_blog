@@ -94,3 +94,51 @@ func (r *Redis) Get(ctx context.Context, key string) (string, error) {
 func (r *Redis) Set(ctx context.Context, key string, value string, expiration time.Duration) error {
 	return r.RDB.Set(ctx, key, value, expiration).Err()
 }
+
+// Del 删除缓存值。
+func (r *Redis) Del(ctx context.Context, key string) error {
+	return r.RDB.Del(ctx, key).Err()
+}
+
+// ==================== Session 相关方法 ====================
+
+const (
+	// SessionKeyPrefix Session Key 前缀。
+	SessionKeyPrefix = "blog:session:"
+	// RefreshTokenField refresh_token 字段名。
+	RefreshTokenField = "refresh_token"
+	// RefreshTokenExpiresAtField refresh_token 过期时间字段名。
+	RefreshTokenExpiresAtField = "refresh_token_expires_at"
+	// DefaultSessionExpiration 默认 Session 过期时间（7天）。
+	DefaultSessionExpiration = 7 * 24 * time.Hour
+)
+
+// SessionStore Session 存储接口。
+type SessionStore interface {
+	GetRefreshToken(ctx context.Context, sessionID string) (string, error)
+	SetRefreshToken(ctx context.Context, sessionID string, refreshToken string, expiration time.Duration) error
+	DeleteSession(ctx context.Context, sessionID string) error
+}
+
+// GetRefreshToken 从 Session 获取 refresh_token。
+func (r *Redis) GetRefreshToken(ctx context.Context, sessionID string) (string, error) {
+	key := SessionKeyPrefix + sessionID
+	return r.RDB.HGet(ctx, key, RefreshTokenField).Result()
+}
+
+// SetRefreshToken 存储 refresh_token 到 Session。
+func (r *Redis) SetRefreshToken(ctx context.Context, sessionID string, refreshToken string, expiration time.Duration) error {
+	key := SessionKeyPrefix + sessionID
+	pipe := r.RDB.Pipeline()
+	pipe.HSet(ctx, key, RefreshTokenField, refreshToken)
+	pipe.HSet(ctx, key, RefreshTokenExpiresAtField, time.Now().Add(expiration).Unix())
+	pipe.Expire(ctx, key, expiration)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// DeleteSession 删除 Session。
+func (r *Redis) DeleteSession(ctx context.Context, sessionID string) error {
+	key := SessionKeyPrefix + sessionID
+	return r.RDB.Del(ctx, key).Err()
+}

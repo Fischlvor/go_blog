@@ -7,6 +7,8 @@ import (
 
 	"server-blog-v2/config"
 	"server-blog-v2/internal/controller/http/middleware"
+	"server-blog-v2/internal/repo"
+	"server-blog-v2/internal/repo/webapi"
 	"server-blog-v2/internal/usecase"
 	"server-blog-v2/pkg/logger"
 )
@@ -27,11 +29,24 @@ func NewRoutes(
 	website usecase.Website,
 	emoji usecase.Emoji,
 	advertisement usecase.Advertisement,
+	sessionManager *middleware.SessionManager,
+	ssoClient *webapi.SSOClient,
+	userRepo repo.UserRepo,
 ) {
-	v1 := New(cfg, l, content, comment, aiChat, feedback, link, file, user, website, emoji, advertisement)
+	v1 := New(cfg, l, content, comment, aiChat, feedback, link, file, user, website, emoji, advertisement, sessionManager)
 
-	// JWT 中间件
-	jwtRequired := middleware.NewUserJWTMiddleware(publicKey)
+	// SSO JWT 中间件配置（支持自动刷新 token）
+	ssoJWTConfig := middleware.SSOJWTConfig{
+		PublicKey:          publicKey,
+		SSOClient:          ssoClient,
+		UserRoleGetter:     userRepo, // UserRepo 实现了 GetRoleByUUID
+		UserCreator:        userRepo, // UserRepo 实现了 CreateFromSSO
+		RefreshTokenGetter: sessionManager,
+		Logger:             l,
+	}
+
+	// JWT 中间件（支持自动刷新）
+	jwtRequired := middleware.NewSSOUserJWTMiddleware(ssoJWTConfig)
 	jwtOptional := middleware.NewOptionalUserJWTMiddleware(publicKey)
 
 	// ==================== 认证 /auth ====================

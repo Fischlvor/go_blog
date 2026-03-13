@@ -56,6 +56,12 @@ func (v *V1) ssoCallback(c fiber.Ctx) error {
 		return shared.WriteError(c, http.StatusInternalServerError, bizcode.ErrorThirdParty, "failed to exchange token")
 	}
 
+	// ✅ 关键：将 refresh_token 存储到 Session（Redis），不返回给前端
+	if v.sessionManager != nil && tokenResp.RefreshToken != "" {
+		v.sessionManager.SetRefreshToken(c, tokenResp.RefreshToken)
+		v.logger.Info("refresh_token stored in session")
+	}
+
 	return shared.WriteSuccess(c, shared.WithData(fiber.Map{
 		"access_token": tokenResp.AccessToken,
 		"token_type":   tokenResp.TokenType,
