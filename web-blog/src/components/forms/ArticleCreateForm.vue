@@ -58,11 +58,13 @@
         </div>
       </el-form-item>
       <el-form-item label="文章标签" prop="tag_ids">
-        <div class="tag-checkbox-container">
-          <el-checkbox-group v-model="articleCreateFormData.tag_ids">
-            <el-checkbox v-for="tag in tags" :key="tag.id" :value="tag.id">{{ tag.name }}</el-checkbox>
-          </el-checkbox-group>
-          <el-button type="primary" link @click="showNewTagDialog = true" style="margin-top: 8px">新建标签</el-button>
+        <div style="display: flex; gap: 10px; width: 100%; align-items: flex-start;">
+          <div class="tag-checkbox-container" ref="tagContainerRef" style="flex: 1;" @wheel.prevent="handleTagScroll">
+            <el-checkbox-group v-model="articleCreateFormData.tag_ids">
+              <el-checkbox v-for="tag in tags" :key="tag.id" :value="tag.id">{{ tag.name }}</el-checkbox>
+            </el-checkbox-group>
+          </div>
+          <el-button type="primary" size="large" @click="showNewTagDialog = true">新建</el-button>
         </div>
       </el-form-item>
       <el-form-item label="文章简介" prop="abstract">
@@ -173,6 +175,25 @@ const showNewCategoryDialog = ref(false)
 const showNewTagDialog = ref(false)
 const newCategoryForm = reactive({ name: '', slug: '' })
 const newTagForm = reactive({ name: '', slug: '' })
+
+// 标签滚动控制
+const tagContainerRef = ref<HTMLElement | null>(null)
+const ROW_HEIGHT = 41 // 每行高度
+const isScrolling = ref(false)
+const handleTagScroll = (e: WheelEvent) => {
+  if (tagContainerRef.value && !isScrolling.value) {
+    isScrolling.value = true
+    const direction = e.deltaY > 0 ? 1 : -1
+    tagContainerRef.value.scrollTo({
+      top: tagContainerRef.value.scrollTop + direction * ROW_HEIGHT,
+      behavior: 'smooth'
+    })
+    // 滚动动画大约 150ms，设置延迟防止连续触发
+    setTimeout(() => {
+      isScrolling.value = false
+    }, 200)
+  }
+}
 
 // 加载分类和标签
 const loadCategoriesAndTags = async () => {
@@ -289,12 +310,32 @@ const submitForm = async () => {
       }
 
       .tag-checkbox-container {
-        max-height: 120px;
+        max-height: 40px;
         overflow-y: auto;
+        overflow-x: hidden;
         width: 100%;
-        padding: 8px;
+        padding: 0;
         border: 1px solid var(--el-border-color);
         border-radius: 4px;
+        scrollbar-width: none; // Firefox
+        -ms-overflow-style: none; // IE/Edge
+        
+        &::-webkit-scrollbar {
+          display: none; // Chrome/Safari
+        }
+        
+        .el-checkbox-group {
+          display: flex;
+          flex-wrap: wrap;
+          
+          .el-checkbox {
+            flex: 0 0 33.33%;
+            margin: 0;
+            height: 40px;
+            line-height: 40px;
+            padding-left: 10px;
+          }
+        }
       }
 
       .button-group {

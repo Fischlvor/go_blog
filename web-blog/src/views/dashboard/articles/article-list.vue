@@ -112,7 +112,7 @@
 
     <el-dialog
         v-model="articleUpdateVisible"
-        width="500"
+        width="600"
         align-center
         destroy-on-close
         :before-close="articleUpdateVisibleSynchronization"

@@ -50,15 +50,21 @@
         />
       </el-form-item>
       <el-form-item label="文章类别" prop="category_id">
-        <el-select v-model="articleUpdateFormData.category_id" placeholder="请选择分类" size="large" style="width: 100%">
-          <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
-        </el-select>
+        <div style="display: flex; gap: 10px; width: 100%;">
+          <el-select v-model="articleUpdateFormData.category_id" placeholder="请选择分类" size="large" style="flex: 1;">
+            <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
+          </el-select>
+          <el-button type="primary" size="large" @click="showNewCategoryDialog = true">新建</el-button>
+        </div>
       </el-form-item>
       <el-form-item label="文章标签" prop="tag_ids">
-        <div class="tag-checkbox-container">
-          <el-checkbox-group v-model="articleUpdateFormData.tag_ids">
-            <el-checkbox v-for="tag in tags" :key="tag.id" :value="tag.id">{{ tag.name }}</el-checkbox>
-          </el-checkbox-group>
+        <div style="display: flex; gap: 10px; width: 100%; align-items: flex-start;">
+          <div class="tag-checkbox-container" ref="tagContainerRef" style="flex: 1;" @wheel.prevent="handleTagScroll">
+            <el-checkbox-group v-model="articleUpdateFormData.tag_ids">
+              <el-checkbox v-for="tag in tags" :key="tag.id" :value="tag.id">{{ tag.name }}</el-checkbox>
+            </el-checkbox-group>
+          </div>
+          <el-button type="primary" size="large" @click="showNewTagDialog = true">新建</el-button>
         </div>
       </el-form-item>
       <el-form-item label="文章简介" prop="abstract">
@@ -113,13 +119,45 @@
         </div>
       </el-form-item>
     </el-form>
+
+    <!-- 新建分类对话框 -->
+    <el-dialog v-model="showNewCategoryDialog" title="新建分类" width="400px">
+      <el-form :model="newCategoryForm" label-width="80px">
+        <el-form-item label="分类名称" required>
+          <el-input v-model="newCategoryForm.name" placeholder="请输入分类名称" />
+        </el-form-item>
+        <el-form-item label="分类标识" required>
+          <el-input v-model="newCategoryForm.slug" placeholder="请输入分类标识（英文）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showNewCategoryDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleCreateCategory">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 新建标签对话框 -->
+    <el-dialog v-model="showNewTagDialog" title="新建标签" width="400px">
+      <el-form :model="newTagForm" label-width="80px">
+        <el-form-item label="标签名称" required>
+          <el-input v-model="newTagForm.name" placeholder="请输入标签名称" />
+        </el-form-item>
+        <el-form-item label="标签标识" required>
+          <el-input v-model="newTagForm.slug" placeholder="请输入标签标识（英文）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showNewTagDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleCreateTag">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import {reactive, ref} from "vue";
 import {type DrawerProps, ElMessage} from "element-plus";
-import {type Article, articleUpdate, articleCategory, articleTags, type ArticleUpdateRequest, type CategoryDetail, type TagDetail} from "@/api/article";
+import {type Article, articleUpdate, articleCategory, articleTags, createTag, createCategory, type ArticleUpdateRequest, type CategoryDetail, type TagDetail} from "@/api/article";
 import type {ApiResponse} from "@/utils/request";
 import type {ImageUploadResponse} from "@/api/image";
 import {useUserStore} from "@/stores/user";
@@ -158,6 +196,79 @@ const originalArticle = props.article
 // 分类和标签列表
 const categories = ref<CategoryDetail[]>([])
 const tags = ref<TagDetail[]>([])
+
+// 标签滚动控制
+const tagContainerRef = ref<HTMLElement | null>(null)
+const ROW_HEIGHT = 40 // 每行高度
+const isScrolling = ref(false)
+const handleTagScroll = (e: WheelEvent) => {
+  if (tagContainerRef.value && !isScrolling.value) {
+    isScrolling.value = true
+    const direction = e.deltaY > 0 ? 1 : -1
+    tagContainerRef.value.scrollTo({
+      top: tagContainerRef.value.scrollTop + direction * ROW_HEIGHT,
+      behavior: 'smooth'
+    })
+    // 滚动动画大约 150ms，设置延迟防止连续触发
+    setTimeout(() => {
+      isScrolling.value = false
+    }, 200)
+  }
+}
+
+// 新建分类对话框
+const showNewCategoryDialog = ref(false)
+const newCategoryForm = reactive({
+  name: '',
+  slug: ''
+})
+
+// 创建分类
+const handleCreateCategory = async () => {
+  if (!newCategoryForm.name || !newCategoryForm.slug) {
+    ElMessage.warning('请填写完整的分类信息')
+    return
+  }
+  const res = await createCategory(newCategoryForm)
+  if (res.code === '0000') {
+    ElMessage.success('分类创建成功')
+    showNewCategoryDialog.value = false
+    newCategoryForm.name = ''
+    newCategoryForm.slug = ''
+    // 重新加载分类列表
+    const catRes = await articleCategory()
+    if (catRes.code === '0000') categories.value = catRes.data
+  } else {
+    ElMessage.error(res.message || '创建失败')
+  }
+}
+
+// 新建标签对话框
+const showNewTagDialog = ref(false)
+const newTagForm = reactive({
+  name: '',
+  slug: ''
+})
+
+// 创建标签
+const handleCreateTag = async () => {
+  if (!newTagForm.name || !newTagForm.slug) {
+    ElMessage.warning('请填写完整的标签信息')
+    return
+  }
+  const res = await createTag(newTagForm)
+  if (res.code === '0000') {
+    ElMessage.success('标签创建成功')
+    showNewTagDialog.value = false
+    newTagForm.name = ''
+    newTagForm.slug = ''
+    // 重新加载标签列表
+    const tagRes = await articleTags()
+    if (tagRes.code === '0000') tags.value = tagRes.data
+  } else {
+    ElMessage.error(res.message || '创建失败')
+  }
+}
 
 // 加载分类和标签
 const loadCategoriesAndTags = async () => {
@@ -259,12 +370,32 @@ const submitForm = async () => {
       }
 
       .tag-checkbox-container {
-        max-height: 120px;
+        max-height: 40px;
         overflow-y: auto;
+        overflow-x: hidden;
         width: 100%;
-        padding: 8px;
+        padding: 0;
         border: 1px solid var(--el-border-color);
         border-radius: 4px;
+        scrollbar-width: none; // Firefox
+        -ms-overflow-style: none; // IE/Edge
+        
+        &::-webkit-scrollbar {
+          display: none; // Chrome/Safari
+        }
+        
+        .el-checkbox-group {
+          display: flex;
+          flex-wrap: wrap;
+          
+          .el-checkbox {
+            flex: 0 0 33.33%;
+            margin: 0;
+            height: 40px;
+            line-height: 40px;
+            padding-left: 10px;
+          }
+        }
       }
 
       .button-group {

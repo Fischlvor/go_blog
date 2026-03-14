@@ -18,7 +18,7 @@
         <!--  这里必须销毁，不然不会重新加载props-->
         <el-dialog
             v-model="articleCreateVisible"
-            width="500"
+            width="600"
             align-center
             destroy-on-close
             :before-close="articleCreateVisibleSynchronization"
