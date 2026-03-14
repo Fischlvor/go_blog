@@ -21,7 +21,7 @@
                   :show-file-list="false"
                   :on-success="handleLogoSuccess"
                   :on-error="handleLogoSuccess"
-                  name="image"
+                  name="file"
               >
 
                 <el-image v-if="websiteInfo.logo" :src="websiteInfo.logo"
@@ -60,7 +60,7 @@
                   :show-file-list="false"
                   :on-success="handleFullLogoSuccess"
                   :on-error="handleFullLogoSuccess"
-                  name="image"
+                  name="file"
               >
 
                 <el-image v-if="websiteInfo.full_logo" :src="websiteInfo.full_logo"
@@ -161,7 +161,7 @@
                   :show-file-list="false"
                   :on-success="handleQQImageSuccess"
                   :on-error="handleQQImageSuccess"
-                  name="image"
+                  name="file"
               >
 
                 <el-image v-if="websiteInfo.qq_image" :src="websiteInfo.qq_image"
@@ -201,7 +201,7 @@
                   :show-file-list="false"
                   :on-success="handleWechatImageSuccess"
                   :on-error="handleWechatImageSuccess"
-                  name="image"
+                  name="file"
               >
 
                 <el-image v-if="websiteInfo.wechat_image" :src="websiteInfo.wechat_image"
@@ -314,7 +314,7 @@
                   :show-file-list="false"
                   :on-success="handleCarouselSuccess"
                   :on-error="handleCarouselSuccess"
-                  name="image"
+                  name="file"
               >
 
                 <div class="upload-content">

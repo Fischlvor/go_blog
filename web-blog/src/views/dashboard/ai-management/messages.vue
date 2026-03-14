@@ -99,6 +99,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { aiMessageApi } from '@/api/ai-management'
+import { formatDate } from '@/utils/date'
 
 // 响应式数据
 const loading = ref(false)
@@ -202,10 +203,6 @@ const handleCurrentChange = (page: number) => {
   getList()
 }
 
-// 格式化日期
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleString()
-}
 
 // 初始化
 onMounted(() => {

@@ -15,7 +15,7 @@
             :show-file-list="false"
             :on-success="handleSuccess"
             :on-error="handleSuccess"
-            name="image"
+            name="file"
         >
 
           <el-image v-if="friendLinkUpdateFormData.logo" :src="friendLinkUpdateFormData.logo" alt=""/>
@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import {defineProps, reactive} from 'vue';
+import {reactive} from 'vue';
 import {ElMessage} from "element-plus";
 import {type FriendLink, friendLinkUpdate, type FriendLinkUpdateRequest} from "@/api/friend-link";
 import {useLayoutStore} from "@/stores/layout";

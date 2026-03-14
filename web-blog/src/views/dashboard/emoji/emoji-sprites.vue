@@ -113,7 +113,7 @@
       </el-table-column>
       <el-table-column prop="created_at" label="生成时间" min-width="150">
         <template #default="{ row }">
-          {{ formatTime(row.created_at) }}
+          {{ formatDate(row.created_at) }}
         </template>
       </el-table-column>
       <el-table-column label="操作" width="200" fixed="right">
@@ -161,7 +161,7 @@
             <el-descriptions-item label="尺寸">{{ selectedSprite.width }} × {{ selectedSprite.height }}</el-descriptions-item>
             <el-descriptions-item label="表情数量">{{ selectedSprite.emoji_count }}</el-descriptions-item>
             <el-descriptions-item label="文件大小">{{ formatFileSize(selectedSprite.file_size) }}</el-descriptions-item>
-            <el-descriptions-item label="生成时间">{{ formatTime(selectedSprite.created_at) }}</el-descriptions-item>
+            <el-descriptions-item label="生成时间">{{ formatDate(selectedSprite.created_at) }}</el-descriptions-item>
           </el-descriptions>
         </div>
 
@@ -214,6 +214,7 @@ import {
   type EmojiSprite,
   type Emoji
 } from '@/api/emoji'
+import { formatDate } from '@/utils/date'
 
 // 响应式数据
 const loading = ref(false)
@@ -452,10 +453,6 @@ const formatFileSize = (size: number) => {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const formatTime = (time: string | Date) => {
-  const date = time instanceof Date ? time : new Date(time)
-  return date.toLocaleString()
-}
 
 // 初始化
 onMounted(() => {

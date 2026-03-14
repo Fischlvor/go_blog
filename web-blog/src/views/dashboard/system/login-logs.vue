@@ -38,7 +38,7 @@
       </el-table-column>
       <el-table-column label="登录时间">
         <template #default="scope:{ row: Login, column: any, $index: number }">
-          {{ getTime(scope.row.created_at) }}
+          {{ formatDate(scope.row.created_at) }}
         </template>
       </el-table-column>
       <el-table-column prop="login_method" label="登录方式"/>
@@ -71,6 +71,7 @@ import {
   type UserLoginListRequest,
 } from "@/api/user";
 import UserCard from "@/components/widgets/UserCard.vue";
+import {formatDate} from "@/utils/date";
 
 const userLoginTableData = ref<Login[]>()
 const page = ref(1)
@@ -127,10 +128,6 @@ nextTick(() => {
   getUserLoginTableData()
 })
 
-const getTime = (date: Date): string => {
-  const time = new Date(date)
-  return time.toLocaleString()
-}
 
 
 const handleSizeChange = (val: number) => {

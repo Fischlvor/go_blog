@@ -28,7 +28,7 @@
       <el-table-column prop="email" label="邮箱"/>
       <el-table-column label="注册时间" width="250px">
         <template #default="scope:{ row: User, column: any, $index: number }">
-          {{ getTime(scope.row.created_at) }}
+          {{ formatDate(scope.row.created_at) }}
         </template>
       </el-table-column>
       <el-table-column label="角色">
@@ -84,6 +84,7 @@ import {useLayoutStore} from "@/stores/layout";
 import {ElMessage} from "element-plus";
 import {useRoute, useRouter} from "vue-router";
 import {type User, userFreeze, userList, type UserListRequest, type UserOperation, userUnfreeze} from "@/api/user";
+import {formatDate} from "@/utils/date";
 
 const userTableData = ref<User[]>()
 const page = ref(1)
@@ -107,10 +108,6 @@ onMounted(() => {
   page_size.value = Number(route.query.page_size) || 10
 })
 
-const getTime = (date: Date): string => {
-  const time = new Date(date)
-  return time.toLocaleString()
-}
 
 const getUserTableData = async () => {
   if (userListRequest.keyword === "") {

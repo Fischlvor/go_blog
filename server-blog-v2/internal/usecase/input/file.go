@@ -9,6 +9,7 @@ type UploadFile struct {
 	Size        int64
 	ContentType string
 	Usage       string // post_cover, post_content, avatar
+	UserUUID    string
 }
 
 // ListFiles 文件列表参数。
@@ -17,4 +18,3 @@ type ListFiles struct {
 	Filename string
 	MimeType string
 }
-

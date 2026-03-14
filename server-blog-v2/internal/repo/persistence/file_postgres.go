@@ -101,8 +101,14 @@ func toModelFile(f *entity.File) *model.File {
 		MimeType: &f.MimeType,
 		Usage:    &f.Usage,
 	}
+	if f.FileHash != "" {
+		mf.FileHash = &f.FileHash
+	}
 	if f.ResourceID != nil {
 		mf.ResourceID = f.ResourceID
+	}
+	if f.UserUUID != "" {
+		mf.UserUUID = &f.UserUUID
 	}
 	return mf
 }
@@ -116,6 +122,9 @@ func toEntityFile(mf *model.File) *entity.File {
 	if mf.Filename != nil {
 		file.Filename = *mf.Filename
 	}
+	if mf.FileHash != nil {
+		file.FileHash = *mf.FileHash
+	}
 	if mf.Size != nil {
 		file.Size = *mf.Size
 	}
@@ -124,6 +133,9 @@ func toEntityFile(mf *model.File) *entity.File {
 	}
 	if mf.Usage != nil {
 		file.Usage = *mf.Usage
+	}
+	if mf.UserUUID != nil {
+		file.UserUUID = *mf.UserUUID
 	}
 	if mf.CreatedAt != nil {
 		file.CreatedAt = *mf.CreatedAt

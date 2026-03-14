@@ -13,7 +13,7 @@
             :show-file-list="false"
             :on-success="handleSuccess"
             :on-error="handleSuccess"
-            name="image"
+            name="file"
         >
 
           <el-image v-if="friendLinkCreateFormData.logo" :src="friendLinkCreateFormData.logo" alt=""/>

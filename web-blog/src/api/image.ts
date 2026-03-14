@@ -10,8 +10,7 @@ export interface Image extends Model {
 }
 
 export interface ImageUploadResponse {
-    url: string;
-    ossType: string;
+    url: string;  // 完整 URL（包含 CDN 域名）
 }
 
 export interface ImageDeleteRequest {

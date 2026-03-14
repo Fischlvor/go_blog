@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"server-blog-v2/internal/controller/http/bizcode"
+	"server-blog-v2/internal/controller/http/middleware"
 	"server-blog-v2/internal/controller/http/shared"
 	"server-blog-v2/internal/usecase/input"
 )
@@ -23,7 +24,8 @@ func (v *V1) uploadFile(c fiber.Ctx) error {
 	}
 	defer f.Close()
 
-	usage := c.FormValue("usage", "post_content")
+	usage := c.FormValue("usage", "article_content")
+	userUUID := middleware.GetUserUUID(c)
 
 	result, err := v.file.Upload(c.Context(), input.UploadFile{
 		File:        f,
@@ -31,6 +33,7 @@ func (v *V1) uploadFile(c fiber.Ctx) error {
 		Size:        file.Size,
 		ContentType: file.Header.Get("Content-Type"),
 		Usage:       usage,
+		UserUUID:    userUUID,
 	})
 	if err != nil {
 		v.logger.Error(err, "http - v1 - file - uploadFile")
