@@ -13,7 +13,7 @@
             :show-file-list="false"
             :on-success="handleSuccess"
             :on-error="handleSuccess"
-            name="image"
+            name="file"
         >
 
           <el-image v-if="advertisementCreateFormData.ad_image" :src="advertisementCreateFormData.ad_image" alt=""/>

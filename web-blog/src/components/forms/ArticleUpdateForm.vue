@@ -15,7 +15,7 @@
             :show-file-list="false"
             :on-success="handleSuccess"
             :on-error="handleSuccess"
-            name="image"
+            name="file"
         >
 
           <el-image v-if="articleUpdateFormData.cover" :src="articleUpdateFormData.cover" alt=""/>
@@ -143,7 +143,7 @@ const formRules = {
 
 // 表单数据
 const articleUpdateFormData = reactive({
-  cover: props.article.featured_image || '',
+  cover: props.article.featured_image || '',  // 完整 URL
   title: props.article.title,
   category_id: props.article.category?.id || 0,
   tag_ids: props.article.tags?.map(t => t.id) || [],

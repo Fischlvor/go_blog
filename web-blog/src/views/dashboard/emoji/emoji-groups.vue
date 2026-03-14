@@ -33,7 +33,7 @@
       </el-table-column>
       <el-table-column prop="created_at" label="创建时间" width="180">
         <template #default="{ row }">
-          {{ formatTime(row.created_at) }}
+          {{ formatDate(row.created_at) }}
         </template>
       </el-table-column>
       <el-table-column label="操作" width="280" fixed="right">
@@ -142,6 +142,7 @@ import {
   type EmojiGroupCreateRequest,
   type EmojiGroupUpdateRequest
 } from '@/api/emoji'
+import { formatDate } from '@/utils/date'
 
 // 响应式数据
 const loading = ref(false)
@@ -392,10 +393,6 @@ const regenerateGroupSprites = async (group: EmojiGroup) => {
   }
 }
 
-// 工具函数
-const formatTime = (time: string) => {
-  return new Date(time).toLocaleString()
-}
 
 // 初始化
 onMounted(() => {

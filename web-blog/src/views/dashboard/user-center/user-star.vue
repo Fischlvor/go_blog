@@ -22,7 +22,11 @@
           <el-text line-clamp="5">{{ scope.row.excerpt }}</el-text>
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" label="发布时间" width="102"/>
+      <el-table-column label="发布时间" width="180">
+        <template #default="scope:{ row: Article }">
+          {{ formatDate(scope.row.created_at) }}
+        </template>
+      </el-table-column>
       <el-table-column label="文章id" width="200">
         <template #default="scope:{ row: Article, column: any, $index: number }">
           <el-link :href="'/article/'+scope.row.slug">{{ scope.row.slug }}</el-link>
@@ -48,6 +52,7 @@ import {type Article} from "@/api/article";
 import {useRoute, useRouter} from "vue-router";
 import type {Hit, PageInfo} from "@/api/common";
 import {articleLikesList} from "@/api/article";
+import {formatDate} from "@/utils/date";
 
 
 const articleLikesListData = ref<Article[]>()

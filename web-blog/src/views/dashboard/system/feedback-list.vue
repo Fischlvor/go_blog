@@ -40,7 +40,7 @@
       </el-table-column>
       <el-table-column label="时间" width="150">
         <template #default="scope:{ row: Feedback, column: any, $index: number }">
-          {{ getTime(scope.row.created_at) }}
+          {{ formatDate(scope.row.created_at) }}
         </template>
       </el-table-column>
       <el-table-column prop="content" label="内容"/>
@@ -118,6 +118,7 @@ import {type Feedback, feedbackDelete, type FeedbackDeleteRequest, feedbackList}
 import type {PageInfo} from "@/api/common";
 import FeedbackReplyForm from "@/components/forms/FeedbackReplyForm.vue";
 import UserCardPopover from "@/components/common/UserCardPopover.vue";
+import {formatDate} from "@/utils/date";
 
 
 const multipleFeedbackTableRef = ref()
@@ -232,10 +233,6 @@ watch(() => layoutStore.state.shouldRefreshFeedbackTable, (newVal) => {
   }
 })
 
-const getTime = (date: Date): string => {
-  const time = new Date(date)
-  return time.toLocaleString()
-}
 
 const handleSizeChange = (val: number) => {
   page_size.value = val

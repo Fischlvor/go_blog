@@ -8,7 +8,7 @@
     >
       <el-table-column label="时间" width="150">
         <template #default="scope:{ row: Feedback, column: any, $index: number }">
-          {{ getTime(scope.row.created_at) }}
+          {{ formatDate(scope.row.created_at) }}
         </template>
       </el-table-column>
       <el-table-column prop="content" label="内容"/>
@@ -20,11 +20,8 @@
 <script setup lang="ts">
 import {ref} from "vue";
 import {type Feedback, feedbackInfo} from "@/api/feedback";
+import {formatDate} from "@/utils/date";
 
-const getTime = (date: Date): string => {
-  const time = new Date(date)
-  return time.toLocaleString()
-}
 
 const userFeedbackTableData = ref<Feedback[]>()
 const getUserFeedbackTableData = async () => {

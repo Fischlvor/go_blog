@@ -70,7 +70,11 @@
           <el-text line-clamp="5">{{ scope.row.excerpt }}</el-text>
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" label="发布时间" width="102"/>
+      <el-table-column label="发布时间" width="180">
+        <template #default="scope:{ row: Article }">
+          {{ formatDate(scope.row.created_at) }}
+        </template>
+      </el-table-column>
       <el-table-column label="文章id" width="220">
         <template #default="scope:{ row: Article, column: any, $index: number }">
           <el-link :href="'/article/'+scope.row.slug">{{ scope.row.slug }}</el-link>
@@ -153,6 +157,7 @@ import {useRoute, useRouter} from "vue-router";
 import ArticleUpdateForm from "@/components/forms/ArticleUpdateForm.vue";
 import type {Hit} from "@/api/common";
 import {type Tag, useTagStore} from "@/stores/tag";
+import {formatDate} from "@/utils/date";
 
 
 const multipleArticleTableRef = ref()

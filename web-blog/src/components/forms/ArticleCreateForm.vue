@@ -15,7 +15,7 @@
             :show-file-list="false"
             :on-success="handleSuccess"
             :on-error="handleSuccess"
-            name="image"
+            name="file"
         >
 
           <el-image v-if="articleCreateFormData.cover" :src="articleCreateFormData.cover" alt=""/>
@@ -155,7 +155,7 @@ const formRules = {
 
 // 表单数据
 const articleCreateFormData = reactive({
-  cover: '',
+  cover: '',      // 完整 URL（用于预览和提交）
   title: props.title,
   category_id: null as number | null, // 必填，默认为空
   tag_ids: [] as number[],

@@ -98,6 +98,11 @@
           <el-tag v-else type="info" size="small">待转码</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="创建时间" width="180">
+        <template #default="scope">
+          {{ formatDate(scope.row.created_at) }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="200">
         <template #default="scope">
           <!-- 视频：只有转码成功才能复制，复制转码后的URL -->
@@ -174,6 +179,7 @@ import {
   type ResourceListRequest
 } from '@/api/resource'
 import ResourceUpload from './resource-upload.vue'
+import { formatDate } from '@/utils/date'
 
 const multipleTableRef = ref()
 const tableData = ref<ResourceItem[]>([])

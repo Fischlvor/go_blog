@@ -1,9 +1,13 @@
 package file
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"time"
 
@@ -32,6 +36,15 @@ func New(files repo.FileRepo, objectStore repo.ObjectStore) usecase.File {
 }
 
 func (u *useCase) Upload(ctx context.Context, params input.UploadFile) (*output.UploadResult, error) {
+	// 读取文件内容并计算哈希
+	content, err := io.ReadAll(params.File)
+	if err != nil {
+		return nil, fmt.Errorf("read file error: %w", err)
+	}
+
+	hash := sha256.Sum256(content)
+	fileHash := hex.EncodeToString(hash[:])
+
 	// 生成唯一的文件 key
 	ext := filepath.Ext(params.Filename)
 	key := fmt.Sprintf("%s/%s/%s%s",
@@ -41,8 +54,8 @@ func (u *useCase) Upload(ctx context.Context, params input.UploadFile) (*output.
 		ext,
 	)
 
-	// 上传到对象存储
-	url, err := u.objectStore.Upload(ctx, key, params.File, params.Size, params.ContentType)
+	// 上传到对象存储（使用 bytes.Reader 重新包装内容）
+	url, err := u.objectStore.Upload(ctx, key, bytes.NewReader(content), params.Size, params.ContentType)
 	if err != nil {
 		return nil, fmt.Errorf("upload error: %w", err)
 	}
@@ -51,9 +64,11 @@ func (u *useCase) Upload(ctx context.Context, params input.UploadFile) (*output.
 	file := &entity.File{
 		Key:      key,
 		Filename: params.Filename,
+		FileHash: fileHash,
 		Size:     params.Size,
 		MimeType: params.ContentType,
 		Usage:    params.Usage,
+		UserUUID: params.UserUUID,
 	}
 
 	_, err = u.files.Create(ctx, file)
@@ -64,7 +79,6 @@ func (u *useCase) Upload(ctx context.Context, params input.UploadFile) (*output.
 	}
 
 	return &output.UploadResult{
-		Key: key,
 		URL: url,
 	}, nil
 }
