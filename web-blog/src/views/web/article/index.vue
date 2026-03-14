@@ -145,6 +145,7 @@ const articleInfo = ref<Article>({
   author_uuid: '',
   author: { uuid: '', nickname: '', avatar: '' },
   status: '',
+  visibility: 'public',
   read_time: 0,
   views: 0,
   like: { likes: 0 },

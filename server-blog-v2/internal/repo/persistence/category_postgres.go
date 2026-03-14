@@ -21,7 +21,7 @@ func NewCategoryRepo(db *gorm.DB) repo.CategoryRepo {
 }
 
 func (r *categoryRepo) List(ctx context.Context, offset, limit int, keyword *string, sortBy, order *string) ([]*entity.Category, int64, error) {
-	c := r.query.Category
+	c := r.query.ArticleCategory
 	do := c.WithContext(ctx)
 
 	if keyword != nil && *keyword != "" {
@@ -48,7 +48,7 @@ func (r *categoryRepo) List(ctx context.Context, offset, limit int, keyword *str
 }
 
 func (r *categoryRepo) ListAll(ctx context.Context) ([]*entity.Category, error) {
-	c := r.query.Category
+	c := r.query.ArticleCategory
 	rows, err := c.WithContext(ctx).Order(c.ID.Asc()).Find()
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func (r *categoryRepo) ListAll(ctx context.Context) ([]*entity.Category, error) 
 }
 
 func (r *categoryRepo) GetByID(ctx context.Context, id int64) (*entity.Category, error) {
-	c := r.query.Category
+	c := r.query.ArticleCategory
 	row, err := c.WithContext(ctx).Where(c.ID.Eq(id)).First()
 	if err != nil {
 		return nil, err
@@ -72,35 +72,35 @@ func (r *categoryRepo) GetByID(ctx context.Context, id int64) (*entity.Category,
 
 func (r *categoryRepo) Create(ctx context.Context, category entity.Category) (int64, error) {
 	mc := toModelCategory(&category)
-	if err := r.query.Category.WithContext(ctx).Create(mc); err != nil {
+	if err := r.query.ArticleCategory.WithContext(ctx).Create(mc); err != nil {
 		return 0, err
 	}
 	return mc.ID, nil
 }
 
 func (r *categoryRepo) Update(ctx context.Context, category entity.Category) error {
-	c := r.query.Category
+	c := r.query.ArticleCategory
 	mc := toModelCategory(&category)
 	_, err := c.WithContext(ctx).Where(c.ID.Eq(category.ID)).Updates(mc)
 	return err
 }
 
 func (r *categoryRepo) Delete(ctx context.Context, id int64) error {
-	c := r.query.Category
+	c := r.query.ArticleCategory
 	_, err := c.WithContext(ctx).Where(c.ID.Eq(id)).Delete()
 	return err
 }
 
-func toModelCategory(c *entity.Category) *model.Category {
-	return &model.Category{
-		ID:        c.ID,
-		Name:      c.Name,
-		Slug:      &c.Slug,
+func toModelCategory(c *entity.Category) *model.ArticleCategory {
+	return &model.ArticleCategory{
+		ID:           c.ID,
+		Name:         c.Name,
+		Slug:         &c.Slug,
 		ArticleCount: &c.ArticleCount,
 	}
 }
 
-func toEntityCategory(mc *model.Category) *entity.Category {
+func toEntityCategory(mc *model.ArticleCategory) *entity.Category {
 	cat := &entity.Category{
 		ID:   mc.ID,
 		Name: mc.Name,

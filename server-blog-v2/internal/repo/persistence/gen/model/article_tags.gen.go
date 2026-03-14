@@ -4,12 +4,23 @@
 
 package model
 
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
+
 const TableNameArticleTag = "article_tags"
 
 // ArticleTag mapped from table <article_tags>
 type ArticleTag struct {
-	TagID       int64   `gorm:"column:tag_id;type:bigint;not null" json:"tag_id"`
-	ArticleSlug *string `gorm:"column:article_slug;type:character varying(200)" json:"article_slug"`
+	ID           int64          `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true" json:"id"`
+	Name         string         `gorm:"column:name;type:character varying(50);not null" json:"name"`
+	Slug         *string        `gorm:"column:slug;type:character varying(50)" json:"slug"`
+	ArticleCount *int32         `gorm:"column:article_count;type:integer" json:"article_count"`
+	CreatedAt    *time.Time     `gorm:"column:created_at;type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt    *time.Time     `gorm:"column:updated_at;type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"column:deleted_at;type:timestamp with time zone" json:"deleted_at"`
 }
 
 // TableName ArticleTag's table name

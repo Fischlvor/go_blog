@@ -2,6 +2,8 @@ package content
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -19,6 +21,13 @@ var (
 	ErrRepo     = errors.New("repo")
 	ErrNotFound = errors.New("not found")
 )
+
+// generateSlug 生成随机 slug（15字节 = 20字符，与 ES _id 格式一致）
+func generateSlug() string {
+	b := make([]byte, 15)
+	rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
+}
 
 type useCase struct {
 	cfg          *config.Config
@@ -76,8 +85,12 @@ func (u *useCase) ListArticles(ctx context.Context, params input.ListArticles) (
 	if params.Status != nil {
 		status = (*string)(params.Status)
 	}
+	var visibility *string
+	if params.Visibility != nil {
+		visibility = params.Visibility
+	}
 
-	articles, total, err := u.articles.List(ctx, offset, params.PageSize, keyword, sortBy, order, categoryID, tagID, status)
+	articles, total, err := u.articles.List(ctx, offset, params.PageSize, keyword, sortBy, order, categoryID, tagID, status, visibility)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrRepo, err)
 	}
@@ -104,14 +117,28 @@ func (u *useCase) GetArticleByID(ctx context.Context, id int64) (*output.Article
 }
 
 func (u *useCase) CreateArticle(ctx context.Context, params input.CreateArticle) (int64, error) {
+	// 默认可见性为 public
+	visibility := params.Visibility
+	if visibility == "" {
+		visibility = entity.ArticleVisibilityPublic
+	}
+
+	// 如果 slug 为空，自动生成
+	slug := params.Slug
+	if slug == "" {
+		slug = generateSlug()
+	}
+
 	article := &entity.Article{
 		Title:      params.Title,
-		Slug:       params.Slug,
+		Slug:       slug,
 		Excerpt:    params.Excerpt,
 		Content:    params.Content,
 		AuthorUUID: params.AuthorUUID,
 		CategoryID: params.CategoryID,
+		TagIDs:     params.TagIDs, // 直接存储标签 ID 数组
 		Status:     params.Status,
+		Visibility: visibility,
 		IsFeatured: params.IsFeatured,
 	}
 	if params.FeaturedImage != nil {
@@ -127,46 +154,50 @@ func (u *useCase) CreateArticle(ctx context.Context, params input.CreateArticle)
 		return 0, fmt.Errorf("%w: %v", ErrRepo, err)
 	}
 
-	if len(params.TagIDs) > 0 {
-		if err := u.articles.SetTags(ctx, params.Slug, params.TagIDs); err != nil {
-			return 0, fmt.Errorf("%w: %v", ErrRepo, err)
-		}
-	}
-
 	return id, nil
 }
 
 func (u *useCase) UpdateArticle(ctx context.Context, params input.UpdateArticle) error {
+	// 默认可见性为 public
+	visibility := params.Visibility
+	if visibility == "" {
+		visibility = entity.ArticleVisibilityPublic
+	}
+
+	// 通过 slug 获取现有文章（用于检查是否首次发布）
+	existing, err := u.articles.GetBySlug(ctx, params.Slug)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrRepo, err)
+	}
+
 	article := &entity.Article{
-		ID:         params.ID,
 		Title:      params.Title,
 		Slug:       params.Slug,
 		Excerpt:    params.Excerpt,
-		Content:    params.Content,
 		AuthorUUID: params.AuthorUUID,
 		CategoryID: params.CategoryID,
+		TagIDs:     params.TagIDs, // 直接存储标签 ID 数组
 		Status:     params.Status,
+		Visibility: visibility,
 		IsFeatured: params.IsFeatured,
+	}
+	// 只在 content 非空时更新
+	if params.Content != "" {
+		article.Content = params.Content
 	}
 	if params.FeaturedImage != nil {
 		article.FeaturedImage = params.FeaturedImage
 	}
 
 	// 检查是否首次发布
-	existing, err := u.articles.GetByID(ctx, params.ID)
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrRepo, err)
-	}
 	if existing.PublishedAt == nil && params.Status == entity.ArticleStatusPublished {
 		now := time.Now()
 		article.PublishedAt = &now
 	}
 
-	if err := u.articles.Update(ctx, article); err != nil {
-		return fmt.Errorf("%w: %v", ErrRepo, err)
-	}
-
-	if err := u.articles.SetTags(ctx, params.Slug, params.TagIDs); err != nil {
+	// 使用 slug 更新文章，只在 content 非空时更新内容
+	includeContent := params.Content != ""
+	if err := u.articles.UpdateBySlug(ctx, params.Slug, article, includeContent); err != nil {
 		return fmt.Errorf("%w: %v", ErrRepo, err)
 	}
 
@@ -203,7 +234,8 @@ func (u *useCase) ListPublicArticles(ctx context.Context, params input.ListPubli
 	}
 
 	published := entity.ArticleStatusPublished
-	articles, total, err := u.articles.List(ctx, offset, params.PageSize, keyword, sortBy, order, categoryID, tagID, &published)
+	public := entity.ArticleVisibilityPublic
+	articles, total, err := u.articles.List(ctx, offset, params.PageSize, keyword, sortBy, order, categoryID, tagID, &published, &public)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrRepo, err)
 	}
@@ -434,7 +466,7 @@ func (u *useCase) toArticleSummaries(ctx context.Context, articles []*entity.Art
 		author := u.getAuthorInfo(ctx, a.AuthorUUID)
 		like := u.getLikeInfo(ctx, a.Slug, a.Likes, userUUID)
 		cat, _ := u.categories.GetByID(ctx, a.CategoryID)
-		tags, _ := u.tags.ListByArticleSlug(ctx, a.Slug)
+		tags, _ := u.tags.ListByIDs(ctx, a.TagIDs) // 使用 tag_ids 数组
 		items[i] = u.toArticleSummary(a, author, like, cat, tags)
 	}
 	return items, nil
@@ -444,15 +476,15 @@ func (u *useCase) toArticleDetail(ctx context.Context, a *entity.Article, userUU
 	author := u.getAuthorInfo(ctx, a.AuthorUUID)
 	like := u.getLikeInfo(ctx, a.Slug, a.Likes, userUUID)
 	cat, _ := u.categories.GetByID(ctx, a.CategoryID)
-	tags, _ := u.tags.ListByArticleSlug(ctx, a.Slug)
+	tags, _ := u.tags.ListByIDs(ctx, a.TagIDs) // 使用 tag_ids 数组
 
 	detail := &output.ArticleDetail{
 		BaseArticle: u.toBaseArticle(a),
-		Author:   author,
-		Like:     like,
-		Category: output.BaseCategory{ID: cat.ID, Name: cat.Name, Slug: cat.Slug},
-		Tags:     toBaseTags(tags),
-		Content:  a.Content,
+		Author:      author,
+		Like:        like,
+		Category:    output.BaseCategory{ID: cat.ID, Name: cat.Name, Slug: cat.Slug},
+		Tags:        toBaseTags(tags),
+		Content:     a.Content,
 	}
 	if a.MetaTitle != nil {
 		detail.MetaTitle = *a.MetaTitle
@@ -493,6 +525,7 @@ func (u *useCase) toBaseArticle(a *entity.Article) output.BaseArticle {
 		Slug:        a.Slug,
 		AuthorUUID:  a.AuthorUUID,
 		Status:      a.Status,
+		Visibility:  a.Visibility,
 		Views:       a.Views,
 		IsFeatured:  a.IsFeatured,
 		PublishedAt: a.PublishedAt,
@@ -514,10 +547,10 @@ func (u *useCase) toBaseArticle(a *entity.Article) output.BaseArticle {
 func (u *useCase) toArticleSummary(a *entity.Article, author output.AuthorInfo, like output.LikeInfo, cat *entity.Category, tags []*entity.Tag) output.ArticleSummary {
 	return output.ArticleSummary{
 		BaseArticle: u.toBaseArticle(a),
-		Author:   author,
-		Like:     like,
-		Category: output.BaseCategory{ID: cat.ID, Name: cat.Name, Slug: cat.Slug},
-		Tags:     toBaseTags(tags),
+		Author:      author,
+		Like:        like,
+		Category:    output.BaseCategory{ID: cat.ID, Name: cat.Name, Slug: cat.Slug},
+		Tags:        toBaseTags(tags),
 	}
 }
 
@@ -532,7 +565,7 @@ func toBaseTags(tags []*entity.Tag) []output.BaseTag {
 func toCategoryDetail(c *entity.Category) output.CategoryDetail {
 	return output.CategoryDetail{
 		BaseCategory: output.BaseCategory{ID: c.ID, Name: c.Name, Slug: c.Slug},
-		ArticleCount:    c.ArticleCount,
+		ArticleCount: c.ArticleCount,
 		CreatedAt:    c.CreatedAt,
 		UpdatedAt:    c.UpdatedAt,
 	}
@@ -540,9 +573,9 @@ func toCategoryDetail(c *entity.Category) output.CategoryDetail {
 
 func toTagDetail(t *entity.Tag) output.TagDetail {
 	return output.TagDetail{
-		BaseTag:   output.BaseTag{ID: t.ID, Name: t.Name, Slug: t.Slug},
+		BaseTag:      output.BaseTag{ID: t.ID, Name: t.Name, Slug: t.Slug},
 		ArticleCount: t.ArticleCount,
-		CreatedAt: t.CreatedAt,
-		UpdatedAt: t.UpdatedAt,
+		CreatedAt:    t.CreatedAt,
+		UpdatedAt:    t.UpdatedAt,
 	}
 }

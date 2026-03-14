@@ -10,10 +10,10 @@ import (
 	"gorm.io/gorm"
 )
 
-const TableNameCategory = "categories"
+const TableNameArticleCategory = "article_categories"
 
-// Category mapped from table <categories>
-type Category struct {
+// ArticleCategory mapped from table <article_categories>
+type ArticleCategory struct {
 	ID           int64          `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true" json:"id"`
 	Name         string         `gorm:"column:name;type:character varying(50);not null" json:"name"`
 	Slug         *string        `gorm:"column:slug;type:character varying(50)" json:"slug"`
@@ -23,7 +23,7 @@ type Category struct {
 	DeletedAt    gorm.DeletedAt `gorm:"column:deleted_at;type:timestamp with time zone" json:"deleted_at"`
 }
 
-// TableName Category's table name
-func (*Category) TableName() string {
-	return TableNameCategory
+// TableName ArticleCategory's table name
+func (*ArticleCategory) TableName() string {
+	return TableNameArticleCategory
 }

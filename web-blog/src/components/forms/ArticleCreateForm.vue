@@ -2,7 +2,9 @@
   <div class="article-create-form">
     <el-form
         :model="articleCreateFormData"
+        :rules="formRules"
         :validate-on-rule-change="false"
+        label-width="90px"
     >
       <el-form-item label="文章封面" prop="cover">
         <el-upload
@@ -47,31 +49,21 @@
             placeholder="请输入文章标题"
         />
       </el-form-item>
-      <el-form-item label="文章类别" prop="category">
-        <el-input
-            v-model="articleCreateFormData.category"
-            size="large"
-            placeholder="请输入文章类别"
-        />
+      <el-form-item label="文章类别" prop="category_id">
+        <div style="display: flex; gap: 8px; width: 100%">
+          <el-select v-model="articleCreateFormData.category_id" placeholder="请选择分类" size="large" style="flex: 1">
+            <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
+          </el-select>
+          <el-button type="primary" size="large" @click="showNewCategoryDialog = true">新建</el-button>
+        </div>
       </el-form-item>
-      <el-form-item label="文章标签" prop="tags">
-        <el-tag v-for="tag in articleCreateFormData.tags"
-                :key="tag"
-                closable
-                :disable-transitions="false"
-                size="large"
-                @close="handleClose(tag)">
-          {{ tag }}
-        </el-tag>
-        <el-input
-            v-if="inputVisible"
-            ref="InputRef"
-            v-model="inputValue"
-            style="width: 80px"
-            @keyup.enter="handleInputConfirm"
-            @blur="handleInputConfirm"
-        />
-        <el-button v-else @click="showInput">+ 新建标签</el-button>
+      <el-form-item label="文章标签" prop="tag_ids">
+        <div class="tag-checkbox-container">
+          <el-checkbox-group v-model="articleCreateFormData.tag_ids">
+            <el-checkbox v-for="tag in tags" :key="tag.id" :value="tag.id">{{ tag.name }}</el-checkbox>
+          </el-checkbox-group>
+          <el-button type="primary" link @click="showNewTagDialog = true" style="margin-top: 8px">新建标签</el-button>
+        </div>
       </el-form-item>
       <el-form-item label="文章简介" prop="abstract">
         <el-input
@@ -79,6 +71,12 @@
             type="textarea"
             placeholder="请输入文章简介"
         />
+      </el-form-item>
+      <el-form-item label="文章可见性" prop="visibility">
+        <el-radio-group v-model="articleCreateFormData.visibility">
+          <el-radio value="public">公开</el-radio>
+          <el-radio value="private">私有（仅自己可见）</el-radio>
+        </el-radio-group>
       </el-form-item>
       <el-form-item>
         <div class="button-group">
@@ -96,13 +94,45 @@
         </div>
       </el-form-item>
     </el-form>
+
+    <!-- 新建分类对话框 -->
+    <el-dialog v-model="showNewCategoryDialog" title="新建分类" width="400px">
+      <el-form :model="newCategoryForm" label-width="80px">
+        <el-form-item label="分类名称" required>
+          <el-input v-model="newCategoryForm.name" placeholder="请输入分类名称" />
+        </el-form-item>
+        <el-form-item label="分类标识" required>
+          <el-input v-model="newCategoryForm.slug" placeholder="请输入分类标识（英文）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showNewCategoryDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleCreateCategory">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 新建标签对话框 -->
+    <el-dialog v-model="showNewTagDialog" title="新建标签" width="400px">
+      <el-form :model="newTagForm" label-width="80px">
+        <el-form-item label="标签名称" required>
+          <el-input v-model="newTagForm.name" placeholder="请输入标签名称" />
+        </el-form-item>
+        <el-form-item label="标签标识" required>
+          <el-input v-model="newTagForm.slug" placeholder="请输入标签标识（英文）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showNewTagDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleCreateTag">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import {defineProps, nextTick, reactive, ref} from "vue";
-import {ElMessage, type InputInstance} from "element-plus";
-import {articleCreate, type ArticleCreateRequest} from "@/api/article";
+import {reactive, ref} from "vue";
+import {ElMessage} from "element-plus";
+import {articleCreate, articleCategory, articleTags, createCategory, createTag, type ArticleCreateRequest, type CategoryDetail, type TagDetail} from "@/api/article";
 import type {ApiResponse} from "@/utils/request";
 import type {ImageUploadResponse} from "@/api/image";
 import {useUserStore} from "@/stores/user";
@@ -118,36 +148,92 @@ const layoutStore = useLayoutStore()
 
 const path = ref(import.meta.env.VITE_BASE_API)
 
-const articleCreateFormData = reactive<ArticleCreateRequest>({
+// 表单验证规则
+const formRules = {
+  category_id: [{ required: true, message: '请选择文章分类', trigger: 'change' }],
+}
+
+// 表单数据
+const articleCreateFormData = reactive({
   cover: '',
   title: props.title,
-  category: '',
-  tags: [],
+  category_id: null as number | null, // 必填，默认为空
+  tag_ids: [] as number[],
   abstract: '',
   content: props.content,
+  visibility: 'public',
 })
 
-const inputValue = ref('')
-const inputVisible = ref(false)
-const InputRef = ref<InputInstance>()
+// 分类和标签列表
+const categories = ref<CategoryDetail[]>([])
+const tags = ref<TagDetail[]>([])
 
-const handleClose = (tag: string) => {
-  articleCreateFormData.tags.splice(articleCreateFormData.tags.indexOf(tag), 1)
+// 新建分类/标签对话框
+const showNewCategoryDialog = ref(false)
+const showNewTagDialog = ref(false)
+const newCategoryForm = reactive({ name: '', slug: '' })
+const newTagForm = reactive({ name: '', slug: '' })
+
+// 加载分类和标签
+const loadCategoriesAndTags = async () => {
+  const [catRes, tagRes] = await Promise.all([articleCategory(), articleTags()])
+  if (catRes.code === '0000') categories.value = catRes.data
+  if (tagRes.code === '0000') tags.value = tagRes.data
 }
+loadCategoriesAndTags()
 
-const showInput = () => {
-  inputVisible.value = true
-  nextTick(() => {
-    InputRef.value!.input!.focus()
-  })
-}
-
-const handleInputConfirm = () => {
-  if (inputValue.value) {
-    articleCreateFormData.tags.push(inputValue.value)
+// 创建分类
+const handleCreateCategory = async () => {
+  if (!newCategoryForm.name || !newCategoryForm.slug) {
+    ElMessage.warning('请填写完整信息')
+    return
   }
-  inputVisible.value = false
-  inputValue.value = ''
+  const res = await createCategory(newCategoryForm)
+  if (res.code === '0000') {
+    ElMessage.success('创建成功')
+    showNewCategoryDialog.value = false
+    articleCreateFormData.category_id = res.data.id
+    newCategoryForm.name = ''
+    newCategoryForm.slug = ''
+    loadCategoriesAndTags()
+  } else {
+    ElMessage.error(res.message)
+  }
+}
+
+// 创建标签
+const handleCreateTag = async () => {
+  if (!newTagForm.name || !newTagForm.slug) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+  const res = await createTag(newTagForm)
+  if (res.code === '0000') {
+    ElMessage.success('创建成功')
+    showNewTagDialog.value = false
+    articleCreateFormData.tag_ids.push(res.data.id)
+    newTagForm.name = ''
+    newTagForm.slug = ''
+    loadCategoriesAndTags()
+  } else {
+    ElMessage.error(res.message)
+  }
+}
+
+// 构建提交数据
+const buildSubmitData = (): ArticleCreateRequest => {
+  return {
+    title: articleCreateFormData.title,
+    slug: '',
+    content: articleCreateFormData.content,
+    excerpt: articleCreateFormData.abstract,
+    featured_image: articleCreateFormData.cover,
+    category_id: articleCreateFormData.category_id || 0,
+    tag_ids: articleCreateFormData.tag_ids,
+    status: 'published',
+    visibility: articleCreateFormData.visibility,
+    is_featured: false,
+  }
 }
 
 const handleSuccess = (res: ApiResponse<ImageUploadResponse>) => {
@@ -159,11 +245,24 @@ const handleSuccess = (res: ApiResponse<ImageUploadResponse>) => {
 
 
 const submitForm = async () => {
-  const res = await articleCreate(articleCreateFormData)
+  // 前端验证
+  if (!articleCreateFormData.content || articleCreateFormData.content.trim() === '') {
+    ElMessage.warning('请输入文章内容')
+    return
+  }
+  if (!articleCreateFormData.category_id) {
+    ElMessage.warning('请选择文章分类')
+    return
+  }
+
+  const submitData = buildSubmitData()
+  const res = await articleCreate(submitData)
   if (res.code === "0000") {
     ElMessage.success(res.message)
     layoutStore.state.articleCreateVisible = false
+    layoutStore.state.shouldRefreshArticleTable = true
   }
+  // 错误提示已在 request.ts 拦截器中处理
 }
 </script>
 
@@ -187,6 +286,15 @@ const submitForm = async () => {
             width: 32px;
           }
         }
+      }
+
+      .tag-checkbox-container {
+        max-height: 120px;
+        overflow-y: auto;
+        width: 100%;
+        padding: 8px;
+        border: 1px solid var(--el-border-color);
+        border-radius: 4px;
       }
 
       .button-group {
