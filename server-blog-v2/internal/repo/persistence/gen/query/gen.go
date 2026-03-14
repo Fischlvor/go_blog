@@ -22,10 +22,10 @@ var (
 	AiChatSession      *aiChatSession
 	AiModel            *aiModel
 	Article            *article
+	ArticleCategory    *articleCategory
 	ArticleLike        *articleLike
 	ArticleTag         *articleTag
 	ArticleView        *articleView
-	Category           *category
 	Comment            *comment
 	CommentLike        *commentLike
 	EmojiGroup         *emojiGroup
@@ -37,7 +37,6 @@ var (
 	Login              *login
 	Resource           *resource
 	ResourceUploadTask *resourceUploadTask
-	Tag                *tag
 	User               *user
 )
 
@@ -48,10 +47,10 @@ func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	AiChatSession = &Q.AiChatSession
 	AiModel = &Q.AiModel
 	Article = &Q.Article
+	ArticleCategory = &Q.ArticleCategory
 	ArticleLike = &Q.ArticleLike
 	ArticleTag = &Q.ArticleTag
 	ArticleView = &Q.ArticleView
-	Category = &Q.Category
 	Comment = &Q.Comment
 	CommentLike = &Q.CommentLike
 	EmojiGroup = &Q.EmojiGroup
@@ -63,7 +62,6 @@ func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	Login = &Q.Login
 	Resource = &Q.Resource
 	ResourceUploadTask = &Q.ResourceUploadTask
-	Tag = &Q.Tag
 	User = &Q.User
 }
 
@@ -75,10 +73,10 @@ func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 		AiChatSession:      newAiChatSession(db, opts...),
 		AiModel:            newAiModel(db, opts...),
 		Article:            newArticle(db, opts...),
+		ArticleCategory:    newArticleCategory(db, opts...),
 		ArticleLike:        newArticleLike(db, opts...),
 		ArticleTag:         newArticleTag(db, opts...),
 		ArticleView:        newArticleView(db, opts...),
-		Category:           newCategory(db, opts...),
 		Comment:            newComment(db, opts...),
 		CommentLike:        newCommentLike(db, opts...),
 		EmojiGroup:         newEmojiGroup(db, opts...),
@@ -90,7 +88,6 @@ func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 		Login:              newLogin(db, opts...),
 		Resource:           newResource(db, opts...),
 		ResourceUploadTask: newResourceUploadTask(db, opts...),
-		Tag:                newTag(db, opts...),
 		User:               newUser(db, opts...),
 	}
 }
@@ -103,10 +100,10 @@ type Query struct {
 	AiChatSession      aiChatSession
 	AiModel            aiModel
 	Article            article
+	ArticleCategory    articleCategory
 	ArticleLike        articleLike
 	ArticleTag         articleTag
 	ArticleView        articleView
-	Category           category
 	Comment            comment
 	CommentLike        commentLike
 	EmojiGroup         emojiGroup
@@ -118,7 +115,6 @@ type Query struct {
 	Login              login
 	Resource           resource
 	ResourceUploadTask resourceUploadTask
-	Tag                tag
 	User               user
 }
 
@@ -132,10 +128,10 @@ func (q *Query) clone(db *gorm.DB) *Query {
 		AiChatSession:      q.AiChatSession.clone(db),
 		AiModel:            q.AiModel.clone(db),
 		Article:            q.Article.clone(db),
+		ArticleCategory:    q.ArticleCategory.clone(db),
 		ArticleLike:        q.ArticleLike.clone(db),
 		ArticleTag:         q.ArticleTag.clone(db),
 		ArticleView:        q.ArticleView.clone(db),
-		Category:           q.Category.clone(db),
 		Comment:            q.Comment.clone(db),
 		CommentLike:        q.CommentLike.clone(db),
 		EmojiGroup:         q.EmojiGroup.clone(db),
@@ -147,7 +143,6 @@ func (q *Query) clone(db *gorm.DB) *Query {
 		Login:              q.Login.clone(db),
 		Resource:           q.Resource.clone(db),
 		ResourceUploadTask: q.ResourceUploadTask.clone(db),
-		Tag:                q.Tag.clone(db),
 		User:               q.User.clone(db),
 	}
 }
@@ -168,10 +163,10 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 		AiChatSession:      q.AiChatSession.replaceDB(db),
 		AiModel:            q.AiModel.replaceDB(db),
 		Article:            q.Article.replaceDB(db),
+		ArticleCategory:    q.ArticleCategory.replaceDB(db),
 		ArticleLike:        q.ArticleLike.replaceDB(db),
 		ArticleTag:         q.ArticleTag.replaceDB(db),
 		ArticleView:        q.ArticleView.replaceDB(db),
-		Category:           q.Category.replaceDB(db),
 		Comment:            q.Comment.replaceDB(db),
 		CommentLike:        q.CommentLike.replaceDB(db),
 		EmojiGroup:         q.EmojiGroup.replaceDB(db),
@@ -183,7 +178,6 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 		Login:              q.Login.replaceDB(db),
 		Resource:           q.Resource.replaceDB(db),
 		ResourceUploadTask: q.ResourceUploadTask.replaceDB(db),
-		Tag:                q.Tag.replaceDB(db),
 		User:               q.User.replaceDB(db),
 	}
 }
@@ -194,10 +188,10 @@ type queryCtx struct {
 	AiChatSession      IAiChatSessionDo
 	AiModel            IAiModelDo
 	Article            IArticleDo
+	ArticleCategory    IArticleCategoryDo
 	ArticleLike        IArticleLikeDo
 	ArticleTag         IArticleTagDo
 	ArticleView        IArticleViewDo
-	Category           ICategoryDo
 	Comment            ICommentDo
 	CommentLike        ICommentLikeDo
 	EmojiGroup         IEmojiGroupDo
@@ -209,7 +203,6 @@ type queryCtx struct {
 	Login              ILoginDo
 	Resource           IResourceDo
 	ResourceUploadTask IResourceUploadTaskDo
-	Tag                ITagDo
 	User               IUserDo
 }
 
@@ -220,10 +213,10 @@ func (q *Query) WithContext(ctx context.Context) *queryCtx {
 		AiChatSession:      q.AiChatSession.WithContext(ctx),
 		AiModel:            q.AiModel.WithContext(ctx),
 		Article:            q.Article.WithContext(ctx),
+		ArticleCategory:    q.ArticleCategory.WithContext(ctx),
 		ArticleLike:        q.ArticleLike.WithContext(ctx),
 		ArticleTag:         q.ArticleTag.WithContext(ctx),
 		ArticleView:        q.ArticleView.WithContext(ctx),
-		Category:           q.Category.WithContext(ctx),
 		Comment:            q.Comment.WithContext(ctx),
 		CommentLike:        q.CommentLike.WithContext(ctx),
 		EmojiGroup:         q.EmojiGroup.WithContext(ctx),
@@ -235,7 +228,6 @@ func (q *Query) WithContext(ctx context.Context) *queryCtx {
 		Login:              q.Login.WithContext(ctx),
 		Resource:           q.Resource.WithContext(ctx),
 		ResourceUploadTask: q.ResourceUploadTask.WithContext(ctx),
-		Tag:                q.Tag.WithContext(ctx),
 		User:               q.User.WithContext(ctx),
 	}
 }

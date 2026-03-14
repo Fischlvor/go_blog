@@ -55,10 +55,9 @@ func main() {
 		g.GenerateModel("logins", gen.FieldType("deleted_at", "gorm.DeletedAt")),
 
 		// 内容相关
-		g.GenerateModel("categories", gen.FieldType("deleted_at", "gorm.DeletedAt")),
-		g.GenerateModel("tags", gen.FieldType("deleted_at", "gorm.DeletedAt")),
+		g.GenerateModel("article_categories", gen.FieldType("deleted_at", "gorm.DeletedAt")),
+		g.GenerateModel("article_tags", gen.FieldType("deleted_at", "gorm.DeletedAt")),
 		g.GenerateModel("articles", gen.FieldType("deleted_at", "gorm.DeletedAt")),
-		g.GenerateModel("article_tags"),
 		g.GenerateModel("article_likes", gen.FieldType("deleted_at", "gorm.DeletedAt")),
 		g.GenerateModel("article_views"),
 

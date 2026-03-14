@@ -8,6 +8,7 @@ import (
 
 	"server-blog-v2/internal/controller/http/admin/request"
 	"server-blog-v2/internal/controller/http/bizcode"
+	"server-blog-v2/internal/controller/http/middleware"
 	"server-blog-v2/internal/controller/http/shared"
 	"server-blog-v2/internal/usecase/input"
 )
@@ -23,7 +24,7 @@ import (
 // @Success 200 {object} shared.Envelope
 // @Router /admin/article/list [get]
 func (a *Admin) listArticles(c fiber.Ctx) error {
-	pq := shared.ParsePageQueryWithOptions(c, shared.WithAllowedFilters("category_id", "tag_id", "status"))
+	pq := shared.ParsePageQueryWithOptions(c, shared.WithAllowedFilters("category_id", "tag_id", "status", "visibility"))
 
 	pageParams := input.PageParams{
 		Page:     pq.Page,
@@ -59,6 +60,11 @@ func (a *Admin) listArticles(c fiber.Ctx) error {
 		status = &s
 	}
 
+	var visibility *string
+	if v, ok := pq.Filters["visibility"]; ok && v != "" {
+		visibility = &v
+	}
+
 	result, err := a.content.ListArticles(c.Context(), input.ListArticles{
 		PageParams: pageParams,
 		Keyword:    keywordParams,
@@ -66,6 +72,7 @@ func (a *Admin) listArticles(c fiber.Ctx) error {
 		CategoryID: categoryID,
 		TagID:      tagID,
 		Status:     status,
+		Visibility: visibility,
 	})
 
 	if err != nil {
@@ -115,7 +122,13 @@ func (a *Admin) createArticle(c fiber.Ctx) error {
 	}
 
 	if err := a.validate.Struct(req); err != nil {
-		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, err.Error())
+		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, shared.TranslateValidationErrors(err))
+	}
+
+	// 获取当前用户 UUID
+	userUUID := middleware.GetUserUUID(c)
+	if userUUID == "" {
+		return shared.WriteError(c, http.StatusUnauthorized, bizcode.ErrorUnauthorized, "unauthorized")
 	}
 
 	// 处理可选字段
@@ -134,9 +147,11 @@ func (a *Admin) createArticle(c fiber.Ctx) error {
 		Content:       req.Content,
 		Excerpt:       excerpt,
 		FeaturedImage: featuredImage,
+		AuthorUUID:    userUUID,
 		CategoryID:    req.CategoryID,
 		TagIDs:        req.TagIDs,
 		Status:        req.Status,
+		Visibility:    req.Visibility,
 		IsFeatured:    req.IsFeatured,
 	})
 
@@ -164,7 +179,7 @@ func (a *Admin) updateArticle(c fiber.Ctx) error {
 	}
 
 	if err := a.validate.Struct(req); err != nil {
-		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, err.Error())
+		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, shared.TranslateValidationErrors(err))
 	}
 
 	// 处理可选字段
@@ -178,15 +193,15 @@ func (a *Admin) updateArticle(c fiber.Ctx) error {
 	}
 
 	err := a.content.UpdateArticle(c.Context(), input.UpdateArticle{
-		ID:            req.ID,
-		Title:         req.Title,
 		Slug:          req.Slug,
+		Title:         req.Title,
 		Content:       req.Content,
 		Excerpt:       excerpt,
 		FeaturedImage: featuredImage,
 		CategoryID:    req.CategoryID,
 		TagIDs:        req.TagIDs,
 		Status:        req.Status,
+		Visibility:    req.Visibility,
 		IsFeatured:    req.IsFeatured,
 	})
 

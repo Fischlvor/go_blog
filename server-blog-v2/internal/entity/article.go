@@ -2,10 +2,17 @@ package entity
 
 import "time"
 
+// 文章状态（生命周期）
 const (
 	ArticleStatusDraft     = "draft"
 	ArticleStatusPublished = "published"
 	ArticleStatusArchived  = "archived"
+)
+
+// 文章可见性（访问权限）
+const (
+	ArticleVisibilityPublic  = "public"  // 公开，所有人可见
+	ArticleVisibilityPrivate = "private" // 私有，仅作者可见
 )
 
 // Article 文章实体。
@@ -18,7 +25,9 @@ type Article struct {
 	FeaturedImage   *string
 	AuthorUUID      string // 作者 UUID
 	CategoryID      int64
-	Status          string
+	TagIDs          []int64 // 标签 ID 数组
+	Status          string  // 状态：draft, published, archived
+	Visibility      string  // 可见性：public, private
 	ReadTime        *string
 	Views           int32
 	Likes           int32
@@ -28,12 +37,6 @@ type Article struct {
 	PublishedAt     *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-}
-
-// ArticleTag 文章标签关联。
-type ArticleTag struct {
-	ArticleSlug string
-	TagID       int64
 }
 
 // ArticleLike 文章点赞。

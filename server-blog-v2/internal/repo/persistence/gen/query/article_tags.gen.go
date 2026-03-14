@@ -27,8 +27,13 @@ func newArticleTag(db *gorm.DB, opts ...gen.DOOption) articleTag {
 
 	tableName := _articleTag.articleTagDo.TableName()
 	_articleTag.ALL = field.NewAsterisk(tableName)
-	_articleTag.TagID = field.NewInt64(tableName, "tag_id")
-	_articleTag.ArticleSlug = field.NewString(tableName, "article_slug")
+	_articleTag.ID = field.NewInt64(tableName, "id")
+	_articleTag.Name = field.NewString(tableName, "name")
+	_articleTag.Slug = field.NewString(tableName, "slug")
+	_articleTag.ArticleCount = field.NewInt32(tableName, "article_count")
+	_articleTag.CreatedAt = field.NewTime(tableName, "created_at")
+	_articleTag.UpdatedAt = field.NewTime(tableName, "updated_at")
+	_articleTag.DeletedAt = field.NewField(tableName, "deleted_at")
 
 	_articleTag.fillFieldMap()
 
@@ -38,9 +43,14 @@ func newArticleTag(db *gorm.DB, opts ...gen.DOOption) articleTag {
 type articleTag struct {
 	articleTagDo articleTagDo
 
-	ALL         field.Asterisk
-	TagID       field.Int64
-	ArticleSlug field.String
+	ALL          field.Asterisk
+	ID           field.Int64
+	Name         field.String
+	Slug         field.String
+	ArticleCount field.Int32
+	CreatedAt    field.Time
+	UpdatedAt    field.Time
+	DeletedAt    field.Field
 
 	fieldMap map[string]field.Expr
 }
@@ -57,8 +67,13 @@ func (a articleTag) As(alias string) *articleTag {
 
 func (a *articleTag) updateTableName(table string) *articleTag {
 	a.ALL = field.NewAsterisk(table)
-	a.TagID = field.NewInt64(table, "tag_id")
-	a.ArticleSlug = field.NewString(table, "article_slug")
+	a.ID = field.NewInt64(table, "id")
+	a.Name = field.NewString(table, "name")
+	a.Slug = field.NewString(table, "slug")
+	a.ArticleCount = field.NewInt32(table, "article_count")
+	a.CreatedAt = field.NewTime(table, "created_at")
+	a.UpdatedAt = field.NewTime(table, "updated_at")
+	a.DeletedAt = field.NewField(table, "deleted_at")
 
 	a.fillFieldMap()
 
@@ -85,9 +100,14 @@ func (a *articleTag) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (a *articleTag) fillFieldMap() {
-	a.fieldMap = make(map[string]field.Expr, 2)
-	a.fieldMap["tag_id"] = a.TagID
-	a.fieldMap["article_slug"] = a.ArticleSlug
+	a.fieldMap = make(map[string]field.Expr, 7)
+	a.fieldMap["id"] = a.ID
+	a.fieldMap["name"] = a.Name
+	a.fieldMap["slug"] = a.Slug
+	a.fieldMap["article_count"] = a.ArticleCount
+	a.fieldMap["created_at"] = a.CreatedAt
+	a.fieldMap["updated_at"] = a.UpdatedAt
+	a.fieldMap["deleted_at"] = a.DeletedAt
 }
 
 func (a articleTag) clone(db *gorm.DB) articleTag {

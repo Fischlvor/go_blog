@@ -8,6 +8,7 @@ type ListArticles struct {
 	CategoryID IntFilterParam
 	TagID      IntFilterParam
 	Status     *string
+	Visibility *string // 可见性筛选：public, private
 	IsFeatured *bool
 }
 
@@ -36,14 +37,14 @@ type CreateArticle struct {
 	CategoryID    int64
 	TagIDs        []int64
 	Status        string
+	Visibility    string // 可见性：public, private
 	IsFeatured    bool
 }
 
 // UpdateArticle 更新文章参数。
 type UpdateArticle struct {
-	ID            int64
+	Slug          string // 用 slug 作为文章标识
 	Title         string
-	Slug          string
 	Excerpt       *string
 	Content       string
 	FeaturedImage *string
@@ -51,6 +52,7 @@ type UpdateArticle struct {
 	CategoryID    int64
 	TagIDs        []int64
 	Status        string
+	Visibility    string // 可见性：public, private
 	IsFeatured    bool
 }
 

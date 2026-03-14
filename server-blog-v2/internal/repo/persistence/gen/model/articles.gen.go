@@ -7,6 +7,7 @@ package model
 import (
 	"time"
 
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -33,6 +34,8 @@ type Article struct {
 	UpdatedAt       *time.Time     `gorm:"column:updated_at;type:timestamp with time zone;default:CURRENT_TIMESTAMP" json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `gorm:"column:deleted_at;type:timestamp with time zone" json:"deleted_at"`
 	AuthorUUID      *string        `gorm:"column:author_uuid;type:uuid" json:"author_uuid"`
+	Visibility      string         `gorm:"column:visibility;type:character varying(20);not null;default:public;comment:文章可见性: public(公开) | private(私有)" json:"visibility"` // 文章可见性: public(公开) | private(私有)
+	TagIDs          pq.Int64Array  `gorm:"column:tag_ids;type:bigint[];default:{}" json:"tag_ids"`
 }
 
 // TableName Article's table name

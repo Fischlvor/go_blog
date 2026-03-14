@@ -46,6 +46,8 @@ func newArticle(db *gorm.DB, opts ...gen.DOOption) article {
 	_article.UpdatedAt = field.NewTime(tableName, "updated_at")
 	_article.DeletedAt = field.NewField(tableName, "deleted_at")
 	_article.AuthorUUID = field.NewString(tableName, "author_uuid")
+	_article.Visibility = field.NewString(tableName, "visibility")
+	_article.TagIds = field.NewString(tableName, "tag_ids")
 
 	_article.fillFieldMap()
 
@@ -75,6 +77,8 @@ type article struct {
 	UpdatedAt       field.Time
 	DeletedAt       field.Field
 	AuthorUUID      field.String
+	Visibility      field.String // 文章可见性: public(公开) | private(私有)
+	TagIds          field.String
 
 	fieldMap map[string]field.Expr
 }
@@ -110,6 +114,8 @@ func (a *article) updateTableName(table string) *article {
 	a.UpdatedAt = field.NewTime(table, "updated_at")
 	a.DeletedAt = field.NewField(table, "deleted_at")
 	a.AuthorUUID = field.NewString(table, "author_uuid")
+	a.Visibility = field.NewString(table, "visibility")
+	a.TagIds = field.NewString(table, "tag_ids")
 
 	a.fillFieldMap()
 
@@ -134,7 +140,7 @@ func (a *article) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (a *article) fillFieldMap() {
-	a.fieldMap = make(map[string]field.Expr, 19)
+	a.fieldMap = make(map[string]field.Expr, 21)
 	a.fieldMap["id"] = a.ID
 	a.fieldMap["title"] = a.Title
 	a.fieldMap["slug"] = a.Slug
@@ -154,6 +160,8 @@ func (a *article) fillFieldMap() {
 	a.fieldMap["updated_at"] = a.UpdatedAt
 	a.fieldMap["deleted_at"] = a.DeletedAt
 	a.fieldMap["author_uuid"] = a.AuthorUUID
+	a.fieldMap["visibility"] = a.Visibility
+	a.fieldMap["tag_ids"] = a.TagIds
 }
 
 func (a article) clone(db *gorm.DB) article {

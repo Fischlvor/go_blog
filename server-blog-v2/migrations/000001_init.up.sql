@@ -23,8 +23,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_uuid ON users(uuid);
 CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at);
 
--- ==================== 分类表 ====================
-CREATE TABLE IF NOT EXISTS categories (
+-- ==================== 文章分类表 ====================
+CREATE TABLE IF NOT EXISTS article_categories (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
     slug VARCHAR(50) UNIQUE,
@@ -34,10 +34,10 @@ CREATE TABLE IF NOT EXISTS categories (
     deleted_at TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_categories_deleted_at ON categories(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_article_categories_deleted_at ON article_categories(deleted_at);
 
--- ==================== 标签表 ====================
-CREATE TABLE IF NOT EXISTS tags (
+-- ==================== 文章标签表 ====================
+CREATE TABLE IF NOT EXISTS article_tags (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
     slug VARCHAR(50) UNIQUE,
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS tags (
     deleted_at TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_tags_deleted_at ON tags(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_article_tags_deleted_at ON article_tags(deleted_at);
 
 -- ==================== 文章表 ====================
 CREATE TABLE IF NOT EXISTS articles (
@@ -58,8 +58,10 @@ CREATE TABLE IF NOT EXISTS articles (
     content TEXT NOT NULL,
     featured_image VARCHAR(500),
     author_uuid UUID,
-    category_id BIGINT NOT NULL REFERENCES categories(id),
+    category_id BIGINT NOT NULL REFERENCES article_categories(id),
     status VARCHAR(20) DEFAULT 'draft',
+    visibility VARCHAR(20) NOT NULL DEFAULT 'public', -- 文章可见性: public(公开) | private(私有)
+    tag_ids BIGINT[] DEFAULT '{}', -- 标签 ID 数组
     read_time VARCHAR(20),
     views INT DEFAULT 0,
     likes INT DEFAULT 0,
@@ -78,16 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
 CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(slug);
 CREATE INDEX IF NOT EXISTS idx_articles_deleted_at ON articles(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at);
-
--- ==================== 文章标签关联表 ====================
-CREATE TABLE IF NOT EXISTS article_tags (
-    id BIGSERIAL PRIMARY KEY,
-    article_slug VARCHAR(200) NOT NULL,
-    tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_article_tags_article_slug ON article_tags(article_slug);
-CREATE INDEX IF NOT EXISTS idx_article_tags_tag_id ON article_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_articles_tag_ids ON articles USING GIN (tag_ids); -- GIN 索引加速标签查询
 
 -- ==================== 文章点赞表 ====================
 CREATE TABLE IF NOT EXISTS article_likes (

@@ -2,7 +2,9 @@
   <div class="article-update-form">
     <el-form
         :model="articleUpdateFormData"
+        :rules="formRules"
         :validate-on-rule-change="false"
+        label-width="90px"
     >
       <el-form-item label="文章封面" prop="cover">
         <el-upload
@@ -47,31 +49,17 @@
             placeholder="请输入文章标题"
         />
       </el-form-item>
-      <el-form-item label="文章类别" prop="category">
-        <el-input
-            v-model="articleUpdateFormData.category"
-            size="large"
-            placeholder="请输入文章类别"
-        />
+      <el-form-item label="文章类别" prop="category_id">
+        <el-select v-model="articleUpdateFormData.category_id" placeholder="请选择分类" size="large" style="width: 100%">
+          <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
+        </el-select>
       </el-form-item>
-      <el-form-item label="文章标签" prop="tags">
-        <el-tag v-for="tag in articleUpdateFormData.tags"
-                :key="tag"
-                closable
-                :disable-transitions="false"
-                size="large"
-                @close="handleClose(tag)">
-          {{ tag }}
-        </el-tag>
-        <el-input
-            v-if="inputVisible"
-            ref="InputRef"
-            v-model="inputValue"
-            style="width: 80px"
-            @keyup.enter="handleInputConfirm"
-            @blur="handleInputConfirm"
-        />
-        <el-button v-else @click="showInput">+ 新建标签</el-button>
+      <el-form-item label="文章标签" prop="tag_ids">
+        <div class="tag-checkbox-container">
+          <el-checkbox-group v-model="articleUpdateFormData.tag_ids">
+            <el-checkbox v-for="tag in tags" :key="tag.id" :value="tag.id">{{ tag.name }}</el-checkbox>
+          </el-checkbox-group>
+        </div>
       </el-form-item>
       <el-form-item label="文章简介" prop="abstract">
         <el-input
@@ -79,6 +67,12 @@
             type="textarea"
             placeholder="请输入文章简介"
         />
+      </el-form-item>
+      <el-form-item label="文章可见性" prop="visibility">
+        <el-radio-group v-model="articleUpdateFormData.visibility">
+          <el-radio value="public">公开</el-radio>
+          <el-radio value="private">私有（仅自己可见）</el-radio>
+        </el-radio-group>
       </el-form-item>
 
       <el-form-item label="文章内容" prop="content">
@@ -123,9 +117,9 @@
 </template>
 
 <script setup lang="ts">
-import {nextTick, reactive, ref} from "vue";
-import {type DrawerProps, ElMessage, type InputInstance} from "element-plus";
-import {type Article, articleUpdate, type ArticleUpdateRequest} from "@/api/article";
+import {reactive, ref} from "vue";
+import {type DrawerProps, ElMessage} from "element-plus";
+import {type Article, articleUpdate, articleCategory, articleTags, type ArticleUpdateRequest, type CategoryDetail, type TagDetail} from "@/api/article";
 import type {ApiResponse} from "@/utils/request";
 import type {ImageUploadResponse} from "@/api/image";
 import {useUserStore} from "@/stores/user";
@@ -142,43 +136,57 @@ const layoutStore = useLayoutStore()
 
 const path = ref(import.meta.env.VITE_BASE_API)
 
-const articleUpdateFormData = reactive<ArticleUpdateRequest>({
-  id: String(props.article.id),
-  cover: props.article.cover || props.article.featured_image || '',
+// 表单验证规则
+const formRules = {
+  category_id: [{ required: true, message: '请选择文章分类', trigger: 'change' }],
+}
+
+// 表单数据
+const articleUpdateFormData = reactive({
+  cover: props.article.featured_image || '',
   title: props.article.title,
-  category: props.article.category?.slug || '',
-  tags: props.article.tags?.map(t => t.slug) || [],
-  abstract: props.article.abstract || props.article.excerpt || '',
+  category_id: props.article.category?.id || 0,
+  tag_ids: props.article.tags?.map(t => t.id) || [],
+  abstract: props.article.excerpt || '',
   content: props.article.content || '',
+  visibility: props.article.visibility || 'public',
 })
 
-const inputValue = ref('')
-const inputVisible = ref(false)
-const InputRef = ref<InputInstance>()
+// 保存原始数据用于提交
+const originalArticle = props.article
 
-const handleClose = (tag: string) => {
-  articleUpdateFormData.tags.splice(articleUpdateFormData.tags.indexOf(tag), 1)
-}
+// 分类和标签列表
+const categories = ref<CategoryDetail[]>([])
+const tags = ref<TagDetail[]>([])
 
-const showInput = () => {
-  inputVisible.value = true
-  nextTick(() => {
-    InputRef.value!.input!.focus()
-  })
+// 加载分类和标签
+const loadCategoriesAndTags = async () => {
+  const [catRes, tagRes] = await Promise.all([articleCategory(), articleTags()])
+  if (catRes.code === '0000') categories.value = catRes.data
+  if (tagRes.code === '0000') tags.value = tagRes.data
 }
-
-const handleInputConfirm = () => {
-  if (inputValue.value) {
-    articleUpdateFormData.tags.push(inputValue.value)
-  }
-  inputVisible.value = false
-  inputValue.value = ''
-}
+loadCategoriesAndTags()
 
 const handleSuccess = (res: ApiResponse<ImageUploadResponse>) => {
   if (res.code === "0000") {
     articleUpdateFormData.cover = res.data.url
     ElMessage.success(res.message)
+  }
+}
+
+// 构建提交数据
+const buildSubmitData = (): ArticleUpdateRequest => {
+  return {
+    slug: originalArticle.slug,
+    title: articleUpdateFormData.title,
+    content: articleUpdateFormData.content,
+    excerpt: articleUpdateFormData.abstract,
+    featured_image: articleUpdateFormData.cover,
+    category_id: articleUpdateFormData.category_id,
+    tag_ids: articleUpdateFormData.tag_ids,
+    status: originalArticle.status || 'published',
+    visibility: articleUpdateFormData.visibility,
+    is_featured: originalArticle.is_featured || false,
   }
 }
 
@@ -209,11 +217,14 @@ const onUploadImg = async (files: File[], callback: (urls: string[]) => void): P
 };
 
 const submitForm = async () => {
-  const res = await articleUpdate(articleUpdateFormData)
+  const submitData = buildSubmitData()
+  const res = await articleUpdate(submitData)
   if (res.code === "0000") {
     ElMessage.success(res.message)
     layoutStore.state.articleUpdateVisible = false
+    layoutStore.state.shouldRefreshArticleTable = true
   }
+  // 错误提示已在 request.ts 拦截器中处理
 }
 </script>
 
@@ -240,16 +251,20 @@ const submitForm = async () => {
       }
 
       .editor-container {
-        //display: flex;
-        //flex-direction: column;
-        //background-color: black;
         height: 100%;
 
         .full-height-editor {
-          //flex: 1;
-          //min-height: 0; /* 确保在 flex 容器中能正确收缩 */
           height: 100%;
         }
+      }
+
+      .tag-checkbox-container {
+        max-height: 120px;
+        overflow-y: auto;
+        width: 100%;
+        padding: 8px;
+        border: 1px solid var(--el-border-color);
+        border-radius: 4px;
       }
 
       .button-group {

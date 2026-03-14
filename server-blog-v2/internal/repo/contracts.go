@@ -12,13 +12,13 @@ import (
 
 // ArticleRepo 文章数据仓库 (PostgreSQL)。
 type ArticleRepo interface {
-	List(ctx context.Context, offset, limit int, keyword *string, sortBy, order *string, categoryID, tagID *int, status *string) ([]*entity.Article, int64, error)
+	List(ctx context.Context, offset, limit int, keyword *string, sortBy, order *string, categoryID, tagID *int, status, visibility *string) ([]*entity.Article, int64, error)
 	GetByID(ctx context.Context, id int64) (*entity.Article, error)
 	GetBySlug(ctx context.Context, slug string) (*entity.Article, error)
 	Create(ctx context.Context, article *entity.Article) (int64, error)
 	Update(ctx context.Context, article *entity.Article) error
+	UpdateBySlug(ctx context.Context, slug string, article *entity.Article, includeContent bool) error // 用 slug 更新文章
 	Delete(ctx context.Context, id int64) error
-	SetTags(ctx context.Context, articleSlug string, tagIDs []int64) error
 }
 
 // ArticleSearchRepo 文章搜索仓库 (Elasticsearch)。
@@ -69,7 +69,7 @@ type CategoryRepo interface {
 type TagRepo interface {
 	List(ctx context.Context, offset, limit int, keyword *string, sortBy, order *string) ([]*entity.Tag, int64, error)
 	ListAll(ctx context.Context) ([]*entity.Tag, error)
-	ListByArticleSlug(ctx context.Context, articleSlug string) ([]*entity.Tag, error)
+	ListByIDs(ctx context.Context, ids []int64) ([]*entity.Tag, error) // 根据 ID 列表获取标签
 	GetByID(ctx context.Context, id int64) (*entity.Tag, error)
 	Create(ctx context.Context, tag entity.Tag) (int64, error)
 	Update(ctx context.Context, tag entity.Tag) error

@@ -11,6 +11,7 @@ type BaseArticle struct {
 	FeaturedImage string     `json:"featured_image"`
 	AuthorUUID    string     `json:"author_uuid"`
 	Status        string     `json:"status"`
+	Visibility    string     `json:"visibility"` // 可见性：public, private
 	ReadTime      string     `json:"read_time"`
 	Views         int32      `json:"views"`
 	IsFeatured    bool       `json:"is_featured"`

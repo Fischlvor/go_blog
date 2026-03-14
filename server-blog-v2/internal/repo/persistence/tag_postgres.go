@@ -21,7 +21,7 @@ func NewTagRepo(db *gorm.DB) repo.TagRepo {
 }
 
 func (r *tagRepo) List(ctx context.Context, offset, limit int, keyword *string, sortBy, order *string) ([]*entity.Tag, int64, error) {
-	t := r.query.Tag
+	t := r.query.ArticleTag
 	do := t.WithContext(ctx)
 
 	if keyword != nil && *keyword != "" {
@@ -48,7 +48,7 @@ func (r *tagRepo) List(ctx context.Context, offset, limit int, keyword *string, 
 }
 
 func (r *tagRepo) ListAll(ctx context.Context) ([]*entity.Tag, error) {
-	t := r.query.Tag
+	t := r.query.ArticleTag
 	rows, err := t.WithContext(ctx).Order(t.ID.Asc()).Find()
 	if err != nil {
 		return nil, err
@@ -61,28 +61,16 @@ func (r *tagRepo) ListAll(ctx context.Context) ([]*entity.Tag, error) {
 	return tags, nil
 }
 
-func (r *tagRepo) ListByArticleSlug(ctx context.Context, articleSlug string) ([]*entity.Tag, error) {
-	t := r.query.Tag
-	at := r.query.ArticleTag
-
-	tagIDs, err := at.WithContext(ctx).Where(at.ArticleSlug.Eq(articleSlug)).Select(at.TagID).Find()
-	if err != nil {
-		return nil, err
-	}
-	if len(tagIDs) == 0 {
+// ListByIDs 根据 ID 列表获取标签
+func (r *tagRepo) ListByIDs(ctx context.Context, ids []int64) ([]*entity.Tag, error) {
+	if len(ids) == 0 {
 		return []*entity.Tag{}, nil
 	}
-
-	ids := make([]int64, len(tagIDs))
-	for i, tid := range tagIDs {
-		ids[i] = tid.TagID
-	}
-
+	t := r.query.ArticleTag
 	rows, err := t.WithContext(ctx).Where(t.ID.In(ids...)).Find()
 	if err != nil {
 		return nil, err
 	}
-
 	tags := make([]*entity.Tag, len(rows))
 	for i, row := range rows {
 		tags[i] = toEntityTag(row)
@@ -91,7 +79,7 @@ func (r *tagRepo) ListByArticleSlug(ctx context.Context, articleSlug string) ([]
 }
 
 func (r *tagRepo) GetByID(ctx context.Context, id int64) (*entity.Tag, error) {
-	t := r.query.Tag
+	t := r.query.ArticleTag
 	row, err := t.WithContext(ctx).Where(t.ID.Eq(id)).First()
 	if err != nil {
 		return nil, err
@@ -101,35 +89,35 @@ func (r *tagRepo) GetByID(ctx context.Context, id int64) (*entity.Tag, error) {
 
 func (r *tagRepo) Create(ctx context.Context, tag entity.Tag) (int64, error) {
 	mt := toModelTag(&tag)
-	if err := r.query.Tag.WithContext(ctx).Create(mt); err != nil {
+	if err := r.query.ArticleTag.WithContext(ctx).Create(mt); err != nil {
 		return 0, err
 	}
 	return mt.ID, nil
 }
 
 func (r *tagRepo) Update(ctx context.Context, tag entity.Tag) error {
-	t := r.query.Tag
+	t := r.query.ArticleTag
 	mt := toModelTag(&tag)
 	_, err := t.WithContext(ctx).Where(t.ID.Eq(tag.ID)).Updates(mt)
 	return err
 }
 
 func (r *tagRepo) Delete(ctx context.Context, id int64) error {
-	t := r.query.Tag
+	t := r.query.ArticleTag
 	_, err := t.WithContext(ctx).Where(t.ID.Eq(id)).Delete()
 	return err
 }
 
-func toModelTag(t *entity.Tag) *model.Tag {
-	return &model.Tag{
-		ID:        t.ID,
-		Name:      t.Name,
-		Slug:      &t.Slug,
+func toModelTag(t *entity.Tag) *model.ArticleTag {
+	return &model.ArticleTag{
+		ID:           t.ID,
+		Name:         t.Name,
+		Slug:         &t.Slug,
 		ArticleCount: &t.ArticleCount,
 	}
 }
 
-func toEntityTag(mt *model.Tag) *entity.Tag {
+func toEntityTag(mt *model.ArticleTag) *entity.Tag {
 	tag := &entity.Tag{
 		ID:   mt.ID,
 		Name: mt.Name,

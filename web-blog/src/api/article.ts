@@ -36,6 +36,7 @@ export interface Article {
     author_uuid: string;
     author: ArticleAuthor;
     status: string;
+    visibility: string; // 'public' | 'private'
     read_time: number;
     views: number;
     like: ArticleLikeInfo;
@@ -77,12 +78,16 @@ export const articleLikesList = (data: PageInfo): Promise<ApiResponse<PageResult
 }
 
 export interface ArticleCreateRequest {
-    cover: string;
-    title: string;
-    category: string;
-    tags: string[];
-    abstract: string;
-    content: string;
+    title: string;        // 标题
+    slug: string;         // 文章 slug
+    content: string;      // 内容
+    excerpt: string;      // 摘要
+    featured_image: string; // 封面图
+    category_id: number;  // 分类 ID
+    tag_ids: number[];    // 标签 ID 列表
+    status: string;       // 状态：draft, published
+    visibility: string;   // 可见性：public, private
+    is_featured: boolean; // 是否精选
 }
 
 export const articleCreate = (data: ArticleCreateRequest): Promise<ApiResponse<undefined>> => {
@@ -106,13 +111,16 @@ export const articleDelete = (data: ArticleDeleteRequest): Promise<ApiResponse<u
 }
 
 export interface ArticleUpdateRequest {
-    id: string;
-    cover: string;
-    title: string;
-    category: string;
-    tags: string[];
-    abstract: string;
-    content: string;
+    slug: string;         // 文章 slug（作为标识）
+    title: string;        // 标题
+    content: string;      // 内容
+    excerpt: string;      // 摘要
+    featured_image: string; // 封面图
+    category_id: number;  // 分类 ID
+    tag_ids: number[];    // 标签 ID 列表
+    status: string;       // 状态：draft, published
+    visibility: string;   // 可见性：public, private
+    is_featured: boolean; // 是否精选
 }
 
 export const articleUpdate = (data: ArticleUpdateRequest): Promise<ApiResponse<undefined>> => {
@@ -189,5 +197,33 @@ export const articleTags = (): Promise<ApiResponse<TagDetail[]>> => {
     return service({
         url: '/article/tags',
         method: 'get',
+    });
+}
+
+// 创建分类
+export interface CreateCategoryRequest {
+    name: string;
+    slug: string;
+}
+
+export const createCategory = (data: CreateCategoryRequest): Promise<ApiResponse<{ id: number }>> => {
+    return adminService({
+        url: '/category/create',
+        method: 'post',
+        data,
+    });
+}
+
+// 创建标签
+export interface CreateTagRequest {
+    name: string;
+    slug: string;
+}
+
+export const createTag = (data: CreateTagRequest): Promise<ApiResponse<{ id: number }>> => {
+    return adminService({
+        url: '/tag/create',
+        method: 'post',
+        data,
     });
 }
