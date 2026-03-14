@@ -60,9 +60,14 @@
       </el-table-column>
       <el-table-column prop="title" label="标题" width="150"/>
       <el-table-column prop="category.name" label="类别" width="80"/>
-      <el-table-column label="标签" width="120">
+      <el-table-column label="标签" width="150">
         <template #default="scope:{ row: Article, column: any, $index: number }">
-          <el-tag v-for="tag in scope.row.tags" :key="tag.id">{{ tag.name }}</el-tag>
+          <el-tag 
+            v-for="tag in scope.row.tags" 
+            :key="tag.id"
+            :type="getTagType(tag.id)"
+            style="margin: 2px;"
+          >{{ tag.name }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="简介">
@@ -73,6 +78,13 @@
       <el-table-column label="发布时间" width="180">
         <template #default="scope:{ row: Article }">
           {{ formatDate(scope.row.created_at) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="可见性" width="100">
+        <template #default="scope:{ row: Article }">
+          <el-tag :type="scope.row.visibility === 'public' ? 'success' : 'info'">
+            {{ scope.row.visibility === 'public' ? '公开' : '私密' }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column label="文章id" width="220">
@@ -159,6 +171,9 @@ import type {Hit} from "@/api/common";
 import {type Tag, useTagStore} from "@/stores/tag";
 import {formatDate} from "@/utils/date";
 
+// 标签颜色类型 - 基于标签 ID 分配颜色
+const tagTypes = ['', 'success', 'warning', 'danger', 'info'] as const
+const getTagType = (tagId: number) => tagTypes[tagId % tagTypes.length]
 
 const multipleArticleTableRef = ref()
 const articleTableData = ref<Article[]>()
