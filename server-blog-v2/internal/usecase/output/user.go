@@ -17,7 +17,7 @@ type UserProfile struct {
 type UserAdmin struct {
 	ID        int64      `json:"id"`
 	UUID      string     `json:"uuid"`
-	Username  string     `json:"username"`
+	Nickname  string     `json:"nickname"`
 	Email     string     `json:"email"`
 	Avatar    string     `json:"avatar"`
 	RoleID    int        `json:"role_id"`
