@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  # Go博客后端服务
+  server-blog:
+    build:
+      dockerfile: Dockerfile
+    image: server-blog-dev:latest
+    container_name: server-blog-dev
+    restart: "no"
+    environment:
+      - TZ=Asia/Shanghai
+      - APP_ENV=dev
+    volumes:
+      # 挂载配置文件目录
+      - ./server-blog-v2/configs:/app/configs
+      # 挂载上传文件目录
+      - ./server-blog-v2/uploads:/app/uploads
+      # 挂载日志目录
+      - ./server-blog-v2/log:/app/log
+      # 挂载密钥文件目录
+      - ./server-blog-v2/keys:/app/keys
+    networks:
+      - blog-network-dev
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "/dev/null", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Go认证后端服务
+  server-auth:
+    build:
+      dockerfile: Dockerfile
+    image: server-auth-dev:latest
+    container_name: server-auth-dev
+    restart: "no"
+    environment:
+      - TZ=Asia/Shanghai
+      - APP_ENV=dev
+    volumes:
+      # 挂载配置文件目录
+      - ./server-auth-service/configs:/app/configs
+      # 挂载日志目录
+      - ./server-auth-service/log:/app/log
+      # 挂载密钥文件目录
+      - ./server-auth-service/keys:/app/keys
+    networks:
+      - blog-network-dev
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "/dev/null", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 博客前端服务（Next.js SSR）
+  web-blog:
+    build:
+      dockerfile: Dockerfile
+    image: web-blog-dev:latest
+    container_name: web-blog-dev
+    restart: "no"
+    networks:
+      - blog-network-dev
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "/dev/null", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # 认证前端服务
+  web-auth:
+    build:
+      dockerfile: Dockerfile
+    image: web-auth-dev:latest
+    container_name: web-auth-dev
+    restart: "no"
+    networks:
+      - blog-network-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep nginx > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Nginx反向代理服务
+  nginx:
+    build:
+      dockerfile: Dockerfile
+    image: nginx-proxy-dev:latest
+    container_name: nginx-proxy-dev
+    restart: "no"
+    ports:
+      - "80:80"
+    volumes:
+      # 挂载开发环境配置文件
+      - ./nginx/go_blog_dev.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - web-blog
+      - web-auth
+      - server-blog
+      - server-auth
+    networks:
+      - blog-network-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep nginx > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  blog-network-dev:
+    driver: bridge
+    name: blog-network-dev  # 强制指定网络名称，不带项目前缀

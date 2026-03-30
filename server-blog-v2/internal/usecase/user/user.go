@@ -96,7 +96,7 @@ func (u *useCase) List(ctx context.Context, params input.ListUsers) (*output.Lis
 		items[i] = output.UserAdmin{
 			ID:        user.ID,
 			UUID:      user.UUID,
-			Username:  user.Nickname,
+			Nickname:  user.Nickname,
 			Email:     "",
 			Avatar:    urlutil.ResolveImageURL(u.cfg, user.Avatar),
 			RoleID:    user.RoleID,

@@ -64,7 +64,7 @@ func NewRouter(
 
 	// Admin API
 	adminGroup := api.Group("/admin")
-	admin.NewRoutes(adminGroup, cfg, l, publicKey, userRepo, content, comment, feedback, link, file, resource, user, emoji, aiChat, aiModel, website, advertisement)
+	admin.NewRoutes(adminGroup, cfg, l, publicKey, userRepo, sessionManager, ssoClient, content, comment, feedback, link, file, resource, user, emoji, aiChat, aiModel, website, advertisement)
 
 	// 第三方回调（无需认证）
 	callbackGroup := api.Group("/callback")

@@ -88,16 +88,16 @@ func (a *Admin) listArticles(c fiber.Ctx) error {
 // @Tags Admin.Article
 // @Security BearerAuth
 // @Produce json
-// @Param id path int true "文章 ID"
+// @Param slug path string true "文章 Slug"
 // @Success 200 {object} shared.Envelope
-// @Router /admin/article/{id} [get]
+// @Router /admin/article/{slug} [get]
 func (a *Admin) getArticle(c fiber.Ctx) error {
-	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
-	if err != nil {
-		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, "invalid article id")
+	slug := c.Params("slug")
+	if slug == "" {
+		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, "invalid article slug")
 	}
 
-	article, err := a.content.GetArticleByID(c.Context(), id)
+	article, err := a.content.GetArticleBySlug(c.Context(), slug)
 	if err != nil {
 		a.logger.Error(err, "http - admin - article - getArticle")
 		return shared.WriteError(c, http.StatusNotFound, bizcode.ErrorNotFound, "article not found")
@@ -125,6 +125,11 @@ func (a *Admin) createArticle(c fiber.Ctx) error {
 		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, shared.TranslateValidationErrors(err))
 	}
 
+	// draft 模式下 categoryId 可选（可以为 0），published 模式下必填
+	if req.Status == "published" && req.CategoryID == 0 {
+		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, "category_id is required for published articles")
+	}
+
 	// 获取当前用户 UUID
 	userUUID := middleware.GetUserUUID(c)
 	if userUUID == "" {
@@ -141,14 +146,20 @@ func (a *Admin) createArticle(c fiber.Ctx) error {
 		featuredImage = &req.FeaturedImage
 	}
 
-	id, err := a.content.CreateArticle(c.Context(), input.CreateArticle{
+	// draft 模式下 categoryId 为 0 时转换为 NULL
+	categoryID := req.CategoryID
+	if req.Status == "draft" && categoryID == 0 {
+		categoryID = 0 // 保持为 0，后端处理时转为 NULL
+	}
+
+	slug, err := a.content.CreateArticle(c.Context(), input.CreateArticle{
 		Title:         req.Title,
 		Slug:          req.Slug,
 		Content:       req.Content,
 		Excerpt:       excerpt,
 		FeaturedImage: featuredImage,
 		AuthorUUID:    userUUID,
-		CategoryID:    req.CategoryID,
+		CategoryID:    categoryID,
 		TagIDs:        req.TagIDs,
 		Status:        req.Status,
 		Visibility:    req.Visibility,
@@ -160,7 +171,7 @@ func (a *Admin) createArticle(c fiber.Ctx) error {
 		return shared.WriteError(c, http.StatusInternalServerError, bizcode.ErrorDatabase, "failed to create article")
 	}
 
-	return shared.WriteSuccess(c, shared.WithData(fiber.Map{"id": id}))
+	return shared.WriteSuccess(c, shared.WithData(fiber.Map{"slug": slug}))
 }
 
 // updateArticle 更新文章。
@@ -182,6 +193,11 @@ func (a *Admin) updateArticle(c fiber.Ctx) error {
 		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, shared.TranslateValidationErrors(err))
 	}
 
+	// draft 模式下 categoryId 可选（可以为 0），published 模式下必填
+	if req.Status == "published" && req.CategoryID == 0 {
+		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, "category_id is required for published articles")
+	}
+
 	// 处理可选字段
 	var excerpt *string
 	if req.Excerpt != "" {
@@ -192,13 +208,19 @@ func (a *Admin) updateArticle(c fiber.Ctx) error {
 		featuredImage = &req.FeaturedImage
 	}
 
+	// draft 模式下 categoryId 为 0 时转换为 NULL
+	categoryID := req.CategoryID
+	if req.Status == "draft" && categoryID == 0 {
+		categoryID = 0 // 保持为 0，后端处理时转为 NULL
+	}
+
 	err := a.content.UpdateArticle(c.Context(), input.UpdateArticle{
 		Slug:          req.Slug,
 		Title:         req.Title,
 		Content:       req.Content,
 		Excerpt:       excerpt,
 		FeaturedImage: featuredImage,
-		CategoryID:    req.CategoryID,
+		CategoryID:    categoryID,
 		TagIDs:        req.TagIDs,
 		Status:        req.Status,
 		Visibility:    req.Visibility,
@@ -219,7 +241,7 @@ func (a *Admin) updateArticle(c fiber.Ctx) error {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body request.BatchDeleteStr true "文章 ID 列表"
+// @Param body body request.BatchDeleteStr true "文章 Slug 列表"
 // @Success 200 {object} shared.Envelope
 // @Router /admin/article/delete [delete]
 func (a *Admin) deleteArticle(c fiber.Ctx) error {
@@ -232,13 +254,9 @@ func (a *Admin) deleteArticle(c fiber.Ctx) error {
 		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParamFormat, err.Error())
 	}
 
-	for _, idStr := range req.IDs {
-		id, err := strconv.ParseInt(idStr, 10, 64)
-		if err != nil {
-			continue
-		}
-		if err := a.content.DeleteArticle(c.Context(), id); err != nil {
-			a.logger.Error(err, "http - admin - article - deleteArticle", "id", id)
+	for _, slug := range req.IDs {
+		if err := a.content.DeleteArticleBySlug(c.Context(), slug); err != nil {
+			a.logger.Error(err, "http - admin - article - deleteArticle", "slug", slug)
 		}
 	}
 

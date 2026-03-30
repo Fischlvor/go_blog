@@ -1,0 +1,53 @@
+# Git
+.git
+.gitignore
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies (will be installed in Docker)
+node_modules
+pnpm-debug.log
+npm-debug.log
+yarn-error.log
+
+# Build outputs (keep .next for production)
+out
+dist
+build
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Development
+.cache
+coverage
+.turbo
+
+# Documentation & Config (not needed in production)
+README.md
+AGENTS.md
+CLAUDE.md
+components.json
+eslint.config.mjs
+postcss.config.mjs
+tsconfig.json
+pnpm-workspace.yaml
+
+# Docker files
+Dockerfile.dev
+docker-compose.yml
+.dockerignore
+
+# Nginx config
+nginx.conf

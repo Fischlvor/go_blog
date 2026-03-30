@@ -116,7 +116,7 @@ func (u *useCase) GetArticleByID(ctx context.Context, id int64) (*output.Article
 	return u.toArticleDetail(ctx, article, nil)
 }
 
-func (u *useCase) CreateArticle(ctx context.Context, params input.CreateArticle) (int64, error) {
+func (u *useCase) CreateArticle(ctx context.Context, params input.CreateArticle) (string, error) {
 	// 默认可见性为 public
 	visibility := params.Visibility
 	if visibility == "" {
@@ -129,13 +129,19 @@ func (u *useCase) CreateArticle(ctx context.Context, params input.CreateArticle)
 		slug = generateSlug()
 	}
 
+	// 处理 categoryId = 0 的情况（draft 模式下允许）
+	categoryID := params.CategoryID
+	if categoryID == 0 {
+		categoryID = 0 // 保持为 0，数据库会存储为 NULL
+	}
+
 	article := &entity.Article{
 		Title:      params.Title,
 		Slug:       slug,
 		Excerpt:    params.Excerpt,
 		Content:    params.Content,
 		AuthorUUID: params.AuthorUUID,
-		CategoryID: params.CategoryID,
+		CategoryID: categoryID,
 		TagIDs:     params.TagIDs, // 直接存储标签 ID 数组
 		Status:     params.Status,
 		Visibility: visibility,
@@ -149,12 +155,12 @@ func (u *useCase) CreateArticle(ctx context.Context, params input.CreateArticle)
 		article.PublishedAt = &now
 	}
 
-	id, err := u.articles.Create(ctx, article)
+	_, err := u.articles.Create(ctx, article)
 	if err != nil {
-		return 0, fmt.Errorf("%w: %v", ErrRepo, err)
+		return "", fmt.Errorf("%w: %v", ErrRepo, err)
 	}
 
-	return id, nil
+	return slug, nil
 }
 
 func (u *useCase) UpdateArticle(ctx context.Context, params input.UpdateArticle) error {
@@ -170,12 +176,18 @@ func (u *useCase) UpdateArticle(ctx context.Context, params input.UpdateArticle)
 		return fmt.Errorf("%w: %v", ErrRepo, err)
 	}
 
+	// 处理 categoryId = 0 的情况（draft 模式下允许）
+	categoryID := params.CategoryID
+	if categoryID == 0 {
+		categoryID = 0 // 保持为 0，数据库会存储为 NULL
+	}
+
 	article := &entity.Article{
 		Title:      params.Title,
 		Slug:       params.Slug,
 		Excerpt:    params.Excerpt,
 		AuthorUUID: params.AuthorUUID,
-		CategoryID: params.CategoryID,
+		CategoryID: categoryID,
 		TagIDs:     params.TagIDs, // 直接存储标签 ID 数组
 		Status:     params.Status,
 		Visibility: visibility,
@@ -206,6 +218,25 @@ func (u *useCase) UpdateArticle(ctx context.Context, params input.UpdateArticle)
 
 func (u *useCase) DeleteArticle(ctx context.Context, id int64) error {
 	if err := u.articles.Delete(ctx, id); err != nil {
+		return fmt.Errorf("%w: %v", ErrRepo, err)
+	}
+	return nil
+}
+
+func (u *useCase) GetArticleBySlug(ctx context.Context, slug string) (*output.ArticleDetail, error) {
+	article, err := u.articles.GetBySlug(ctx, slug)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrRepo, err)
+	}
+	return u.toArticleDetail(ctx, article, nil)
+}
+
+func (u *useCase) DeleteArticleBySlug(ctx context.Context, slug string) error {
+	article, err := u.articles.GetBySlug(ctx, slug)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrRepo, err)
+	}
+	if err := u.articles.Delete(ctx, article.ID); err != nil {
 		return fmt.Errorf("%w: %v", ErrRepo, err)
 	}
 	return nil
@@ -478,11 +509,16 @@ func (u *useCase) toArticleDetail(ctx context.Context, a *entity.Article, userUU
 	cat, _ := u.categories.GetByID(ctx, a.CategoryID)
 	tags, _ := u.tags.ListByIDs(ctx, a.TagIDs) // 使用 tag_ids 数组
 
+	var category output.BaseCategory
+	if cat != nil {
+		category = output.BaseCategory{ID: cat.ID, Name: cat.Name, Slug: cat.Slug}
+	}
+
 	detail := &output.ArticleDetail{
 		BaseArticle: u.toBaseArticle(a),
 		Author:      author,
 		Like:        like,
-		Category:    output.BaseCategory{ID: cat.ID, Name: cat.Name, Slug: cat.Slug},
+		Category:    category,
 		Tags:        toBaseTags(tags),
 		Content:     a.Content,
 	}
@@ -545,11 +581,15 @@ func (u *useCase) toBaseArticle(a *entity.Article) output.BaseArticle {
 }
 
 func (u *useCase) toArticleSummary(a *entity.Article, author output.AuthorInfo, like output.LikeInfo, cat *entity.Category, tags []*entity.Tag) output.ArticleSummary {
+	var category output.BaseCategory
+	if cat != nil {
+		category = output.BaseCategory{ID: cat.ID, Name: cat.Name, Slug: cat.Slug}
+	}
 	return output.ArticleSummary{
 		BaseArticle: u.toBaseArticle(a),
 		Author:      author,
 		Like:        like,
-		Category:    output.BaseCategory{ID: cat.ID, Name: cat.Name, Slug: cat.Slug},
+		Category:    category,
 		Tags:        toBaseTags(tags),
 	}
 }

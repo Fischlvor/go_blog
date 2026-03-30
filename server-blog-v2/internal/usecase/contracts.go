@@ -14,9 +14,11 @@ type Content interface {
 	// 文章 - 管理端
 	ListArticles(ctx context.Context, params input.ListArticles) (*output.ListResult[output.ArticleSummary], error)
 	GetArticleByID(ctx context.Context, id int64) (*output.ArticleDetail, error)
-	CreateArticle(ctx context.Context, params input.CreateArticle) (int64, error)
+	GetArticleBySlug(ctx context.Context, slug string) (*output.ArticleDetail, error)
+	CreateArticle(ctx context.Context, params input.CreateArticle) (string, error)
 	UpdateArticle(ctx context.Context, params input.UpdateArticle) error
 	DeleteArticle(ctx context.Context, id int64) error
+	DeleteArticleBySlug(ctx context.Context, slug string) error
 
 	// 文章 - 公开端
 	ListPublicArticles(ctx context.Context, params input.ListPublicArticles, userUUID *string) (*output.ListResult[output.ArticleSummary], error)
