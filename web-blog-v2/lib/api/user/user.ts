@@ -3,10 +3,10 @@
  */
 
 import { authRequest } from '../http';
-import type { UserProfile } from '../types';
+import type { User } from '../types';
 
-export async function getUserInfo(): Promise<UserProfile> {
-  return authRequest<UserProfile>('/user/info');
+export async function getUserInfo(): Promise<User> {
+  return authRequest<User>('/user/info');
 }
 
 export interface UpdateUserInfoRequest {

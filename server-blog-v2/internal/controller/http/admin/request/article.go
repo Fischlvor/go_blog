@@ -7,7 +7,7 @@ type CreateArticle struct {
 	Content       string  `json:"content" validate:"required"`
 	Excerpt       string  `json:"excerpt" validate:"max=500"`
 	FeaturedImage string  `json:"featured_image"`
-	CategoryID    int64   `json:"category_id" validate:"required"`
+	CategoryID    int64   `json:"category_id"` // draft 时可选，published 时必填
 	TagIDs        []int64 `json:"tag_ids"`
 	Status        string  `json:"status" validate:"required,oneof=draft published"`
 	Visibility    string  `json:"visibility" validate:"omitempty,oneof=public private"` // 可见性：public, private
@@ -21,7 +21,7 @@ type UpdateArticle struct {
 	Content       string  `json:"content"` // 可选，为空时保留原内容
 	Excerpt       string  `json:"excerpt" validate:"max=500"`
 	FeaturedImage string  `json:"featured_image"`
-	CategoryID    int64   `json:"category_id" validate:"required"`
+	CategoryID    int64   `json:"category_id"` // draft 时可选，published 时必填
 	TagIDs        []int64 `json:"tag_ids"`
 	Status        string  `json:"status" validate:"required,oneof=draft published"`
 	Visibility    string  `json:"visibility" validate:"omitempty,oneof=public private"` // 可见性：public, private

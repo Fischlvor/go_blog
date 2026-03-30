@@ -41,7 +41,7 @@ qq:
     enable: true                          # 是否启用QQ登录
     app_id: "your_qq_app_id"              # QQ互联应用ID
     app_key: your_qq_app_key              # QQ互联应用Key
-    redirect_uri: http://localhost:8000/api/auth/oauth/qq/callback  # 回调地址
+    redirect_uri: http://sso.hsk423.dev/api/auth/oauth/qq/callback  # 回调地址
 
 # 邮件配置（用于发送验证码、找回密码等）
 email:
@@ -63,8 +63,8 @@ system:
     router_prefix: /api                   # 路由前缀
     allow_all_origins: false              # 是否允许所有跨域请求
     allowed_origins:                      # 允许的跨域来源列表
-        - http://localhost:3000           # 本地开发前端地址
-        - http://localhost:5173           # Vite开发服务器地址
+        - http://www.hsk423.dev           # 本地开发前端地址
+        - http://sso.hsk423.dev           # 本地开发认证前端地址
         - https://your-domain.com         # 生产环境域名
 
 # 日志配置

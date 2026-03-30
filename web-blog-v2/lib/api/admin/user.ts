@@ -32,18 +32,18 @@ export async function adminListUsers(query?: AdminUserListQuery): Promise<PageRe
   if (query?.page_size) params.set('page_size', String(query.page_size));
   if (query?.keyword) params.set('keyword', query.keyword);
   const qs = params.toString();
-  return adminRequest<PageResult<User>>(`/admin/user/list${qs ? `?${qs}` : ''}`);
+  return adminRequest<PageResult<User>>(`/user/list${qs ? `?${qs}` : ''}`);
 }
 
 export async function adminFreezeUser(id: number): Promise<void> {
-  return adminRequest<void>('/admin/user/freeze', {
+  return adminRequest<void>('/user/freeze', {
     method: 'PUT',
     body: JSON.stringify({ id }),
   });
 }
 
 export async function adminUnfreezeUser(id: number): Promise<void> {
-  return adminRequest<void>('/admin/user/unfreeze', {
+  return adminRequest<void>('/user/unfreeze', {
     method: 'PUT',
     body: JSON.stringify({ id }),
   });
@@ -55,5 +55,5 @@ export async function adminListLoginRecords(query?: { page?: number; page_size?:
   if (query?.page_size) params.set('page_size', String(query.page_size));
   if (query?.uuid) params.set('uuid', query.uuid);
   const qs = params.toString();
-  return adminRequest<PageResult<LoginRecord>>(`/admin/user/loginList${qs ? `?${qs}` : ''}`);
+  return adminRequest<PageResult<LoginRecord>>(`/user/loginList${qs ? `?${qs}` : ''}`);
 }

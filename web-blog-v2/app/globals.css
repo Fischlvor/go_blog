@@ -134,4 +134,13 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
   }
+
+  /* 隐藏滚动条 */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
@@ -13,7 +14,7 @@ import type { Article, ArticleCategory } from '@/lib/api/types';
 
 const PAGE_SIZE = 9;
 
-export default function ArticlesPage() {
+function ArticlesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -134,5 +135,23 @@ export default function ArticlesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ArticlesPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-6xl mx-auto px-4 py-12">
+        <div className="mb-10 space-y-1">
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-72 rounded-xl" />)}
+        </div>
+      </div>
+    }>
+      <ArticlesContent />
+    </Suspense>
   );
 }

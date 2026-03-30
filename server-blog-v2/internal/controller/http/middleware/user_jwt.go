@@ -49,7 +49,11 @@ type JWTConfig struct {
 	PublicKey *rsa.PublicKey
 }
 
-// NewUserJWTMiddleware 创建 JWT 认证中间件（必须登录）。
+// NewUserJWTMiddleware 创建基础 JWT 认证中间件（必须登录）。
+//
+// Deprecated: 当前路由已统一切换到 `NewSSOUserJWTMiddleware`，以支持 refresh_token 自动刷新。
+// 该中间件暂保留仅用于兼容/回滚。
+//nolint:unused // 保留用于兼容/回滚
 func NewUserJWTMiddleware(publicKey *rsa.PublicKey) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		claims, err := parseToken(c, publicKey)
@@ -105,8 +109,11 @@ type SSOJWTConfig struct {
 	Logger              logger.Interface
 }
 
-// NewAdminJWTMiddleware 创建管理员 JWT 认证中间件。
-// 由于 SSO token 中不包含 role_id，需要从数据库查询用户角色。
+// NewAdminJWTMiddleware 创建基础管理员 JWT 认证中间件。
+//
+// Deprecated: 当前 Admin 路由已切换到 `NewSSOAdminJWTMiddleware`，以支持 refresh_token 自动刷新。
+// 该中间件暂保留仅用于兼容/回滚。
+//nolint:unused // 保留用于兼容/回滚
 func NewAdminJWTMiddleware(publicKey *rsa.PublicKey, userRoleGetter ...UserRoleGetter) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		claims, err := parseToken(c, publicKey)

@@ -24,9 +24,29 @@ export interface ApiError extends Error {
 export const API_PREFIXES = {
   v1: process.env.NEXT_PUBLIC_API_V1 || '/api/v1',
   v2: process.env.NEXT_PUBLIC_API_V2 || '/api/v2',
+  admin: process.env.NEXT_PUBLIC_API_ADMIN || '/api/admin',
 } as const;
 
 export type ApiVersion = keyof typeof API_PREFIXES;
+
+const AUTH_ERROR_CODES = new Set(['0020', '0021', '0022', '0024']);
+
+async function handleAdminAuthExpired(message?: string) {
+  clearToken();
+  if (typeof window === 'undefined') return;
+
+  const msg = message || '登录已失效，请重新登录';
+  try {
+    const { toast } = await import('sonner');
+    toast.error(msg);
+  } catch {
+    // ignore
+  }
+
+  window.setTimeout(() => {
+    window.location.href = '/';
+  }, 150);
+}
 
 /** 默认版本为 v1 */
 
@@ -53,7 +73,10 @@ async function doFetch<T>(
   const API_BASE = API_PREFIXES[apiVersion];
 
   const headers = new Headers(fetchOptions.headers || {});
-  headers.set('Content-Type', 'application/json');
+  const isFormData = typeof FormData !== 'undefined' && fetchOptions.body instanceof FormData;
+  if (!isFormData) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   if (withAuth) {
     const token = getToken();
@@ -79,7 +102,12 @@ async function doFetch<T>(
 
   // 401 清除登录态
   if (response.status === 401) {
-    clearToken();
+    if (apiVersion === 'admin') {
+      await handleAdminAuthExpired(json.message);
+    } else {
+      clearToken();
+    }
+
     const error: ApiError = new Error(json.message || 'Unauthorized');
     error.code = json.code;
     error.status = 401;
@@ -96,6 +124,10 @@ async function doFetch<T>(
 
   // code !== '0000' 视为业务错误
   if (json.code !== '0000') {
+    if (apiVersion === 'admin' && AUTH_ERROR_CODES.has(json.code)) {
+      await handleAdminAuthExpired(json.message);
+    }
+
     const error: ApiError = new Error(json.message || 'Unknown error');
     error.code = json.code;
     throw error;
@@ -131,5 +163,5 @@ export function adminRequest<T>(
   url: string,
   options?: RequestInit & { apiVersion?: ApiVersion }
 ): Promise<T> {
-  return doFetch<T>(url, { ...options, withAuth: true });
+  return doFetch<T>(url, { ...options, withAuth: true, apiVersion: options?.apiVersion ?? 'admin' });
 }

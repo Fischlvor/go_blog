@@ -1,16 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
 import { ArrowRight, ArrowDown } from 'lucide-react';
-import { GithubIcon, BilibiliIcon, SteamIcon } from '@/components/common/icons';
 import { buttonVariants } from '@/components/ui/button';
 import { ArticleCard } from '@/components/site/article/ArticleCard';
 import { useSite } from '@/context/site';
 import { listArticles } from '@/lib/api/public/article';
-import { Skeleton } from '@/components/ui/skeleton';
 import type { Article } from '@/lib/api/types';
 import { cn } from '@/lib/utils';
 
@@ -49,6 +47,8 @@ export default function HomePage() {
   const { site, isLoading: siteLoading } = useSite();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const postsRef = useRef<HTMLElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     listArticles({ page: 1, page_size: 6, order: 'desc' })
@@ -60,20 +60,18 @@ export default function HomePage() {
   const typeTarget = siteLoading ? '' : (site.name || 'developer');
   const { displayed: typedName, done: typeDone } = useTypewriter(typeTarget, 60, 300);
 
-  const socialLinks = [
-    site.github_url   && { href: site.github_url,   Icon: GithubIcon,   label: 'GitHub',   hoverClass: 'hover:text-foreground' },
-    site.bilibili_url && { href: site.bilibili_url, Icon: BilibiliIcon, label: 'Bilibili', hoverClass: 'hover:text-[#00a1d6]' },
-    site.steam_url    && { href: site.steam_url,    Icon: SteamIcon,    label: 'Steam',    hoverClass: 'hover:text-[#66c0f4]' },
-  ].filter(Boolean) as { href: string; Icon: React.FC<{className?: string}>; label: string; hoverClass: string }[];
-
+  const scrollToPosts = () => {
+    postsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   return (
     <div className="min-h-screen">
       {/* ─── Hero ─── */}
-      <section className="relative flex flex-col justify-center overflow-hidden min-h-[80vh] md:min-h-[75vh]">
-        {/* bg decorations */}
+      <section ref={heroRef} className="relative flex flex-col justify-center items-center overflow-hidden min-h-[calc(100vh-4rem)]">
+        {/* 径向渐变背景 */}
         <div className="pointer-events-none absolute inset-0 -z-10"
           style={{ backgroundImage: 'radial-gradient(ellipse 70% 50% at 50% 0%, hsl(var(--primary)/0.10), transparent)' }}
         />
+        {/* 点阵背景 */}
         <div className="pointer-events-none absolute inset-0 -z-10 opacity-[0.025] dark:opacity-[0.05]"
           style={{
             backgroundImage: 'radial-gradient(circle, hsl(var(--foreground)) 1px, transparent 1px)',
@@ -81,45 +79,52 @@ export default function HomePage() {
           }}
         />
 
-        <div className="max-w-6xl mx-auto px-4 py-24 md:py-32 w-full">
+        <div className="max-w-2xl mx-auto px-4 w-full relative z-10 text-center">
           <motion.div
-            className="space-y-8 max-w-2xl"
+            className="space-y-6"
             initial="hidden" animate="show" variants={stagger}
           >
-            {/* prompt line */}
-            <motion.div variants={fadeUp} className="font-mono text-sm text-muted-foreground flex items-center gap-2">
-              <span className="text-primary">$</span>
-              <span>whoami</span>
+            <motion.div variants={fadeUp} className="font-mono text-left inline-block">
+              <div className="px-6 py-4 text-sm min-w-[280px]">
+                {/* 命令行 */}
+                <div className="flex items-center gap-2">
+                  <span className="text-green-500">~</span>
+                  <span className="text-primary">$</span>
+                  <span className="text-foreground">whoami</span>
+                </div>
+                {/* 输出行：预留 h1 高度防跳动 */}
+                <div className="mt-1 min-h-[4.5rem] md:min-h-[5.5rem] flex items-center">
+                  <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.05]">
+                    <span className="bg-gradient-to-r from-violet-500 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                      {typedName}
+                    </span>
+                    <span
+                      className={cn(
+                        'ml-0.5 inline-block w-[3px] h-[0.9em] bg-primary align-middle',
+                        typeDone ? 'animate-[blink_1s_step-end_infinite]' : 'opacity-100'
+                      )}
+                    />
+                  </h1>
+                </div>
+              </div>
             </motion.div>
 
-            {/* name line */}
-            <motion.div variants={fadeUp}>
-              <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.05] font-mono">
-                <span className="bg-gradient-to-r from-violet-500 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                  {typedName}
-                </span>
-                <span
-                  className={cn(
-                    'ml-0.5 inline-block w-[3px] h-[0.9em] bg-primary align-middle',
-                    typeDone ? 'animate-[blink_1s_step-end_infinite]' : 'opacity-100'
-                  )}
-                />
-              </h1>
-            </motion.div>
-
-            {/* job + slogan */}
-            <motion.div variants={fadeUp} className="space-y-2">
+            {/* <motion.div variants={fadeUp} className="space-y-3">
               {siteLoading ? (
-                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-32 mx-auto" />
               ) : site.job ? (
                 <p className="font-mono text-sm text-primary/80 tracking-widest uppercase">
                   // {site.job}
                 </p>
               ) : null}
-            </motion.div>
+              {site.slogan && (
+                <p className="text-base text-muted-foreground leading-relaxed">
+                  {site.slogan}
+                </p>
+              )}
+            </motion.div> */}
 
-            {/* CTA buttons */}
-            <motion.div variants={fadeUp} className="flex flex-wrap gap-3">
+            <motion.div variants={fadeUp} className="flex flex-wrap gap-3 justify-center pt-4">
               <Link href="/articles"
                 className={cn(buttonVariants({ size: 'lg' }),
                   'rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white border-0 hover:opacity-90 shadow-lg shadow-violet-500/20 font-mono'
@@ -134,19 +139,21 @@ export default function HomePage() {
           </motion.div>
         </div>
 
-        {/* scroll hint */}
-        <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-muted-foreground/40"
+        {/* 向下箭头：点击滚动到文章区 */}
+        <motion.button
+          type="button"
+          onClick={scrollToPosts}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-pointer z-20"
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.8, duration: 0.5 }}
         >
           <ArrowDown className="h-5 w-5 animate-bounce" />
-        </motion.div>
+        </motion.button>
       </section>
 
       {/* ─── Latest Articles ─── */}
-      <section className="py-20 max-w-6xl mx-auto px-4" id="posts">
+      <section ref={postsRef} className="py-20 max-w-6xl mx-auto px-4" id="posts">
         <motion.div
           initial="hidden" animate="show" variants={stagger}
         >

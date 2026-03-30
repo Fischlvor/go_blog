@@ -35,12 +35,6 @@ export function Footer() {
             {site.description && (
               <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">{site.description}</p>
             )}
-            {site.icp_filing && (
-              <a href="https://beian.miit.gov.cn" target="_blank" rel="noopener noreferrer"
-                className="inline-block text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors mt-1">
-                {site.icp_filing}
-              </a>
-            )}
           </div>
 
           {/* Nav */}
@@ -81,9 +75,19 @@ export function Footer() {
 
         <Separator className="my-6" />
 
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground/60 font-mono">
-          <p>© {new Date().getFullYear()} {site.name || site.title || '博客'}. All rights reserved.</p>
-          <p>Built with Next.js</p>
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-foreground/60 font-mono">
+          <div className="flex items-center gap-3">
+            <p>© {new Date().getFullYear()} {site.name || site.title || '博客'}. All rights reserved.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {site.icp_filing && (
+              <a href="https://beian.miit.gov.cn" target="_blank" rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-muted-foreground transition-colors">
+                {site.icp_filing}
+              </a>
+            )}
+            <p>Built with Next.js</p>
+          </div>
         </div>
       </div>
     </footer>

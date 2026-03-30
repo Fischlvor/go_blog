@@ -8,6 +8,7 @@ import (
 	"server-blog-v2/config"
 	"server-blog-v2/internal/controller/http/middleware"
 	"server-blog-v2/internal/repo"
+	"server-blog-v2/internal/repo/webapi"
 	"server-blog-v2/internal/usecase"
 	"server-blog-v2/pkg/logger"
 )
@@ -19,6 +20,8 @@ func NewRoutes(
 	l logger.Interface,
 	publicKey *rsa.PublicKey,
 	userRepo repo.UserRepo,
+	sessionManager *middleware.SessionManager,
+	ssoClient *webapi.SSOClient,
 	content usecase.Content,
 	comment usecase.Comment,
 	feedback usecase.Feedback,
@@ -34,8 +37,16 @@ func NewRoutes(
 ) {
 	admin := New(cfg, l, content, comment, feedback, link, file, resource, user, emoji, aiChat, aiModel, website, advertisement)
 
-	// 管理员 JWT 中间件（从数据库查询用户角色）
-	adminRequired := middleware.NewAdminJWTMiddleware(publicKey, userRepo)
+	// 管理员 JWT 中间件（SSO 模式，支持自动刷新 token）
+	ssoJWTConfig := middleware.SSOJWTConfig{
+		PublicKey:          publicKey,
+		SSOClient:          ssoClient,
+		UserRoleGetter:     userRepo,
+		UserCreator:        userRepo,
+		RefreshTokenGetter: sessionManager,
+		Logger:             l,
+	}
+	adminRequired := middleware.NewSSOAdminJWTMiddleware(ssoJWTConfig)
 
 	// ==================== 文章管理 /article ====================
 	articleGroup := router.Group("/article", adminRequired)

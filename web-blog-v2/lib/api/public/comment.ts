@@ -49,3 +49,7 @@ export async function deleteComment(ids: number[]): Promise<void> {
     body: JSON.stringify({ ids }),
   });
 }
+
+export async function getUserComments(): Promise<Comment[]> {
+  return authRequest<Comment[]>('/comment/info');
+}

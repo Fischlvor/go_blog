@@ -68,7 +68,7 @@ export function UserMenu({ mobile }: UserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="flex items-center gap-2 cursor-pointer"
-          onClick={() => router.push('/dashboard')}
+          onClick={() => router.push('/admin')}
         >
           <User className="h-4 w-4" /> 个人中心
         </DropdownMenuItem>

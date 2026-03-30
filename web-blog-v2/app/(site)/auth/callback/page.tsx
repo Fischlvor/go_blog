@@ -1,12 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { handleSSOCallback } from '@/lib/api/public/auth';
 import { useUserAuth } from '@/context/user-auth';
 
-export default function SSOCallbackPage() {
+function SSOCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setToken, refreshUser } = useUserAuth();
@@ -49,5 +50,20 @@ export default function SSOCallbackPage() {
         <p className="text-sm text-muted-foreground">正在完成登录...</p>
       </div>
     </div>
+  );
+}
+
+export default function SSOCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-r-transparent" />
+          <p className="text-sm text-muted-foreground">正在完成登录...</p>
+        </div>
+      </div>
+    }>
+      <SSOCallbackContent />
+    </Suspense>
   );
 }

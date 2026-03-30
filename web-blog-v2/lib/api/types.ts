@@ -16,10 +16,13 @@ export interface User {
   id: number;
   uuid: string;
   nickname: string;
+  username?: string;
   email: string;
   avatar: string;
   role_id: number;
   freeze: boolean;
+  address?: string;
+  signature?: string;
   created_at: string;
   last_login?: string | null;
 }
@@ -74,6 +77,7 @@ export interface Article {
   author_uuid: string;
   author: ArticleAuthor;
   status: string;
+  visibility: string;
   read_time: number;
   views: number;
   like: ArticleLikeInfo;
@@ -122,7 +126,8 @@ export interface Comment {
 export interface FriendLink {
   id: number;
   name: string;
-  url: string;
+  url?: string;
+  link?: string;
   description: string;
   logo: string;
   status?: string;
@@ -133,7 +138,10 @@ export interface FriendLink {
 // ============ 反馈 ============
 export interface Feedback {
   id: number;
+  user_uuid?: string;
+  type?: string;
   content: string;
+  contact?: string;
   reply?: string | null;
   status: string;
   created_at: string;

@@ -3,7 +3,7 @@
  * 路由：/api/v1/article/*
  */
 
-import { publicRequest } from '../http';
+import { publicRequest, authRequest } from '../http';
 import type { Article, ArticleDetail, ArticleCategory, ArticleTag, ArticleListQuery, PageResult } from '../types';
 
 /**
@@ -29,6 +29,14 @@ export async function listArticles(query?: ArticleListQuery): Promise<PageResult
  */
 export async function getArticle(slug: string): Promise<ArticleDetail> {
   return publicRequest<ArticleDetail>(`/article/${slug}`);
+}
+
+/**
+ * 获取文章详情（带用户认证，含 liked 状态）
+ * GET /api/v1/article/:slug
+ */
+export async function getArticleWithAuth(slug: string): Promise<ArticleDetail> {
+  return authRequest<ArticleDetail>(`/article/${slug}`);
 }
 
 /**

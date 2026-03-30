@@ -45,7 +45,7 @@ WORKDIR /app
 COPY --from=builder /app/main .
 
 # 暴露端口
-EXPOSE 8081
+EXPOSE 8080
 
 # 启动应用
 CMD ["./main"]
