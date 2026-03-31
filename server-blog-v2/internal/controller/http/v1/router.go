@@ -47,7 +47,7 @@ func NewRoutes(
 
 	// JWT 中间件（支持自动刷新）
 	jwtRequired := middleware.NewSSOUserJWTMiddleware(ssoJWTConfig)
-	jwtOptional := middleware.NewOptionalUserJWTMiddleware(publicKey)
+	jwtOptional := middleware.NewOptionalSSOUserJWTMiddleware(ssoJWTConfig)
 
 	// ==================== 认证 /auth ====================
 	authGroup := router.Group("/auth")

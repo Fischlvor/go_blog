@@ -2,7 +2,6 @@ package v1
 
 import (
 	"github.com/go-playground/validator/v10"
-	"github.com/gofiber/fiber/v3"
 
 	"server-blog-v2/config"
 	"server-blog-v2/internal/controller/http/middleware"
@@ -62,11 +61,4 @@ func New(
 	}
 }
 
-// optionalUserUUID 从 Context 获取可选的用户 UUID。
-func optionalUserUUID(c fiber.Ctx) *string {
-	uuid := middleware.GetUserUUID(c)
-	if uuid == "" {
-		return nil
-	}
-	return &uuid
-}
+

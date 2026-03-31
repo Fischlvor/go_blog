@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"server-blog-v2/internal/usecase"
 	"server-blog-v2/internal/usecase/input"
 	"server-blog-v2/internal/usecase/output"
+	"server-blog-v2/pkg/redis"
 )
 
 const (
@@ -25,6 +27,8 @@ const (
 	TaskExpireHours = 24 * 7 // 7天
 	// DefaultMaxFileSize 默认最大文件大小 500MB
 	DefaultMaxFileSize = 500 * 1024 * 1024
+	// RedisKeyMaxFileSize Redis 中最大文件大小的 key
+	RedisKeyMaxFileSize = "upload:max_size"
 )
 
 var ErrRepo = errors.New("repo")
@@ -33,14 +37,16 @@ type useCase struct {
 	resources   repo.ResourceRepo
 	tasks       repo.ResourceUploadTaskRepo
 	objectStore repo.ObjectStore
+	redis       redis.Client
 }
 
 // New 创建 Resource UseCase。
-func New(resources repo.ResourceRepo, tasks repo.ResourceUploadTaskRepo, objectStore repo.ObjectStore) usecase.Resource {
+func New(resources repo.ResourceRepo, tasks repo.ResourceUploadTaskRepo, objectStore repo.ObjectStore, rdb redis.Client) usecase.Resource {
 	return &useCase{
 		resources:   resources,
 		tasks:       tasks,
 		objectStore: objectStore,
+		redis:       rdb,
 	}
 }
 
@@ -125,14 +131,23 @@ func (u *useCase) CheckFileHash(ctx context.Context, fileHash, userUUID string) 
 }
 
 // GetMaxFileSize 获取最大文件大小。
+// 优先从 Redis 的 "upload:max_size" 获取；若无值则使用默认值并写入 Redis。
 func (u *useCase) GetMaxFileSize(ctx context.Context) int64 {
+	val, err := u.redis.Get(ctx, RedisKeyMaxFileSize)
+	if err == nil && val != "" {
+		if size, err := strconv.ParseInt(val, 10, 64); err == nil {
+			return size
+		}
+	}
+	// Redis 中没有值（redis.Nil 或解析失败），写入默认值
+	_ = u.redis.Set(ctx, RedisKeyMaxFileSize, strconv.FormatInt(DefaultMaxFileSize, 10), 0)
 	return DefaultMaxFileSize
 }
 
 // Check 检查文件（秒传/续传检测）。
 func (u *useCase) Check(ctx context.Context, userUUID string, params input.ResourceCheck) (*output.ResourceCheckResponse, error) {
 	// 验证文件大小
-	if params.FileSize > DefaultMaxFileSize {
+	if params.FileSize > u.GetMaxFileSize(ctx) {
 		return nil, errors.New("文件大小超过限制")
 	}
 
@@ -186,7 +201,7 @@ func (u *useCase) Check(ctx context.Context, userUUID string, params input.Resou
 // Init 初始化上传任务。
 func (u *useCase) Init(ctx context.Context, userUUID string, params input.ResourceInit) (*output.ResourceInitResponse, error) {
 	// 验证文件大小
-	if params.FileSize > DefaultMaxFileSize {
+	if params.FileSize > u.GetMaxFileSize(ctx) {
 		return nil, errors.New("文件大小超过限制")
 	}
 

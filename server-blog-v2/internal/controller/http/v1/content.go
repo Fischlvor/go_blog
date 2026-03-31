@@ -57,7 +57,7 @@ func (v *V1) listArticles(c fiber.Ctx) error {
 	}
 
 	// 获取可选的用户 UUID
-	userUUID := optionalUserUUID(c)
+	userUUID := middleware.GetOptionalUserUUID(c)
 
 	result, err := v.content.ListPublicArticles(c.Context(), input.ListPublicArticles{
 		PageParams: pageParams,
@@ -94,7 +94,7 @@ func (v *V1) getArticle(c fiber.Ctx) error {
 		return shared.WriteError(c, http.StatusBadRequest, response.ErrorParamMissing, "missing slug")
 	}
 
-	userUUID := optionalUserUUID(c)
+	userUUID := middleware.GetOptionalUserUUID(c)
 
 	post, err := v.content.GetPublicArticleBySlug(c.Context(), slug, userUUID)
 	if err != nil {
