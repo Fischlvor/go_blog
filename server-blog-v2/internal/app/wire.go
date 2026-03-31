@@ -216,8 +216,8 @@ func NewFileUseCase(files repo.FileRepo, objectStore repo.ObjectStore) usecase.F
 }
 
 // NewResourceUseCase 创建 Resource UseCase。
-func NewResourceUseCase(resources repo.ResourceRepo, tasks repo.ResourceUploadTaskRepo, objectStore repo.ObjectStore) usecase.Resource {
-	return resource.New(resources, tasks, objectStore)
+func NewResourceUseCase(resources repo.ResourceRepo, tasks repo.ResourceUploadTaskRepo, objectStore repo.ObjectStore, rdb *pkgRedis.Redis) usecase.Resource {
+	return resource.New(resources, tasks, objectStore, rdb)
 }
 
 // NewAIModelUseCase 创建 AIModel UseCase。

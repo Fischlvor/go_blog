@@ -289,6 +289,19 @@ func (u *useCase) GetPublicArticleBySlug(ctx context.Context, slug string, userU
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrRepo, err)
 	}
+
+	// 必须是已发布状态
+	if article.Status != entity.ArticleStatusPublished {
+		return nil, ErrNotFound
+	}
+
+	// private 文章仅作者本人可访问
+	if article.Visibility == entity.ArticleVisibilityPrivate {
+		if userUUID == nil || *userUUID != article.AuthorUUID {
+			return nil, ErrNotFound
+		}
+	}
+
 	return u.toArticleDetail(ctx, article, userUUID)
 }
 

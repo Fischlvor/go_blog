@@ -10,6 +10,10 @@ set -e
 LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="${LOCAL_PROJECT_DIR}/docker-compose.dev.yml"
 
+# Node 和 pnpm 路径（绕过只读 /home 文件系统）
+NODE=/home/red/.nvm/versions/node/v22.15.0/bin/node
+PNPM=/media/WD16T/ztx/tmp/pnpm-global/lib/node_modules/pnpm/bin/pnpm.cjs
+
 # 服务目录名
 SERVER_BLOG_DIR="server-blog-v2"
 SERVER_AUTH_DIR="server-auth-service"
@@ -99,8 +103,11 @@ _build_service() {
             log_info "删除旧的 .next 目录..."
             rm -rf .next
             log_info "重新构建 Next.js..."
-            pnpm install --frozen-lockfile
-            pnpm run build
+            #pnpm install --frozen-lockfile
+            #pnpm run build
+            PNPM_STORE_DIR=/media/WD16T/ztx/tmp/pnpm-store $NODE $PNPM install --frozen-lockfile --store-dir /media/WD16T/ztx/tmp/pnpm-store
+            $NODE $PNPM run build
+            
             log_info "构建 Docker 镜像..."
             docker build -t ${WEB_BLOG_IMAGE} .
             ;;

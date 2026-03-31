@@ -53,6 +53,7 @@ type JWTConfig struct {
 //
 // Deprecated: 当前路由已统一切换到 `NewSSOUserJWTMiddleware`，以支持 refresh_token 自动刷新。
 // 该中间件暂保留仅用于兼容/回滚。
+//
 //nolint:unused // 保留用于兼容/回滚
 func NewUserJWTMiddleware(publicKey *rsa.PublicKey) fiber.Handler {
 	return func(c fiber.Ctx) error {
@@ -70,7 +71,11 @@ func NewUserJWTMiddleware(publicKey *rsa.PublicKey) fiber.Handler {
 	}
 }
 
-// NewOptionalUserJWTMiddleware 创建可选 JWT 认证中间件（不强制登录）。
+// NewOptionalUserJWTMiddleware 创建可选 JWT 认证中间件（不强制登录，仅本地解析）。
+//
+// Deprecated: 请使用 `NewOptionalSSOUserJWTMiddleware`，以支持 refresh_token 自动刷新、查询角色和用户同步。
+//
+//nolint:unused // 保留用于兼容/回滚
 func NewOptionalUserJWTMiddleware(publicKey *rsa.PublicKey) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		claims, err := parseToken(c, publicKey)
@@ -82,37 +87,11 @@ func NewOptionalUserJWTMiddleware(publicKey *rsa.PublicKey) fiber.Handler {
 	}
 }
 
-// UserRoleGetter 用户角色查询接口。
-type UserRoleGetter interface {
-	GetRoleByUUID(ctx context.Context, uuid string) (int, error)
-}
-
-// UserCreator 用户创建接口（用于从 SSO 同步创建用户）。
-type UserCreator interface {
-	CreateFromSSO(ctx context.Context, uuid, nickname, email, avatar, address, signature string, registerSource int) error
-}
-
-// RefreshTokenGetter 获取 refresh_token 的接口。
-type RefreshTokenGetter interface {
-	GetRefreshToken(c fiber.Ctx) string
-	SetRefreshToken(c fiber.Ctx, token string)
-	ClearRefreshToken(c fiber.Ctx)
-}
-
-// SSOJWTConfig SSO JWT 中间件配置。
-type SSOJWTConfig struct {
-	PublicKey           *rsa.PublicKey
-	SSOClient           *webapi.SSOClient
-	UserRoleGetter      UserRoleGetter
-	UserCreator         UserCreator
-	RefreshTokenGetter  RefreshTokenGetter
-	Logger              logger.Interface
-}
-
 // NewAdminJWTMiddleware 创建基础管理员 JWT 认证中间件。
 //
 // Deprecated: 当前 Admin 路由已切换到 `NewSSOAdminJWTMiddleware`，以支持 refresh_token 自动刷新。
 // 该中间件暂保留仅用于兼容/回滚。
+//
 //nolint:unused // 保留用于兼容/回滚
 func NewAdminJWTMiddleware(publicKey *rsa.PublicKey, userRoleGetter ...UserRoleGetter) fiber.Handler {
 	return func(c fiber.Ctx) error {
@@ -138,6 +117,33 @@ func NewAdminJWTMiddleware(publicKey *rsa.PublicKey, userRoleGetter ...UserRoleG
 		c.SetContext(WithAccessClaims(c.Context(), claims))
 		return c.Next()
 	}
+}
+
+// UserRoleGetter 用户角色查询接口。
+type UserRoleGetter interface {
+	GetRoleByUUID(ctx context.Context, uuid string) (int, error)
+}
+
+// UserCreator 用户创建接口（用于从 SSO 同步创建用户）。
+type UserCreator interface {
+	CreateFromSSO(ctx context.Context, uuid, nickname, email, avatar, address, signature string, registerSource int) error
+}
+
+// RefreshTokenGetter 获取 refresh_token 的接口。
+type RefreshTokenGetter interface {
+	GetRefreshToken(c fiber.Ctx) string
+	SetRefreshToken(c fiber.Ctx, token string)
+	ClearRefreshToken(c fiber.Ctx)
+}
+
+// SSOJWTConfig SSO JWT 中间件配置。
+type SSOJWTConfig struct {
+	PublicKey          *rsa.PublicKey
+	SSOClient          *webapi.SSOClient
+	UserRoleGetter     UserRoleGetter
+	UserCreator        UserCreator
+	RefreshTokenGetter RefreshTokenGetter
+	Logger             logger.Interface
 }
 
 // parseToken 解析 JWT Token。
@@ -178,6 +184,15 @@ func GetUserUUID(c fiber.Ctx) string {
 		return ""
 	}
 	return claims.UUID
+}
+
+// GetOptionalUserUUID 从 Context 获取可选的用户 UUID，未登录时返回 nil。
+func GetOptionalUserUUID(c fiber.Ctx) *string {
+	uuid := GetUserUUID(c)
+	if uuid == "" {
+		return nil
+	}
+	return &uuid
 }
 
 // GetRoleID 从 Context 获取角色 ID。
@@ -227,6 +242,53 @@ func NewSSOUserJWTMiddleware(cfg SSOJWTConfig) fiber.Handler {
 						return shared.WriteError(c, http.StatusUnauthorized, bizcode.ErrorUnauthorized, "user not found")
 					}
 					// 重新查询角色
+					roleID, _ = cfg.UserRoleGetter.GetRoleByUUID(c.Context(), claims.UUID)
+				}
+			}
+			claims.RoleID = uint(roleID)
+		}
+
+		c.Locals("claims", claims)
+		c.SetContext(WithAccessClaims(c.Context(), claims))
+		return c.Next()
+	}
+}
+
+// NewOptionalSSOUserJWTMiddleware 创建可选 SSO JWT 认证中间件（不强制登录）。
+// 有 token 时走完整 SSO 流程（自动刷新、查角色、同步用户）；无 token 或解析失败时直接放行。
+func NewOptionalSSOUserJWTMiddleware(cfg SSOJWTConfig) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		claims, err := parseToken(c, cfg.PublicKey)
+		if err != nil {
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				// token 过期，尝试自动刷新；刷新失败则当作未登录放行
+				newClaims, refreshErr := autoRefreshToken(c, cfg)
+				if refreshErr != nil {
+					if cfg.Logger != nil {
+						cfg.Logger.Debug("middleware - optional sso jwt - refresh failed, continue as guest", "error", refreshErr.Error())
+					}
+					return c.Next()
+				}
+				claims = newClaims
+			} else {
+				// 无 token 或 token 无效，直接放行
+				return c.Next()
+			}
+		}
+
+		// 从数据库查询用户角色
+		if cfg.UserRoleGetter != nil {
+			roleID, err := cfg.UserRoleGetter.GetRoleByUUID(c.Context(), claims.UUID)
+			if err != nil {
+				// 用户不存在，尝试从 SSO 同步创建
+				if cfg.UserCreator != nil && cfg.SSOClient != nil {
+					if createErr := createUserFromSSO(c.Context(), claims.UUID, cfg); createErr != nil {
+						if cfg.Logger != nil {
+							cfg.Logger.Error(createErr, "middleware - optional sso jwt - create user failed")
+						}
+						// 同步失败，当作未登录放行
+						return c.Next()
+					}
 					roleID, _ = cfg.UserRoleGetter.GetRoleByUUID(c.Context(), claims.UUID)
 				}
 			}

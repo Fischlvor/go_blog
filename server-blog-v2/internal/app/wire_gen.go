@@ -80,13 +80,13 @@ func InitializeApp(cfg *config.Config) (*App, func(), error) {
 	file := NewFileUseCase(fileRepo, objectStore)
 	resourceRepo := persistence.NewResourceRepo(db)
 	resourceUploadTaskRepo := persistence.NewResourceUploadTaskRepo(db)
-	resource := NewResourceUseCase(resourceRepo, resourceUploadTaskRepo, objectStore)
-	user := NewUserUseCase(cfg, userRepo)
 	redis, cleanup2, err := NewRedis(cfg)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
+	resource := NewResourceUseCase(resourceRepo, resourceUploadTaskRepo, objectStore, redis)
+	user := NewUserUseCase(cfg, userRepo)
 	footerLinkRepo := persistence.NewFooterLinkRepo(db)
 	website := NewWebsiteUseCase(cfg, redis, footerLinkRepo)
 	emojiRepo := persistence.NewEmojiRepo(db)
@@ -274,8 +274,8 @@ func NewFileUseCase(files repo.FileRepo, objectStore repo.ObjectStore) usecase.F
 }
 
 // NewResourceUseCase 创建 Resource UseCase。
-func NewResourceUseCase(resources repo.ResourceRepo, tasks repo.ResourceUploadTaskRepo, objectStore repo.ObjectStore) usecase.Resource {
-	return resource.New(resources, tasks, objectStore)
+func NewResourceUseCase(resources repo.ResourceRepo, tasks repo.ResourceUploadTaskRepo, objectStore repo.ObjectStore, rdb *redis.Redis) usecase.Resource {
+	return resource.New(resources, tasks, objectStore, rdb)
 }
 
 // NewAIModelUseCase 创建 AIModel UseCase。
