@@ -68,6 +68,7 @@ export default function AdminResourceListPage() {
 
   const fetchList = async () => {
     setLoading(true);
+    setSelectedIds(new Set());
     try {
       const res = await adminListResources({ page, page_size: pageSize, file_name: fileName || null, mime_type: mimeType || null });
       setItems(res.list);
@@ -85,6 +86,10 @@ export default function AdminResourceListPage() {
 
   const onDelete = async (ids: number[]) => {
     if (!ids.length) { toast.warning('请先选择要删除的资源'); return; }
+    const isBatch = ids.length > 1;
+    const confirmed = window.confirm(isBatch ? `确认删除选中的 ${ids.length} 个资源吗？` : '确认删除该资源吗？');
+    if (!confirmed) return;
+
     try {
       await adminDeleteResources(ids);
       toast.success('删除成功');
@@ -106,12 +111,12 @@ export default function AdminResourceListPage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Button onClick={() => setUploadOpen(true)}>上传资源</Button>
-            <Button variant="destructive" onClick={() => onDelete(Array.from(selectedIds))}>批量删除</Button>
+            <Button variant="destructive" disabled={selectedIds.size === 0} onClick={() => onDelete(Array.from(selectedIds))}>批量删除</Button>
           </div>
           <div className="flex items-center gap-2">
             <Input value={fileName} onChange={(e) => setFileName(e.target.value)} placeholder="资源名称" className="w-56" />
             <Input value={mimeType} onChange={(e) => setMimeType(e.target.value)} placeholder="MIME类型" className="w-56" />
-            <Button onClick={() => { setPage(1); void fetchList(); }}>查询</Button>
+            <Button onClick={() => { setPage(1); setSelectedIds(new Set()); void fetchList(); }}>查询</Button>
           </div>
         </div>
 
@@ -122,7 +127,7 @@ export default function AdminResourceListPage() {
               <TableBody>{items.map((it) => { const status = it.transcode_status; const copyUrl = it.mime_type.startsWith('video/') && status === 2 ? (it.transcode_url || it.file_url) : it.file_url; return (<TableRow key={it.id} className="h-20"><TableCell><input type="checkbox" checked={selectedIds.has(it.id)} onChange={(e) => setSelectedIds((prev) => { const n = new Set(prev); if (e.target.checked) n.add(it.id); else n.delete(it.id); return n; })} /></TableCell><TableCell>{it.id}</TableCell><TableCell className="w-[120px] p-0 align-middle"><div className="h-16 w-24"><ResourcePreview item={it} /></div></TableCell><TableCell className="max-w-[220px] truncate">{it.file_name}</TableCell><TableCell>{it.mime_type}</TableCell><TableCell>{status === 2 ? <Badge>已转码</Badge> : status === 1 ? <Badge variant="secondary">转码中</Badge> : status === 3 ? <Badge variant="destructive">转码失败</Badge> : <Badge variant="outline">-</Badge>}</TableCell><TableCell>{formatFileSize(it.file_size)}</TableCell><TableCell className="max-w-[320px] truncate">{it.file_url}</TableCell><TableCell>{formatDate(it.created_at)}</TableCell><TableCell className="space-x-2"><Button size="sm" variant="outline" disabled={it.mime_type.startsWith('video/') && status !== 2} onClick={() => navigator.clipboard.writeText(copyUrl)}>复制链接</Button><Button size="sm" variant="destructive" onClick={() => onDelete([it.id])}>删除</Button></TableCell></TableRow>); })}</TableBody>
             </Table>
 
-            <AdminTablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
+            <AdminTablePagination page={page} pageSize={pageSize} total={total} onPageChange={(nextPage) => { setSelectedIds(new Set()); setPage(nextPage); }} onPageSizeChange={(size) => { setSelectedIds(new Set()); setPageSize(size); setPage(1); }} />
           </>
         )}
 

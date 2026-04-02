@@ -92,6 +92,8 @@ export function ResourceUploadDialog({ open, onOpenChange, onSuccess }: Resource
   const [error, setError] = useState('');
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
+  const isUploading = useMemo(() => ['hashing', 'checking', 'uploading', 'merging'].includes(status), [status]);
+
   useEffect(() => {
     adminGetResourceMaxSize()
       .then((res) => setMaxSize(res.max_size || 500 * 1024 * 1024))
@@ -241,15 +243,42 @@ export function ResourceUploadDialog({ open, onOpenChange, onSuccess }: Resource
     setError('上传已取消');
   };
 
+  const handleFileChange = (nextFile: File | null) => {
+    setFile(nextFile);
+    setStatus('idle');
+    setProgress(0);
+    setUploadedChunks(0);
+    setTotalChunks(0);
+    setTaskId('');
+    setResultUrl('');
+    setError('');
+  };
+
+  const handleDialogOpenChange = async (next: boolean) => {
+    if (next) {
+      onOpenChange(true);
+      return;
+    }
+
+    if (isUploading) {
+      const confirmed = window.confirm('关闭将取消当前上传任务，是否继续？');
+      if (!confirmed) return;
+      await cancelUpload();
+    }
+
+    onOpenChange(false);
+    reset();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) reset(); }}>
+    <Dialog open={open} onOpenChange={(next) => { void handleDialogOpenChange(next); }}>
       <DialogContent>
         <DialogHeader><DialogTitle>上传资源</DialogTitle></DialogHeader>
 
         <div className="space-y-3">
           {!file ? (
             <>
-              <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              <Input type="file" onChange={(e) => handleFileChange(e.target.files?.[0] || null)} />
               <p className="text-xs text-muted-foreground">支持图片、视频、音频、文档等格式，单文件最大 {formatFileSize(maxSize)}</p>
             </>
           ) : (
@@ -282,10 +311,11 @@ export function ResourceUploadDialog({ open, onOpenChange, onSuccess }: Resource
         </div>
 
         <DialogFooter>
-          {status === 'uploading' ? <Button variant="destructive" onClick={cancelUpload}>取消上传</Button> : null}
-          {!file ? <Button variant="outline" onClick={() => onOpenChange(false)}>关闭</Button> : null}
+          {isUploading ? <Button variant="destructive" onClick={cancelUpload}>取消上传</Button> : null}
+          {file ? <Button variant="outline" onClick={() => handleFileChange(null)} disabled={isUploading}>重新选择文件</Button> : null}
+          {!file ? <Button variant="outline" onClick={() => { void handleDialogOpenChange(false); }}>关闭</Button> : null}
           {canStart ? <Button onClick={startUpload}>开始上传</Button> : null}
-          {['success', 'instant'].includes(status) ? <Button onClick={() => onOpenChange(false)}>完成</Button> : null}
+          {['success', 'instant'].includes(status) ? <Button onClick={() => { void handleDialogOpenChange(false); }}>完成</Button> : null}
           {canReset ? <Button variant="outline" onClick={reset}>继续上传</Button> : null}
         </DialogFooter>
       </DialogContent>
