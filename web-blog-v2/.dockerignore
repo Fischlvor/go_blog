@@ -33,6 +33,7 @@ Thumbs.db
 .cache
 coverage
 .turbo
+.next
 
 # Documentation & Config (not needed in production)
 README.md
@@ -40,8 +41,6 @@ AGENTS.md
 CLAUDE.md
 components.json
 eslint.config.mjs
-postcss.config.mjs
-tsconfig.json
 pnpm-workspace.yaml
 
 # Docker files

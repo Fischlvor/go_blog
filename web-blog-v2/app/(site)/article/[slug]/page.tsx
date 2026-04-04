@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { getArticle, getArticleWithAuth } from '@/lib/api/public/article';
+import { getArticleWithAuth } from '@/lib/api/public/article';
 import { toggleArticleLike, removeArticleLike } from '@/lib/api/user/article';
 import { getArticleComments, createComment } from '@/lib/api/public/comment';
 import { useUserAuth } from '@/context/user-auth';
@@ -98,15 +98,23 @@ export default function ArticleDetailPage() {
 
   useEffect(() => {
     if (!slug) return;
-    Promise.all([getArticle(slug), getArticleComments(slug)])
-      .then(([art, cmts]) => {
-        setArticle(art); setComments(cmts);
+
+    const loadArticle = async () => {
+      try {
+        const [art, cmts] = await Promise.all([getArticleWithAuth(slug), getArticleComments(slug)]);
+        setArticle(art);
+        setComments(cmts);
         setLikes(art.like?.likes ?? 0);
         setLiked(art.like?.liked === true);
         setToc(extractToc(art.content || ''));
-      })
-      .catch(() => toast.error('文章加载失败'))
-      .finally(() => setLoading(false));
+      } catch {
+        toast.error('文章加载失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadArticle();
   }, [slug]);
 
   // 登录后重新获取 liked 状态
