@@ -32,7 +32,7 @@ export default function UserCommentPage() {
         <Table>
           <TableHeader><TableRow><TableHead>文章Slug</TableHead><TableHead>内容</TableHead><TableHead>时间</TableHead></TableRow></TableHeader>
           <TableBody>{items.map((it) => (
-            <TableRow key={it.id}><TableCell><Link href={`/article/${it.article_slug}`} className="text-primary hover:underline">{it.article_slug}</Link></TableCell><TableCell className="max-w-[560px] truncate">{it.content}</TableCell><TableCell>{it.created_at}</TableCell></TableRow>
+            <TableRow key={it.id}><TableCell><Link href={`/article/${it.article_slug}`} prefetch={false} className="text-primary hover:underline">{it.article_slug}</Link></TableCell><TableCell className="max-w-[560px] truncate">{it.content}</TableCell><TableCell>{it.created_at}</TableCell></TableRow>
           ))}</TableBody>
         </Table>
       </CardContent>

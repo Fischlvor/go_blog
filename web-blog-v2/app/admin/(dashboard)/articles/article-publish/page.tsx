@@ -3,28 +3,27 @@
 export const dynamic = 'force-dynamic';
 
 import { Suspense } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import { toast } from 'sonner';
-import type { MDXEditorMethods } from '@mdxeditor/editor';
+import type { VditorEditorMethods } from '@/components/admin/editor';
 import { adminCreateArticle, adminUpdateArticle, adminSaveDraft, adminCreateCategory, adminCreateTag, adminGetArticle } from '@/lib/api/admin/article';
 import { listCategories, listTags } from '@/lib/api/public/article';
-import { adminUploadResourceChunk, adminCheckResource, adminInitResource, adminCompleteResource, adminCancelResource } from '@/lib/api/admin/resource';
+import { adminUploadResourceChunk, adminCheckResource, adminInitResource, adminCompleteResource } from '@/lib/api/admin/resource';
 import type { ArticleCategory, ArticleTag } from '@/lib/api/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { MDXEditorWrapper } from '@/components/admin/editor/MDXEditorWrapper';
-import { MarkdownContent } from '@/components/site/article/MarkdownContent';
+import { MDXEditorWrapper } from '@/components/admin/editor';
 import { ImageThumbCell } from '@/components/admin/table-cells/ImageThumbCell';
 import SparkMD5 from 'spark-md5';
 
 function AdminArticlePublishContent() {
   const searchParams = useSearchParams();
   const editingSlug = searchParams.get('slug') || '';
-  const editorRef = useRef<MDXEditorMethods>(null);
+  const editorRef = useRef<VditorEditorMethods>(null);
+  const activeSlugRef = useRef('');
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -37,9 +36,8 @@ function AdminArticlePublishContent() {
   const [categoryId, setCategoryId] = useState<number>(0);
   const [tagIds, setTagIds] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [autoSave, setAutoSave] = useState(true);
+  const [autoSave, setAutoSave] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
-  const [draftSlug, setDraftSlug] = useState<string>('');
   const [lastSaveTime, setLastSaveTime] = useState<string>('');
   const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false);
   const [newCategoryForm, setNewCategoryForm] = useState({ name: '', slug: '' });
@@ -109,12 +107,56 @@ function AdminArticlePublishContent() {
     await Promise.all(Array.from({ length: Math.min(3, missing.length) }, () => worker()));
   };
 
+  const handleEditorImageUpload = useCallback(async (file: File) => {
+    const hash = await calcFileHash(file);
+    const checked = await adminCheckResource({
+      file_hash: hash,
+      file_size: file.size,
+      file_name: file.name,
+    });
 
+    if (checked.exists) {
+      return checked.file_url || '';
+    }
+
+    let taskId = checked.task_id || '';
+    let chunkSize = 4 * 1024 * 1024;
+    let missing = checked.missing_chunks || [];
+
+    if (!taskId) {
+      const init = await adminInitResource({
+        file_hash: hash,
+        file_size: file.size,
+        file_name: file.name,
+        mime_type: file.type || 'application/octet-stream',
+      });
+      taskId = init.task_id;
+      chunkSize = init.chunk_size;
+      missing = Array.from({ length: init.total_chunks }, (_, i) => i);
+    }
+
+    if (missing.length > 0) {
+      await uploadImageChunks(taskId, file, chunkSize, missing);
+    }
+
+    const completed = await adminCompleteResource(taskId);
+    return completed.file_url;
+  }, []);
 
   useEffect(() => {
-    if (!editingSlug) return;
+    activeSlugRef.current = editingSlug;
+    draftSlugRef.current = '';
+    lastSavedHashRef.current = '';
+
+    if (!editingSlug) {
+      setAutoSave(false);
+      return;
+    }
+
     adminGetArticle(editingSlug)
       .then((a) => {
+        activeSlugRef.current = a.slug || editingSlug;
+        setAutoSave((a.status as 'draft' | 'published') === 'draft');
         setTitle(a.title || '');
         setContent(a.content || '');
         setExcerpt(a.excerpt || '');
@@ -172,11 +214,11 @@ function AdminArticlePublishContent() {
             status: 'draft',
             visibility: 'private',
           });
-        } else if (editingSlug) {
-          // 编辑已发布的文章，保存为草稿
+        } else if (activeSlugRef.current) {
+          // 编辑已有文章时，始终使用最新 slug
           await adminUpdateArticle({
             ...payload,
-            slug: editingSlug,
+            slug: activeSlugRef.current,
             status: 'draft',
             visibility: 'private',
           });
@@ -184,7 +226,6 @@ function AdminArticlePublishContent() {
           // 创建新草稿
           const result = await adminSaveDraft(payload);
           draftSlugRef.current = result.slug;
-          setDraftSlug(result.slug);
         }
         lastSavedHashRef.current = currentHash;
         setLastSaveTime(new Date().toLocaleTimeString('zh-CN'));
@@ -212,7 +253,7 @@ function AdminArticlePublishContent() {
       return;
     }
     try {
-      const res = await adminCreateCategory(newCategoryForm);
+      await adminCreateCategory(newCategoryForm);
       toast.success('分类创建成功');
       setShowNewCategoryDialog(false);
       setNewCategoryForm({ name: '', slug: '' });
@@ -230,7 +271,7 @@ function AdminArticlePublishContent() {
       return;
     }
     try {
-      const res = await adminCreateTag(newTagForm);
+      await adminCreateTag(newTagForm);
       toast.success('标签创建成功');
       setShowNewTagDialog(false);
       setNewTagForm({ name: '', slug: '' });
@@ -283,7 +324,6 @@ function AdminArticlePublishContent() {
     setExcerpt('');
     setFeaturedImage('');
     setTagIds([]);
-    setDraftSlug('');
     draftSlugRef.current = '';
     lastSavedHashRef.current = '';
     setLastSaveTime('');
@@ -311,7 +351,6 @@ function AdminArticlePublishContent() {
       }
 
       let taskId = checked.task_id || '';
-      let totalChunks = checked.total_chunks || 0;
       let chunkSize = 4 * 1024 * 1024;
       let missing = checked.missing_chunks || [];
 
@@ -323,7 +362,6 @@ function AdminArticlePublishContent() {
           mime_type: file.type || 'application/octet-stream',
         });
         taskId = init.task_id;
-        totalChunks = init.total_chunks;
         chunkSize = init.chunk_size;
         missing = Array.from({ length: init.total_chunks }, (_, i) => i);
       }
@@ -356,8 +394,12 @@ function AdminArticlePublishContent() {
       toast.error('请填写标题和正文');
       return;
     }
+
+    const nextStatus = status;
+    const nextVisibility = visibility;
+
     // 发布时必须选择分类
-    if (status === 'published' && !categoryId) {
+    if (nextStatus === 'published' && !categoryId) {
       toast.error('发布文章必须选择分类');
       return;
     }
@@ -371,12 +413,13 @@ function AdminArticlePublishContent() {
         featured_image: featuredImage.trim() || '',
         category_id: categoryId,
         tag_ids: tagIds,
-        status,
-        visibility,
+        status: nextStatus,
+        visibility: nextVisibility,
       };
       if (editingSlug) {
-        // 更新时需要 slug
-        await adminUpdateArticle({ ...basePayload, slug: editingSlug });
+        await adminUpdateArticle({ ...basePayload, slug: activeSlugRef.current || editingSlug });
+        setStatus(nextStatus);
+        setVisibility(nextVisibility);
         toast.success('更新成功');
       } else {
         // 创建时不传 slug，后端自动生成
@@ -394,82 +437,35 @@ function AdminArticlePublishContent() {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center">
-        <CardTitle>{editingSlug ? '更新文章' : '发布文章'}</CardTitle>
-        <div className="flex items-center gap-4 ml-auto">
-          <div className="flex items-center gap-2 w-48">
-            <span className="text-sm text-muted-foreground">自动保存</span>
-            <input type="checkbox" checked={autoSave} onChange={(e) => setAutoSave(e.target.checked)} />
-            {lastSaveTime && <span className="text-xs text-muted-foreground">最后保存: {lastSaveTime}</span>}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="destructive" onClick={onClear}>清空文章</Button>
-            <Button onClick={openPublish}>{editingSlug ? '更新' : '发布'}</Button>
+      <CardHeader className="space-y-4">
+        <div className="flex items-center gap-4">
+          <CardTitle className="shrink-0">{editingSlug ? '更新文章' : '发布文章'}</CardTitle>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="文章标题" className="flex-1" />
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <span className="text-sm text-muted-foreground">自动保存</span>
+              <input type="checkbox" checked={autoSave} onChange={(e) => setAutoSave(e.target.checked)} />
+              {lastSaveTime && <span className="text-xs text-muted-foreground">最后保存: {lastSaveTime}</span>}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="destructive" onClick={onClear}>清空文章</Button>
+              <Button onClick={openPublish}>{editingSlug ? '更新' : '发布'}</Button>
+            </div>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="文章标题" />
-
-        <div className="grid gap-3 lg:grid-cols-2 h-[700px]">
-          <div className="space-y-2 flex flex-col">
-            <p className="text-sm font-medium">Markdown 编辑器</p>
-            <div className="rounded-md border border-border overflow-hidden flex-1">
+      <CardContent className="space-y-3 overflow-visible">
+        <div className="grid gap-3 lg:grid-cols-1 min-h-[700px]">
+          <div className="flex flex-col min-h-0">
+            <div className="rounded-md border border-border overflow-visible bg-background">
               <MDXEditorWrapper
                 ref={editorRef}
                 markdown={content}
                 onChange={(md) => setContent(md)}
-                onImageUpload={async (file: File) => {
-                  try {
-                    const hash = await calcFileHash(file);
-                    const checked = await adminCheckResource({
-                      file_hash: hash,
-                      file_size: file.size,
-                      file_name: file.name,
-                    });
-
-                    if (checked.exists) {
-                      return checked.file_url || '';
-                    }
-
-                    let taskId = checked.task_id || '';
-                    let totalChunks = checked.total_chunks || 0;
-                    let chunkSize = 4 * 1024 * 1024;
-                    let missing = checked.missing_chunks || [];
-
-                    if (!taskId) {
-                      const init = await adminInitResource({
-                        file_hash: hash,
-                        file_size: file.size,
-                        file_name: file.name,
-                        mime_type: file.type || 'application/octet-stream',
-                      });
-                      taskId = init.task_id;
-                      totalChunks = init.total_chunks;
-                      chunkSize = init.chunk_size;
-                      missing = Array.from({ length: init.total_chunks }, (_, i) => i);
-                    }
-
-                    if (missing.length > 0) {
-                      await uploadImageChunks(taskId, file, chunkSize, missing);
-                    }
-
-                    const completed = await adminCompleteResource(taskId);
-                    return completed.file_url;
-                  } catch (error) {
-                    console.error('编辑器图片上传失败:', error);
-                    throw error;
-                  }
-                }}
+                placeholder="开始撰写文章内容..."
+                onImageUpload={handleEditorImageUpload}
               />
-            </div>
-          </div>
-
-          <div className="space-y-2 flex flex-col">
-            <p className="text-sm font-medium">渲染预览</p>
-            <div className="overflow-auto rounded-md border border-border p-4 bg-muted/30 flex-1">
-              <MarkdownContent content={content || '*(暂无内容)*'} />
             </div>
           </div>
         </div>
@@ -565,18 +561,34 @@ function AdminArticlePublishContent() {
               <textarea value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="请输入文章简介" className="w-full h-12 px-3 py-2 border border-border rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/50" />
             </div>
 
-            {/* 可见性 */}
-            <div className="space-y-2">
-              <p className="text-sm font-medium">文章可见性</p>
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="visibility" value="public" checked={visibility === 'public'} onChange={(e) => setVisibility(e.target.value as 'public' | 'private')} />
-                  <span className="text-sm">公开</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="visibility" value="private" checked={visibility === 'private'} onChange={(e) => setVisibility(e.target.value as 'public' | 'private')} />
-                  <span className="text-sm">私密（仅自己可见）</span>
-                </label>
+            {/* 可见性与状态 */}
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">文章可见性</p>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="visibility" value="public" checked={visibility === 'public'} onChange={(e) => setVisibility(e.target.value as 'public' | 'private')} />
+                    <span className="text-sm">公开</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="visibility" value="private" checked={visibility === 'private'} onChange={(e) => setVisibility(e.target.value as 'public' | 'private')} />
+                    <span className="text-sm">私密（仅自己可见）</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">文章状态</p>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="status" value="published" checked={status === 'published'} onChange={(e) => setStatus(e.target.value as 'draft' | 'published')} />
+                    <span className="text-sm">发布</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="status" value="draft" checked={status === 'draft'} onChange={(e) => setStatus(e.target.value as 'draft' | 'published')} />
+                    <span className="text-sm">草稿</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>

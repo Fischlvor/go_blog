@@ -18,7 +18,7 @@ export function ArticleCard({ article, className }: ArticleCardProps) {
   const coverUrl = article.featured_image || '';
 
   return (
-    <Link href={`/article/${article.slug}`} className="group block h-full cursor-pointer">
+    <Link href={`/article/${article.slug}`} prefetch={false} className="group block h-full cursor-pointer">
       <Card className={cn(
         'h-full overflow-hidden transition-all duration-300 border-border/60 flex flex-col',
         'hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-black/30',

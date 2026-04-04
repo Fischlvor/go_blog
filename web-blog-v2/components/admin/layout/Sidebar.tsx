@@ -174,6 +174,7 @@ export function AdminSidebar() {
                   <li key={group.label}>
                     <Link
                       href={target}
+                      prefetch={false}
                       title={group.label}
                       className={cn(
                         'group flex items-center justify-center rounded-lg py-2.5 transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
@@ -211,6 +212,7 @@ export function AdminSidebar() {
                           <li key={item.href}>
                             <Link
                               href={item.href}
+                              prefetch={false}
                               className={cn(
                                 'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
                                 active
