@@ -183,7 +183,7 @@ function AdminArticleListContent() {
                         )}
                       </TableCell>
                       <TableCell className="max-w-[220px] truncate">
-                        <Link href={`/article/${a.slug}`} className="text-primary hover:underline">{a.slug}</Link>
+                        <Link href={`/article/${a.slug}`} prefetch={false} className="text-primary hover:underline">{a.slug}</Link>
                       </TableCell>
                       <TableCell className="space-x-2">
                         <Button size="sm" variant="outline" onClick={() => router.push(`/admin/articles/article-publish?slug=${a.slug}`)}>更新</Button>

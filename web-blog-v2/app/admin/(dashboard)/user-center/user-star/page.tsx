@@ -37,7 +37,7 @@ export default function UserStarPage() {
         <Table>
           <TableHeader><TableRow><TableHead className="w-[120px]">封面</TableHead><TableHead>标题</TableHead><TableHead>类别</TableHead><TableHead>标签</TableHead><TableHead>简介</TableHead><TableHead>发布时间</TableHead><TableHead>文章id</TableHead></TableRow></TableHeader>
           <TableBody>{items.map((it) => (
-            <TableRow key={it.id} className="h-20"><TableCell className="w-[120px] p-0 align-middle"><div className="h-16 w-24"><ImageThumbCell src={it.featured_image} alt={it.title} /></div></TableCell><TableCell>{it.title}</TableCell><TableCell>{it.category?.name || '-'}</TableCell><TableCell>{(it.tags || []).map((t) => t.name).join('、') || '-'}</TableCell><TableCell className="max-w-[300px] truncate">{it.excerpt}</TableCell><TableCell>{formatDate(it.created_at)}</TableCell><TableCell><Link href={`/article/${it.slug}`} className="text-primary hover:underline">{it.slug}</Link></TableCell></TableRow>
+            <TableRow key={it.id} className="h-20"><TableCell className="w-[120px] p-0 align-middle"><div className="h-16 w-24"><ImageThumbCell src={it.featured_image} alt={it.title} /></div></TableCell><TableCell>{it.title}</TableCell><TableCell>{it.category?.name || '-'}</TableCell><TableCell>{(it.tags || []).map((t) => t.name).join('、') || '-'}</TableCell><TableCell className="max-w-[300px] truncate">{it.excerpt}</TableCell><TableCell>{formatDate(it.created_at)}</TableCell><TableCell><Link href={`/article/${it.slug}`} prefetch={false} className="text-primary hover:underline">{it.slug}</Link></TableCell></TableRow>
           ))}</TableBody>
         </Table>
 
