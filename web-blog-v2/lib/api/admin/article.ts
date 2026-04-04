@@ -3,7 +3,7 @@
  */
 
 import { adminRequest } from '../http';
-import type { Article, PageResult } from '../types';
+import type { Article, ArticleDetail, PageResult } from '../types';
 
 export interface AdminArticleListQuery {
   page?: number;
@@ -26,6 +26,10 @@ export async function adminListArticles(query?: AdminArticleListQuery): Promise<
   if (query?.visibility) params.set('filter.visibility', query.visibility);
   const qs = params.toString();
   return adminRequest<PageResult<Article>>(`/article/list${qs ? `?${qs}` : ''}`);
+}
+
+export async function adminGetArticle(slug: string): Promise<ArticleDetail> {
+  return adminRequest<ArticleDetail>(`/article/${slug}`);
 }
 
 export interface ArticleCreateRequest {

@@ -8,8 +8,8 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import type { MDXEditorMethods } from '@mdxeditor/editor';
-import { adminCreateArticle, adminUpdateArticle, adminSaveDraft, adminCreateCategory, adminCreateTag } from '@/lib/api/admin/article';
-import { getArticle, listCategories, listTags } from '@/lib/api/public/article';
+import { adminCreateArticle, adminUpdateArticle, adminSaveDraft, adminCreateCategory, adminCreateTag, adminGetArticle } from '@/lib/api/admin/article';
+import { listCategories, listTags } from '@/lib/api/public/article';
 import { adminUploadResourceChunk, adminCheckResource, adminInitResource, adminCompleteResource, adminCancelResource } from '@/lib/api/admin/resource';
 import type { ArticleCategory, ArticleTag } from '@/lib/api/types';
 import { Button } from '@/components/ui/button';
@@ -113,7 +113,7 @@ function AdminArticlePublishContent() {
 
   useEffect(() => {
     if (!editingSlug) return;
-    getArticle(editingSlug)
+    adminGetArticle(editingSlug)
       .then((a) => {
         setTitle(a.title || '');
         setContent(a.content || '');

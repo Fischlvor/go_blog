@@ -52,7 +52,7 @@ func NewRoutes(
 	articleGroup := router.Group("/article", adminRequired)
 	{
 		articleGroup.Get("/list", admin.listArticles)
-		articleGroup.Get("/:id", admin.getArticle)
+		articleGroup.Get("/:slug", admin.getArticle)
 		articleGroup.Post("/create", admin.createArticle)
 		articleGroup.Put("/update", admin.updateArticle)
 		articleGroup.Delete("/delete", admin.deleteArticle)
