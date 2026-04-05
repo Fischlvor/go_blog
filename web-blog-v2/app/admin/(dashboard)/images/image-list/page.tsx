@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { adminDeleteImages, adminListImages } from '@/lib/api/admin/image';
+import { adminDeleteImages, adminListImages } from '@/lib/client-api/admin/image';
 import { formatDate } from '@/lib/date';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AdminTablePagination } from '@/components/admin/table-cells/AdminTablePagination';
 import { ImageThumbCell } from '@/components/admin/table-cells/ImageThumbCell';
-import type { AdminImage } from '@/lib/api/admin/image';
+import type { AdminImage } from '@/lib/client-api/admin/image';
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;

@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import { FileArchive, FileAudio2, FileCode2, FileText, FileVideo2, FileWarning, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { adminDeleteResources, adminListResources } from '@/lib/api/admin/resource';
+import { adminDeleteResources, adminListResources } from '@/lib/client-api/admin/resource';
 import { formatDate } from '@/lib/date';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AdminTablePagination } from '@/components/admin/table-cells/AdminTablePagination';
 import { ResourceUploadDialog } from '@/components/admin/resource/ResourceUploadDialog';
 import { ImageThumbCell } from '@/components/admin/table-cells/ImageThumbCell';
-import type { AdminResource } from '@/lib/api/admin/resource';
+import type { AdminResource } from '@/lib/client-api/admin/resource';
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;

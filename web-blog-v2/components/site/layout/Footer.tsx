@@ -1,9 +1,7 @@
-'use client';
-
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { GithubIcon, BilibiliIcon, SteamIcon } from '@/components/common/icons';
-import { useSite } from '@/context/site';
+import type { Website } from '@/lib/client-api/public/website';
 
 const NAV = [
   ['/', '首页'],
@@ -13,21 +11,21 @@ const NAV = [
   ['/about', '关于'],
 ] as const;
 
-export function Footer() {
-  const { site } = useSite();
+interface FooterProps {
+  site: Partial<Website>;
+}
 
+export function Footer({ site }: FooterProps) {
   const socials = [
-    site.github_url   && { href: site.github_url,   Icon: GithubIcon,   label: 'GitHub',   hover: 'hover:text-foreground' },
+    site.github_url && { href: site.github_url, Icon: GithubIcon, label: 'GitHub', hover: 'hover:text-foreground' },
     site.bilibili_url && { href: site.bilibili_url, Icon: BilibiliIcon, label: 'Bilibili', hover: 'hover:text-[#00a1d6]' },
-    site.steam_url    && { href: site.steam_url,    Icon: SteamIcon,    label: 'Steam',    hover: 'hover:text-[#66c0f4]' },
-  ].filter(Boolean) as { href: string; Icon: React.FC<{className?: string}>; label: string; hover: string }[];
+    site.steam_url && { href: site.steam_url, Icon: SteamIcon, label: 'Steam', hover: 'hover:text-[#66c0f4]' },
+  ].filter(Boolean) as { href: string; Icon: React.FC<{ className?: string }>; label: string; hover: string }[];
 
   return (
     <footer className="border-t border-border/50 bg-background/80 mt-auto">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-
-          {/* Brand */}
           <div className="space-y-3">
             <h3 className="font-bold text-lg bg-gradient-to-r from-violet-600 to-cyan-500 bg-clip-text text-transparent">
               {site.title || '博客'}
@@ -37,14 +35,12 @@ export function Footer() {
             )}
           </div>
 
-          {/* Nav */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold font-mono text-muted-foreground tracking-widest uppercase">// nav</h4>
             <ul className="space-y-2">
               {NAV.map(([href, label]) => (
                 <li key={href}>
-                  <Link href={href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <Link href={href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     {label}
                   </Link>
                 </li>
@@ -52,15 +48,18 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Social */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold font-mono text-muted-foreground tracking-widest uppercase">// social</h4>
             {socials.length > 0 ? (
               <ul className="space-y-2.5">
                 {socials.map(({ href, Icon, label, hover }) => (
                   <li key={label}>
-                    <a href={href} target="_blank" rel="noopener noreferrer"
-                      className={`inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors ${hover}`}>
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors ${hover}`}
+                    >
                       <Icon className="h-4 w-4" />
                       {label}
                     </a>
@@ -81,8 +80,12 @@ export function Footer() {
           </div>
           <div className="flex items-center gap-3">
             {site.icp_filing && (
-              <a href="https://beian.miit.gov.cn" target="_blank" rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-muted-foreground transition-colors">
+              <a
+                href="https://beian.miit.gov.cn"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-muted-foreground transition-colors"
+              >
                 {site.icp_filing}
               </a>
             )}

@@ -3,8 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { getUserFeedbacks } from '@/lib/api/user/feedback';
-import type { Feedback } from '@/lib/api/types';
+import { getUserFeedbacks } from '@/lib/client-api/user/feedback';
+import type { Feedback } from '@/lib/client-api/types';
 import { formatDate } from '@/lib/date';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

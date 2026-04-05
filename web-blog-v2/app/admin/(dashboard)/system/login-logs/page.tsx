@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
-import { adminListLoginRecords, type LoginRecord } from '@/lib/api/admin/user';
+import { adminListLoginRecords, type LoginRecord } from '@/lib/client-api/admin/user';
 import { formatDate } from '@/lib/date';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

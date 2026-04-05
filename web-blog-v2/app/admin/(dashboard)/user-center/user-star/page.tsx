@@ -4,8 +4,8 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getUserLikedArticles } from '@/lib/api/user/article';
-import type { Article } from '@/lib/api/types';
+import { getUserLikedArticles } from '@/lib/client-api/user/article';
+import type { Article } from '@/lib/client-api/types';
 import { formatDate } from '@/lib/date';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

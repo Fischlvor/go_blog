@@ -33,6 +33,7 @@ func New(cfg *config.Config, redis redis.Client, footerLinks repo.FooterLinkRepo
 func (u *useCase) GetInfo(ctx context.Context) *output.WebsiteInfo {
 	w := u.cfg.Website
 	return &output.WebsiteInfo{
+		Avatar:               urlutil.ResolveImageURL(u.cfg, w.Avatar),
 		Logo:                 urlutil.ResolveImageURL(u.cfg, w.Logo),
 		FullLogo:             urlutil.ResolveImageURL(u.cfg, w.FullLogo),
 		Title:                w.Title,

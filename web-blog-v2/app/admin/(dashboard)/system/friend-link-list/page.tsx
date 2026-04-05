@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { adminCreateFriendLink, adminDeleteFriendLinks, adminListFriendLinks, adminUpdateFriendLink } from '@/lib/api/admin/friendLink';
+import { adminCreateFriendLink, adminDeleteFriendLinks, adminListFriendLinks, adminUpdateFriendLink } from '@/lib/client-api/admin/friendLink';
 import { formatDate } from '@/lib/date';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AdminTablePagination } from '@/components/admin/table-cells/AdminTablePagination';
 import { ImageThumbCell } from '@/components/admin/table-cells/ImageThumbCell';
-import type { FriendLink } from '@/lib/api/types';
+import type { FriendLink } from '@/lib/client-api/types';
 
 interface FriendLinkForm {
   logo: string;

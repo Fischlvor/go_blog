@@ -10,7 +10,7 @@ import {
   adminListAIModels,
   adminUpdateAIModel,
   type AIModel,
-} from '@/lib/api/admin/ai-management';
+} from '@/lib/client-api/admin/ai-management';
 import { formatDate } from '@/lib/date';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

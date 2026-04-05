@@ -23,6 +23,7 @@ func maskSecret(s string) string {
 // @Router /admin/config/website [get]
 func (a *Admin) getWebsiteConfig(c fiber.Ctx) error {
 	return shared.WriteSuccess(c, shared.WithData(map[string]interface{}{
+		"avatar":                 a.cfg.Website.Avatar,
 		"logo":                   a.cfg.Website.Logo,
 		"full_logo":              a.cfg.Website.FullLogo,
 		"title":                  a.cfg.Website.Title,

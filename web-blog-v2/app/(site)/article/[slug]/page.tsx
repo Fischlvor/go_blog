@@ -1,313 +1,176 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowDown, Calendar, Eye, Hash } from 'lucide-react';
-import { HeartIcon } from '@/components/common/icons';
-import { Button } from '@/components/ui/button';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { ArrowLeft, Calendar, Eye, Hash } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { toast } from 'sonner';
-import { getArticleWithAuth } from '@/lib/api/public/article';
-import { toggleArticleLike, removeArticleLike } from '@/lib/api/user/article';
-import { getArticleComments, createComment } from '@/lib/api/public/comment';
-import { useUserAuth } from '@/context/user-auth';
 import { MarkdownContent } from '@/components/site/article/MarkdownContent';
-import type { ArticleDetail, Comment } from '@/lib/api/types';
-import { cn } from '@/lib/utils';
+import { ArticleInteractions } from '@/components/site/article/ArticleInteractions';
+import { TableOfContents } from '@/components/site/article/TableOfContents';
+import { getArticleServer } from '@/lib/server-api/article';
+import { getArticleCommentsServer } from '@/lib/server-api/comment';
+import { getWebsiteInfoServer } from '@/lib/server-api/website';
+import { FALLBACK_ARTICLE_DETAIL } from '@/lib/server-api/fallback';
 
 function formatDate(d: string | null | undefined) {
   if (!d) return '';
   return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-interface TocItem { id: string; text: string; level: number; }
+interface TocItem {
+  id: string;
+  text: string;
+  level: number;
+}
 
 function extractToc(markdown: string): TocItem[] {
   const items: TocItem[] = [];
   const lines = markdown.split('\n');
   for (const line of lines) {
-    const m = line.match(/^(#{1,4})\s+(.+)/);
-    if (!m) continue;
-    const level = m[1].length;
-    const text = m[2].trim();
+    const match = line.match(/^(#{1,4})\s+(.+)/);
+    if (!match) continue;
+    const level = match[1].length;
+    const text = match[2].trim();
     const id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fa5-]/g, '');
     items.push({ id, text, level });
   }
   return items;
 }
 
-function TableOfContents({ toc }: { toc: TocItem[] }) {
-  const [active, setActive] = useState('');
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => { entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id); }); },
-      { rootMargin: '-80px 0px -60% 0px' }
-    );
-    toc.forEach(({ id }) => { const el = document.getElementById(id); if (el) obs.observe(el); });
-    return () => obs.disconnect();
-  }, [toc]);
-  if (!toc.length) return null;
-  return (
-    <div className="sticky top-24 w-56 xl:w-64 flex-shrink-0 hidden lg:block">
-      <div className="rounded-xl border bg-card/50 backdrop-blur-sm p-4">
-        <p className="text-xs font-mono text-primary tracking-widest uppercase mb-3">// 目录</p>
-        <div className="space-y-0.5 max-h-[calc(100vh-8rem)] overflow-y-auto pr-1">
-          {toc.map(item => (
-            <a key={item.id} href={`#${item.id}`}
-              onClick={e => { e.preventDefault(); document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' }); }}
-              className={cn('block text-xs py-1 truncate transition-colors cursor-pointer',
-                item.level === 2 ? 'pl-3' : item.level === 3 ? 'pl-6' : item.level >= 4 ? 'pl-9' : 'pl-0',
-                active === item.id ? 'text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
+interface ArticleDetailPageProps {
+  params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: ArticleDetailPageProps): Promise<Metadata> {
+  try {
+    const [{ slug }, site] = await Promise.all([params, getWebsiteInfoServer()]);
+    const article = await getArticleServer(slug);
+
+    if (!article.id) {
+      return {
+        title: '文章不存在',
+      };
+    }
+
+    const title = article.meta_title || article.title;
+    const description = article.meta_description || article.excerpt || site.description || '';
+
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        images: article.featured_image ? [article.featured_image] : undefined,
+      },
+    };
+  } catch {
+    return {
+      title: '文章不存在',
+    };
+  }
+}
+
+export default async function ArticleDetailPage({ params }: ArticleDetailPageProps) {
+  const { slug } = await params;
+
+  try {
+    const [article, comments] = await Promise.all([
+      getArticleServer(slug),
+      getArticleCommentsServer(slug),
+    ]);
+
+    if (!article.id || article.slug === FALLBACK_ARTICLE_DETAIL.slug) {
+      notFound();
+    }
+
+    const toc = extractToc(article.content || '');
+
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <a
+          href="/articles"
+          className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="h-4 w-4" /> 返回文章列表
+        </a>
+
+        <div className="flex gap-12 items-start mb-8">
+          <header className="max-w-3xl flex-1 min-w-0">
+            <div className="flex flex-wrap gap-2 mb-4">
+              {article.category && (
+                <Badge className="rounded-full bg-primary/10 text-primary border-primary/20">{article.category.name}</Badge>
               )}
-            >{item.text}</a>
-          ))}
+              {article.is_featured && (
+                <Badge variant="secondary" className="rounded-full">
+                  精选
+                </Badge>
+              )}
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight mb-4">{article.title}</h1>
+            {article.excerpt && <p className="text-base text-muted-foreground leading-relaxed mb-5">{article.excerpt}</p>}
+            <div className="flex items-center justify-between gap-x-5 gap-y-2 text-sm text-muted-foreground pb-5 border-b border-border flex-wrap">
+              <div className="flex items-center gap-2">
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={article.author?.avatar} />
+                  <AvatarFallback className="text-xs">{article.author?.nickname?.[0]}</AvatarFallback>
+                </Avatar>
+                <span className="font-medium text-foreground">{article.author?.nickname}</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {formatDate(article.published_at)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Eye className="h-3.5 w-3.5" />
+                  {article.views} 次阅读
+                </span>
+              </div>
+            </div>
+          </header>
+
+          {article.featured_image && (
+            <div className="hidden lg:block w-56 xl:w-64 flex-shrink-0">
+              <img
+                src={article.featured_image}
+                alt={article.title}
+                className="w-full h-auto max-h-64 object-cover rounded-xl ring-1 ring-border"
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-12 items-start">
+          <main className="min-w-0 max-w-3xl flex-1">
+            <MarkdownContent content={article.content || ''} />
+
+            {article.tags?.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-10 pt-6 border-t border-border">
+                {article.tags.map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-mono text-muted-foreground cursor-default"
+                  >
+                    <Hash className="h-2.5 w-2.5" />
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <ArticleInteractions
+              slug={slug}
+              initialComments={comments}
+              initialLiked={false}
+              initialLikes={article.like?.likes ?? 0}
+            />
+          </main>
+
+          <TableOfContents toc={toc} />
         </div>
       </div>
-    </div>
-  );
-}
-export default function ArticleDetailPage() {
-  const { slug } = useParams<{ slug: string }>();
-  const router = useRouter();
-  const { isLoggedIn } = useUserAuth();
-  const [article, setArticle] = useState<ArticleDetail | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [toc, setToc] = useState<TocItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(0);
-  const [liking, setLiking] = useState(false);
-  const [commentText, setCommentText] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [replyTo, setReplyTo] = useState<number | null>(null);
-  const [showScrollDown, setShowScrollDown] = useState(true);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const scrolled = window.scrollY + window.innerHeight;
-      const total = document.documentElement.scrollHeight;
-      setShowScrollDown(scrolled < total - 120);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  useEffect(() => {
-    if (!slug) return;
-
-    const loadArticle = async () => {
-      try {
-        const [art, cmts] = await Promise.all([getArticleWithAuth(slug), getArticleComments(slug)]);
-        setArticle(art);
-        setComments(cmts);
-        setLikes(art.like?.likes ?? 0);
-        setLiked(art.like?.liked === true);
-        setToc(extractToc(art.content || ''));
-      } catch {
-        toast.error('文章加载失败');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadArticle();
-  }, [slug]);
-
-  // 登录后重新获取 liked 状态
-  useEffect(() => {
-    if (!slug || !isLoggedIn) return;
-    getArticleWithAuth(slug)
-      .then(art => {
-        setLikes(art.like?.likes ?? 0);
-        setLiked(art.like?.liked === true);
-      })
-      .catch(() => { /* 静默失败，不影响页面 */ });
-  }, [slug, isLoggedIn]);
-
-  const handleLike = async () => {
-    if (!isLoggedIn) { toast.info('请先登录'); return; }
-    if (liking || !slug) return;
-    setLiking(true);
-    try {
-      const res = liked ? await removeArticleLike(slug) : await toggleArticleLike(slug);
-      setLiked(res.liked === true); setLikes(res.likes);
-    } catch { toast.error('操作失败'); } finally { setLiking(false); }
-  };
-
-  const handleComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isLoggedIn) { toast.info('请先登录'); return; }
-    if (!commentText.trim() || !slug) return;
-    setSubmitting(true);
-    try {
-      await createComment({ article_slug: slug, parent_id: replyTo, content: commentText.trim() });
-      toast.success('评论已提交，等待审核');
-      setCommentText(''); setReplyTo(null);
-      setComments(await getArticleComments(slug));
-    } catch { toast.error('评论失败'); } finally { setSubmitting(false); }
-  };
-
-  if (loading) return (
-    <div className="max-w-5xl mx-auto px-4 py-12 space-y-6">
-      <Skeleton className="h-6 w-20" />
-      <Skeleton className="h-12 w-4/5" />
-      <Skeleton className="h-4 w-48" />
-      <Skeleton className="aspect-video w-full rounded-2xl" />
-      {[1,2,3,4].map(i => <Skeleton key={i} className="h-4 w-full" />)}
-    </div>
-  );
-
-  if (!article) return (
-    <div className="max-w-5xl mx-auto px-4 py-24 text-center space-y-4">
-      <p className="font-mono text-muted-foreground">// 404 · 文章不存在</p>
-      <Button onClick={() => router.back()}>返回</Button>
-    </div>
-  );
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      {/* 返回按钮 */}
-      <button type="button" onClick={() => router.back()}
-        className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-        <ArrowLeft className="h-4 w-4" /> 返回
-      </button>
-
-      {/* 标题区 + 封面图并排 */}
-      <div className="flex gap-12 items-start mb-8">
-        <header className="max-w-3xl flex-1 min-w-0">
-          <div className="flex flex-wrap gap-2 mb-4">
-            {article.category && <Badge className="rounded-full bg-primary/10 text-primary border-primary/20">{article.category.name}</Badge>}
-            {article.is_featured && <Badge variant="secondary" className="rounded-full">精选</Badge>}
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight mb-4">{article.title}</h1>
-          {article.excerpt && (
-            <p className="text-base text-muted-foreground leading-relaxed mb-5">{article.excerpt}</p>
-          )}
-        <div className="flex items-center justify-between gap-x-5 gap-y-2 text-sm text-muted-foreground pb-5 border-b border-border flex-wrap">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-7 w-7">
-                <AvatarImage src={article.author?.avatar} />
-                <AvatarFallback className="text-xs">{article.author?.nickname?.[0]}</AvatarFallback>
-              </Avatar>
-              <span className="font-medium text-foreground">{article.author?.nickname}</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{formatDate(article.published_at)}</span>
-              <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" />{article.views} 次阅读</span>
-            </div>
-          </div>
-        </header>
-
-        {/* 封面图：与 TOC 等宽，自适应比例 */}
-        {article.featured_image && (
-          <div className="hidden lg:block w-56 xl:w-64 flex-shrink-0">
-            <img
-              src={article.featured_image}
-              alt={article.title}
-              className="w-full h-auto max-h-64 object-cover rounded-xl ring-1 ring-border"
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="flex gap-12 items-start">
-        <main className="min-w-0 max-w-3xl flex-1">
-          <MarkdownContent content={article.content || ''} />
-
-          {/* tags 在正文底部 */}
-          {article.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-10 pt-6 border-t border-border">
-              {article.tags.map(tag => (
-                <span key={tag.id} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-mono text-muted-foreground cursor-default">
-                  <Hash className="h-2.5 w-2.5" />{tag.name}
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div className="flex justify-center my-12">
-            <button type="button" onClick={handleLike} disabled={liking}
-              className={cn('group flex items-center gap-3 rounded-full px-8 py-3.5 text-sm font-medium border transition-all cursor-pointer',
-                liked ? 'bg-rose-500/10 border-rose-500/30 text-rose-500' : 'bg-card text-muted-foreground hover:text-foreground border-border'
-              )}>
-              <HeartIcon className={cn('h-5 w-5 transition-transform group-hover:scale-110', liked && 'fill-rose-500 text-rose-500')} />
-              {likes} 人觉得不错
-            </button>
-          </div>
-
-          <Separator className="mb-10" />
-
-          <section id="comments">
-            <h2 className="text-xl font-bold mb-6">评论 <span className="text-base font-normal text-muted-foreground">({comments.length})</span></h2>
-            {isLoggedIn ? (
-              <form onSubmit={handleComment} className="mb-10 space-y-3">
-                {replyTo && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-                    回复 #{replyTo}
-                    <button type="button" className="underline cursor-pointer" onClick={() => setReplyTo(null)}>取消</button>
-                  </div>
-                )}
-                <textarea
-                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                  rows={4} placeholder="写下你的评论..." maxLength={2000}
-                  value={commentText} onChange={e => setCommentText(e.target.value)}
-                />
-                <Button type="submit" disabled={submitting || !commentText.trim()} className="rounded-full">
-                  {submitting ? '提交中...' : '发布评论'}
-                </Button>
-              </form>
-            ) : (
-              <p className="text-sm text-muted-foreground mb-8 p-4 rounded-xl border bg-muted/30">
-                <button type="button" className="text-primary hover:underline font-medium cursor-pointer" onClick={() => {
-                  const redirectUri = `${window.location.origin}/auth/callback`;
-                  import('@/lib/api/public/auth').then(({ getSSOLoginUrl }) =>
-                    getSSOLoginUrl(redirectUri, window.location.pathname).then(r => { window.location.href = r.sso_login_url; })
-                  );
-                }}>登录</button> 后参与评论
-              </p>
-            )}
-            <div className="space-y-6">
-              {comments.map(comment => (
-                <div key={comment.id} className="flex gap-3 group">
-                  <Avatar className="h-8 w-8 flex-shrink-0 mt-0.5">
-                    <AvatarImage src={comment.user?.avatar} />
-                    <AvatarFallback className="text-xs">{comment.user?.nickname?.[0]}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 rounded-xl bg-muted/30 px-4 py-3 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{comment.user?.nickname}</span>
-                      <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
-                    </div>
-                    <p className="text-sm leading-relaxed">{comment.content}</p>
-                    {isLoggedIn && (
-                      <button type="button" className="text-xs text-muted-foreground hover:text-primary cursor-pointer transition-colors" onClick={() => setReplyTo(comment.id)}>回复</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {comments.length === 0 && (
-                <p className="text-center text-muted-foreground py-10 font-mono text-sm">// 暂无评论，来说点什么吧</p>
-              )}
-            </div>
-          </section>
-        </main>
-        <TableOfContents toc={toc} />
-      </div>
-
-      {/* 固定：直达底部 FAB */}
-      {showScrollDown && (
-        <button
-          type="button"
-          onClick={() => document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' })}
-          className="fixed bottom-8 right-8 z-50 flex items-center justify-center w-10 h-10 rounded-full border border-border bg-background/80 backdrop-blur-sm shadow-md text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all cursor-pointer"
-          title="直达评论区"
-        >
-          <ArrowDown className="h-4 w-4" />
-        </button>
-      )}
-    </div>
-  );
+    );
+  } catch {
+    notFound();
+  }
 }

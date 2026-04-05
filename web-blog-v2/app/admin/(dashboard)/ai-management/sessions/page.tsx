@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminDeleteAISession, adminGetAISession, adminListAISessions, type AIMessage, type AISession } from '@/lib/api/admin/ai-management';
+import { adminDeleteAISession, adminGetAISession, adminListAISessions, type AIMessage, type AISession } from '@/lib/client-api/admin/ai-management';
 import { formatDate } from '@/lib/date';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminDeleteFeedbacks, adminListFeedbacks, adminReplyFeedback } from '@/lib/api/admin/feedback';
+import { adminDeleteFeedbacks, adminListFeedbacks, adminReplyFeedback } from '@/lib/client-api/admin/feedback';
 import { formatDate } from '@/lib/date';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { AdminTablePagination } from '@/components/admin/table-cells/AdminTablePagination';
-import type { Feedback } from '@/lib/api/types';
+import type { Feedback } from '@/lib/client-api/types';
 
 export default function AdminFeedbackListPage() {
   const [items, setItems] = useState<Feedback[]>([]);

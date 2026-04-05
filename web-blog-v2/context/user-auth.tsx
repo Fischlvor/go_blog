@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import type { UserProfile } from '@/lib/api/types';
-import { getUserInfo, logout as apiLogout } from '@/lib/api/user/user';
+import type { UserProfile } from '@/lib/client-api/types';
+import { getUserInfo, logout as apiLogout } from '@/lib/client-api/user/user';
 
 interface UserAuthContextValue {
   user: UserProfile | null;

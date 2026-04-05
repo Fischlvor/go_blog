@@ -5,7 +5,8 @@ import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useUserAuth } from '@/context/user-auth';
-import { handleSSOCallback } from '@/lib/api/public/auth';
+import { handleSSOCallback } from '@/lib/client-api/public/auth';
+import { getClientCallbackUrl } from '@/lib/utils/site-url';
 
 function SSOCallbackContent() {
   const router = useRouter();
@@ -15,7 +16,7 @@ function SSOCallbackContent() {
   useEffect(() => {
     const code = searchParams.get('code');
     const state = searchParams.get('state') || '';
-    const redirectUri = `${window.location.origin}/sso-callback`;
+    const redirectUri = getClientCallbackUrl('/sso-callback');
 
     // 解析 state 中的 return_url
     let returnUrl = '/';

@@ -25,8 +25,8 @@ import {
   type QiniuConfig,
   type QQConfig,
   type SystemConfig,
-} from '@/lib/api/admin/config';
-import type { Website } from '@/lib/api/public/website';
+} from '@/lib/client-api/admin/config';
+import type { Website } from '@/lib/client-api/public/website';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

@@ -1,157 +1,73 @@
-'use client';
-
-import { Suspense } from 'react';
-import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { ArticleCard } from '@/components/site/article/ArticleCard';
-import { listArticles, listCategories } from '@/lib/api/public/article';
-import type { Article, ArticleCategory } from '@/lib/api/types';
+import { ArticlesFilters } from '@/components/site/article/ArticlesFilters';
+import { ArticlesPagination } from '@/components/site/article/ArticlesPagination';
+import { Button } from '@/components/ui/button';
+import { listArticlesServer, listCategoriesServer } from '@/lib/server-api/article';
 
 const PAGE_SIZE = 9;
 
-function ArticlesContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+interface ArticlesPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
 
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<ArticleCategory[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+function getSingleParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
-  const page = Number(searchParams.get('page') || 1);
-  const keyword = searchParams.get('q') || '';
-  const categoryId = searchParams.get('category') ? Number(searchParams.get('category')) : undefined;
+export default async function ArticlesPage({ searchParams }: ArticlesPageProps) {
+  const params = await searchParams;
+  const pageParam = Number(getSingleParam(params.page) || 1);
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const keyword = getSingleParam(params.q) || '';
+  const categoryParam = getSingleParam(params.category);
+  const categoryId = categoryParam ? Number(categoryParam) : undefined;
 
-  const [inputValue, setInputValue] = useState(keyword);
+  const [categories, articleResult] = await Promise.all([
+    listCategoriesServer(),
+    listArticlesServer({
+      page,
+      page_size: PAGE_SIZE,
+      keyword: keyword || undefined,
+      'filter.category_id': typeof categoryId === 'number' && !Number.isNaN(categoryId) ? categoryId : undefined,
+      order: 'desc',
+    }),
+  ]);
 
-  const updateParams = (updates: Record<string, string | undefined>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(updates).forEach(([k, v]) => {
-      if (v) params.set(k, v); else params.delete(k);
-    });
-    params.delete('page');
-    router.push(`?${params.toString()}`);
-  };
-
-  const fetchArticles = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await listArticles({
-        page, page_size: PAGE_SIZE,
-        keyword: keyword || undefined,
-        'filter.category_id': categoryId,
-        order: 'desc',
-      });
-      setArticles(res.list);
-      setTotal(res.total_items);
-    } catch {
-      setArticles([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, keyword, categoryId]);
-
-  useEffect(() => { fetchArticles(); }, [fetchArticles]);
-  useEffect(() => {
-    listCategories().then(setCategories).catch(() => {});
-  }, []);
-
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const totalPages = Math.ceil(articleResult.total_items / PAGE_SIZE);
+  const currentQuery = new URLSearchParams();
+  if (keyword) currentQuery.set('q', keyword);
+  if (typeof categoryId === 'number' && !Number.isNaN(categoryId)) currentQuery.set('category', String(categoryId));
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
       <div className="mb-10 space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">文章</h1>
-        <p className="text-muted-foreground">共 {total} 篇文章</p>
+        <p className="text-muted-foreground">共 {articleResult.total_items} 篇文章</p>
       </div>
 
-      {/* Search + Filter */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-8">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="搜索文章..."
-            value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && updateParams({ q: inputValue || undefined })}
-          />
-        </div>
-      </div>
+      <ArticlesFilters categories={categories} keyword={keyword} categoryId={categoryId} />
 
-      {/* Categories */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        <Badge
-          variant={!categoryId ? 'default' : 'outline'}
-          className="cursor-pointer"
-          onClick={() => updateParams({ category: undefined })}
-        >全部</Badge>
-        {categories.map(cat => (
-          <Badge
-            key={cat.id}
-            variant={categoryId === cat.id ? 'default' : 'outline'}
-            className="cursor-pointer"
-            onClick={() => updateParams({ category: String(cat.id) })}
-          >
-            {cat.name}
-            {cat.article_count != null && <span className="ml-1 opacity-60">{cat.article_count}</span>}
-          </Badge>
-        ))}
-      </div>
-
-      {/* Grid */}
-      {loading ? (
+      {articleResult.list.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-72 rounded-xl" />)}
-        </div>
-      ) : articles.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {articles.map(article => <ArticleCard key={article.id} article={article} />)}
+          {articleResult.list.map((article) => (
+            <ArticleCard key={article.id} article={article} />
+          ))}
         </div>
       ) : (
         <div className="text-center py-20 text-muted-foreground">
           <p className="text-lg mb-4">没有找到相关文章</p>
-          <Button variant="outline" onClick={() => { setInputValue(''); router.push('/articles'); }}>
+          <Button variant="outline" render={<a href="/articles" />}>
             清除筛选
           </Button>
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-12">
-          <Button variant="outline" size="sm" disabled={page <= 1}
-            onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.set('page', String(page - 1)); router.push(`?${p.toString()}`); }}
-          >上一页</Button>
-          <span className="flex items-center px-4 text-sm text-muted-foreground">{page} / {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages}
-            onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.set('page', String(page + 1)); router.push(`?${p.toString()}`); }}
-          >下一页</Button>
-        </div>
-      )}
+      <ArticlesPagination
+        currentPage={page}
+        totalPages={totalPages}
+        basePathname="/articles"
+        queryString={currentQuery.toString()}
+      />
     </div>
-  );
-}
-
-export default function ArticlesPage() {
-  return (
-    <Suspense fallback={
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="mb-10 space-y-1">
-          <Skeleton className="h-10 w-20" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-72 rounded-xl" />)}
-        </div>
-      </div>
-    }>
-      <ArticlesContent />
-    </Suspense>
   );
 }

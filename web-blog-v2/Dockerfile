@@ -3,6 +3,20 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+ARG SERVER_API_BASE=http://server-blog:8080 \
+    SITE_URL=https://www.hsk423.cn \
+    NEXT_PUBLIC_SITE_URL=https://www.hsk423.cn \
+    NEXT_PUBLIC_API_V1=/api/v1 \
+    NEXT_PUBLIC_API_V2=/api/v2 \
+    NEXT_PUBLIC_API_ADMIN=/api/admin
+
+ENV SERVER_API_BASE=${SERVER_API_BASE} \
+    SITE_URL=${SITE_URL} \
+    NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL} \
+    NEXT_PUBLIC_API_V1=${NEXT_PUBLIC_API_V1} \
+    NEXT_PUBLIC_API_V2=${NEXT_PUBLIC_API_V2} \
+    NEXT_PUBLIC_API_ADMIN=${NEXT_PUBLIC_API_ADMIN}
+
 RUN npm config set registry https://registry.npmmirror.com && \
     npm install -g pnpm
 
@@ -16,9 +30,6 @@ RUN pnpm run build
 FROM node:22-alpine AS runner
 
 WORKDIR /app
-
-ENV NODE_ENV=production
-ENV HOSTNAME=0.0.0.0
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

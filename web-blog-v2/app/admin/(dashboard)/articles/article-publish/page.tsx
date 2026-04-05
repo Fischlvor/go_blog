@@ -7,10 +7,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import type { VditorEditorMethods } from '@/components/admin/editor';
-import { adminCreateArticle, adminUpdateArticle, adminSaveDraft, adminCreateCategory, adminCreateTag, adminGetArticle } from '@/lib/api/admin/article';
-import { listCategories, listTags } from '@/lib/api/public/article';
-import { adminUploadResourceChunk, adminCheckResource, adminInitResource, adminCompleteResource } from '@/lib/api/admin/resource';
-import type { ArticleCategory, ArticleTag } from '@/lib/api/types';
+import { adminCreateArticle, adminUpdateArticle, adminSaveDraft, adminCreateCategory, adminCreateTag, adminGetArticle } from '@/lib/client-api/admin/article';
+import { listCategories, listTags } from '@/lib/client-api/public/article';
+import { adminUploadResourceChunk, adminCheckResource, adminInitResource, adminCompleteResource } from '@/lib/client-api/admin/resource';
+import type { ArticleCategory, ArticleTag } from '@/lib/client-api/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -24,6 +24,7 @@ function AdminArticlePublishContent() {
   const editingSlug = searchParams.get('slug') || '';
   const editorRef = useRef<VditorEditorMethods>(null);
   const activeSlugRef = useRef('');
+  const [editorReady, setEditorReady] = useState(false);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -147,9 +148,16 @@ function AdminArticlePublishContent() {
     activeSlugRef.current = editingSlug;
     draftSlugRef.current = '';
     lastSavedHashRef.current = '';
+    setEditorReady(false);
 
     if (!editingSlug) {
       setAutoSave(false);
+      return;
+    }
+  }, [editingSlug]);
+
+  useEffect(() => {
+    if (!editingSlug || !editorReady) {
       return;
     }
 
@@ -165,13 +173,12 @@ function AdminArticlePublishContent() {
         setTagIds((a.tags || []).map((t) => t.id));
         setStatus((a.status as 'draft' | 'published') || 'published');
         setVisibility((a.visibility as 'public' | 'private') || 'public');
-        // 编辑器加载内容
         if (editorRef.current && a.content) {
           editorRef.current.setMarkdown(a.content);
         }
       })
       .catch(() => toast.error('加载文章详情失败'));
-  }, [editingSlug]);
+  }, [editingSlug, editorReady]);
 
   // 自动保存到后端
   useEffect(() => {
@@ -463,6 +470,7 @@ function AdminArticlePublishContent() {
                 ref={editorRef}
                 markdown={content}
                 onChange={(md) => setContent(md)}
+                onReady={() => setEditorReady(true)}
                 placeholder="开始撰写文章内容..."
                 onImageUpload={handleEditorImageUpload}
               />
