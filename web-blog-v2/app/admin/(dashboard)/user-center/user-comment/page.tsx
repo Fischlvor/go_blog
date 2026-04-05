@@ -4,8 +4,8 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getUserComments } from '@/lib/api/public/comment';
-import type { Comment } from '@/lib/api/types';
+import { getUserComments } from '@/lib/client-api/public/comment';
+import type { Comment } from '@/lib/client-api/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 

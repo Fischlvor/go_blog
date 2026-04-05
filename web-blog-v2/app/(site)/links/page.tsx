@@ -1,19 +1,9 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { getFriendLinks } from '@/lib/api/public/friendLink';
-import type { FriendLink } from '@/lib/api/types';
+import { getFriendLinksServer } from '@/lib/server-api/friendLink';
 
-export default function LinksPage() {
-  const [links, setLinks] = useState<FriendLink[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getFriendLinks().then(setLinks).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+export default async function LinksPage() {
+  const links = await getFriendLinksServer();
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
@@ -22,13 +12,9 @@ export default function LinksPage() {
         <p className="text-muted-foreground mt-1">互联网上志同道合的朋友们</p>
       </div>
 
-      {loading ? (
+      {links.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
-        </div>
-      ) : links.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {links.map(link => (
+          {links.map((link) => (
             <a
               key={link.id}
               href={link.url}
@@ -43,7 +29,6 @@ export default function LinksPage() {
                       src={link.logo}
                       alt={link.name}
                       className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">

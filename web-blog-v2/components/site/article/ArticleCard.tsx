@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import type { Article } from '@/lib/api/types';
+import type { Article } from '@/lib/client-api/types';
 import { Eye, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

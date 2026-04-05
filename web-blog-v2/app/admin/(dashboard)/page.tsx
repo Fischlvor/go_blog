@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, MessageSquare, Users, Eye } from 'lucide-react';
-import { listArticles } from '@/lib/api/public/article';
-import { adminListUsers } from '@/lib/api/admin/user';
+import { listArticles } from '@/lib/client-api/public/article';
+import { adminListUsers } from '@/lib/client-api/admin/user';
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState({ articles: 0, users: 0 });

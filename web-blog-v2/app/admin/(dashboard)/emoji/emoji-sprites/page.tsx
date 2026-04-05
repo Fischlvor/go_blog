@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { adminListEmojiSprites, adminRegenerateEmojiSprites, type AdminEmojiSprite } from '@/lib/api/admin/emoji';
+import { adminListEmojiSprites, adminRegenerateEmojiSprites, type AdminEmojiSprite } from '@/lib/client-api/admin/emoji';
 import { formatDate } from '@/lib/date';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

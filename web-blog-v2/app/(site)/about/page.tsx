@@ -1,41 +1,22 @@
-'use client';
-
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
 import { Mail } from 'lucide-react';
-import { GithubIcon, MailIcon } from '@/components/common/icons';
+import { GithubIcon } from '@/components/common/icons';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { getWebsiteInfo } from '@/lib/api/public/website';
-import type { Website } from '@/lib/api/public/website';
+import { getWebsiteInfoServer } from '@/lib/server-api/website';
 
-export default function AboutPage() {
-  const [site, setSite] = useState<Partial<Website>>({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getWebsiteInfo().then(setSite).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-12 space-y-6">
-        <Skeleton className="h-40 w-40 rounded-full" />
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
-  }
+export default async function AboutPage() {
+  const site = await getWebsiteInfoServer();
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
-      {/* Profile */}
       <section className="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-12">
         <div className="flex-shrink-0">
           <Image
-            src="/avatar.png" alt={site.name || '博主'}
-            width={120} height={120}
+            src={site.avatar || '/avatar.png'}
+            alt={site.name || '博主'}
+            width={120}
+            height={120}
             className="rounded-full ring-4 ring-border object-cover"
           />
         </div>
@@ -45,14 +26,20 @@ export default function AboutPage() {
           {site.address && <p className="text-sm text-muted-foreground">📍 {site.address}</p>}
           <div className="flex items-center gap-3 justify-center sm:justify-start pt-1">
             {site.github_url && (
-              <a href={site.github_url} target="_blank" rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground transition-colors">
+              <a
+                href={site.github_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
                 <GithubIcon className="h-5 w-5" />
               </a>
             )}
             {site.email && (
-              <a href={`mailto:${site.email}`}
-                className="text-muted-foreground hover:text-foreground transition-colors">
+              <a
+                href={`mailto:${site.email}`}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
                 <Mail className="h-5 w-5" />
               </a>
             )}
@@ -62,7 +49,6 @@ export default function AboutPage() {
 
       <Separator className="mb-12" />
 
-      {/* Description */}
       {site.description && (
         <section className="mb-12">
           <h2 className="text-xl font-bold mb-4">关于我</h2>
@@ -70,7 +56,6 @@ export default function AboutPage() {
         </section>
       )}
 
-      {/* Contact */}
       <section>
         <h2 className="text-xl font-bold mb-4">联系方式</h2>
         <div className="flex flex-wrap gap-3">

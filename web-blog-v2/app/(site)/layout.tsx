@@ -1,19 +1,37 @@
 import { Navbar } from '@/components/site/layout/Navbar';
 import { Footer } from '@/components/site/layout/Footer';
-import { SiteProvider } from '@/context/site';
+import { getWebsiteInfoServer } from '@/lib/server-api/website';
 
-export default function SiteLayout({
+export const dynamic = 'force-dynamic';
+
+async function loadSiteInfo() {
+  try {
+    return await getWebsiteInfoServer();
+  } catch {
+    return {
+      title: '博客',
+      name: '博客',
+      description: '',
+      github_url: '',
+      bilibili_url: '',
+      steam_url: '',
+      icp_filing: '',
+    };
+  }
+}
+
+export default async function SiteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const site = await loadSiteInfo();
+
   return (
-    <SiteProvider>
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-      </div>
-    </SiteProvider>
+    <div className="min-h-screen flex flex-col">
+      <Navbar title={site.title || '博客'} />
+      <main className="flex-1">{children}</main>
+      <Footer site={site} />
+    </div>
   );
 }

@@ -10,7 +10,7 @@ import {
   adminGetResourceMaxSize,
   adminInitResource,
   adminUploadResourceChunk,
-} from '@/lib/api/admin/resource';
+} from '@/lib/client-api/admin/resource';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';

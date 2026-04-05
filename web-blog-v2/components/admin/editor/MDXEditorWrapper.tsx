@@ -20,6 +20,7 @@ interface MDXEditorWrapperProps {
   markdown: string;
   onChange: (markdown: string) => void;
   onImageUpload?: (file: File) => Promise<string>;
+  onReady?: () => void;
   placeholder?: string;
 }
 
@@ -54,17 +55,22 @@ const TOOLBAR: Array<string> = [
 ];
 
 export const MDXEditorWrapper = forwardRef<VditorEditorMethods, MDXEditorWrapperProps>(
-  ({ markdown, onChange, onImageUpload, placeholder }, ref: ForwardedRef<VditorEditorMethods>) => {
+  ({ markdown, onChange, onImageUpload, onReady, placeholder }, ref: ForwardedRef<VditorEditorMethods>) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const vditorRef = useRef<Vditor | null>(null);
     const currentValueRef = useRef(markdown);
     const onChangeRef = useRef(onChange);
+    const onReadyRef = useRef(onReady);
     const isReadyRef = useRef(false);
     const hasInitializedRef = useRef(false);
 
     useEffect(() => {
       onChangeRef.current = onChange;
     }, [onChange]);
+
+    useEffect(() => {
+      onReadyRef.current = onReady;
+    }, [onReady]);
 
     useImperativeHandle(ref, () => ({
       setMarkdown: (value: string) => {
@@ -140,6 +146,7 @@ export const MDXEditorWrapper = forwardRef<VditorEditorMethods, MDXEditorWrapper
         after: () => {
           isReadyRef.current = true;
           vditorRef.current?.setValue(currentValueRef.current);
+          onReadyRef.current?.();
         },
         input: (value) => {
           currentValueRef.current = value;

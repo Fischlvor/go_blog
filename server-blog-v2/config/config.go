@@ -100,6 +100,7 @@ type (
 	}
 
 	Website struct {
+		Avatar               string `mapstructure:"avatar"`
 		Logo                 string `mapstructure:"logo"`
 		FullLogo             string `mapstructure:"full_logo"`
 		Title                string `mapstructure:"title"`

@@ -4,8 +4,8 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { getUserInfo, resetPassword, updateUserInfo } from '@/lib/api/user/user';
-import type { User } from '@/lib/api/types';
+import { getUserInfo, resetPassword, updateUserInfo } from '@/lib/client-api/user/user';
+import type { User } from '@/lib/client-api/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';

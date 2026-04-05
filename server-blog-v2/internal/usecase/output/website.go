@@ -2,6 +2,7 @@ package output
 
 // WebsiteInfo 网站信息。
 type WebsiteInfo struct {
+	Avatar               string `json:"avatar"`
 	Logo                 string `json:"logo"`
 	FullLogo             string `json:"full_logo"`
 	Title                string `json:"title"`

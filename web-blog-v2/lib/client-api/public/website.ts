@@ -5,6 +5,7 @@
 import { publicRequest } from '../http';
 
 export interface Website {
+  avatar: string;
   logo: string;
   full_logo: string;
   title: string;
