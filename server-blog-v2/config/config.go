@@ -100,26 +100,19 @@ type (
 	}
 
 	Website struct {
-		Avatar               string `mapstructure:"avatar"`
-		Logo                 string `mapstructure:"logo"`
-		FullLogo             string `mapstructure:"full_logo"`
-		Title                string `mapstructure:"title"`
-		Slogan               string `mapstructure:"slogan"`
-		SloganEn             string `mapstructure:"slogan_en"`
-		Description          string `mapstructure:"description"`
-		Version              string `mapstructure:"version"`
-		CreatedAt            string `mapstructure:"created_at"`
-		ICPFiling            string `mapstructure:"icp_filing"`
-		PublicSecurityFiling string `mapstructure:"public_security_filing"`
-		BilibiliURL          string `mapstructure:"bilibili_url"`
-		GithubURL            string `mapstructure:"github_url"`
-		SteamURL             string `mapstructure:"steam_url"`
-		Name                 string `mapstructure:"name"`
-		Job                  string `mapstructure:"job"`
-		Address              string `mapstructure:"address"`
-		Email                string `mapstructure:"email"`
-		QQImage              string `mapstructure:"qq_image"`
-		WechatImage          string `mapstructure:"wechat_image"`
+		Avatar      string `mapstructure:"avatar"`
+		Title       string `mapstructure:"title"`
+		Description string `mapstructure:"description"`
+		Version     string `mapstructure:"version"`
+		CreatedAt   string `mapstructure:"created_at"`
+		ICPFiling   string `mapstructure:"icp_filing"`
+		BilibiliURL string `mapstructure:"bilibili_url"`
+		GithubURL   string `mapstructure:"github_url"`
+		SteamURL    string `mapstructure:"steam_url"`
+		Name        string `mapstructure:"name"`
+		Job         string `mapstructure:"job"`
+		Address     string `mapstructure:"address"`
+		Email       string `mapstructure:"email"`
 	}
 
 	Gaode struct {

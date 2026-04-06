@@ -251,3 +251,13 @@ type AdvertisementRepo interface {
 type FooterLinkRepo interface {
 	List(ctx context.Context) ([]*entity.FooterLink, error)
 }
+
+// ==================== 站点配置 ====================
+
+// SiteSettingRepo 站点配置数据仓库。
+type SiteSettingRepo interface {
+	ListAll(ctx context.Context) ([]*entity.SiteSetting, error)
+	ListPublic(ctx context.Context) ([]*entity.SiteSetting, error)
+	GetByKey(ctx context.Context, key string) (*entity.SiteSetting, error)
+	UpdateBatch(ctx context.Context, settings []entity.SiteSetting) error
+}

@@ -4,27 +4,32 @@
 
 import { publicRequest } from '../http';
 
+export interface SettingField {
+  value: string;
+  setting_key: string;
+}
+
+export function getFieldValue(field?: SettingField | null): string {
+  return field?.value ?? '';
+}
+
 export interface Website {
-  avatar: string;
-  logo: string;
-  full_logo: string;
-  title: string;
-  slogan: string;
-  slogan_en: string;
-  description: string;
-  version: string;
-  created_at: string;
-  icp_filing: string;
-  public_security_filing: string;
-  bilibili_url: string;
-  github_url: string;
-  steam_url: string;
-  name: string;
-  job: string;
-  address: string;
-  email: string;
-  qq_image: string;
-  wechat_image: string;
+  avatar: SettingField;
+  title: SettingField;
+  description: SettingField;
+  profile_intro: SettingField;
+  tech_stack: SettingField;
+  work_experiences: SettingField;
+  version: SettingField;
+  created_at: SettingField;
+  icp_filing: SettingField;
+  bilibili_url: SettingField;
+  github_url: SettingField;
+  steam_url: SettingField;
+  name: SettingField;
+  job: SettingField;
+  address: SettingField;
+  email: SettingField;
 }
 
 export async function getWebsiteInfo(): Promise<Website> {

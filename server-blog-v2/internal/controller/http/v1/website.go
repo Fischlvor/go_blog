@@ -11,13 +11,8 @@ import (
 
 // getWebsiteLogo 获取网站 Logo。
 func (v *V1) getWebsiteLogo(c fiber.Ctx) error {
-	info := v.website.GetInfo(c.Context())
-	logo := info.Logo
-	if logo == "" {
-		logo = "/image/logo.svg"
-	}
 	return shared.WriteSuccess(c, shared.WithData(map[string]string{
-		"logo": logo,
+		"logo": "/image/logo.svg",
 	}))
 }
 
@@ -25,7 +20,7 @@ func (v *V1) getWebsiteLogo(c fiber.Ctx) error {
 func (v *V1) getWebsiteTitle(c fiber.Ctx) error {
 	info := v.website.GetInfo(c.Context())
 	return shared.WriteSuccess(c, shared.WithData(map[string]string{
-		"title": info.Title,
+		"title": info.Title.Value,
 	}))
 }
 

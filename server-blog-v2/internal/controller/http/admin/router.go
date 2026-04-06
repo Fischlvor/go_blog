@@ -29,13 +29,14 @@ func NewRoutes(
 	file usecase.File,
 	resource usecase.Resource,
 	user usecase.User,
+	setting usecase.Setting,
 	emoji usecase.Emoji,
 	aiChat usecase.AIChat,
 	aiModel usecase.AIModel,
 	website usecase.Website,
 	advertisement usecase.Advertisement,
 ) {
-	admin := New(cfg, l, content, comment, feedback, link, file, resource, user, emoji, aiChat, aiModel, website, advertisement)
+	admin := New(cfg, l, content, comment, feedback, link, file, resource, user, setting, emoji, aiChat, aiModel, website, advertisement)
 
 	// 管理员 JWT 中间件（SSO 模式，支持自动刷新 token）
 	ssoJWTConfig := middleware.SSOJWTConfig{
@@ -174,6 +175,7 @@ func NewRoutes(
 	configGroup := router.Group("/config", adminRequired)
 	{
 		configGroup.Get("/website", admin.getWebsiteConfig)
+		configGroup.Put("/website", admin.updateWebsiteConfig)
 		configGroup.Get("/system", admin.getSystemConfig)
 		configGroup.Get("/email", admin.getEmailConfig)
 		configGroup.Get("/qq", admin.getQQConfig)

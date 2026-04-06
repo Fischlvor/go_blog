@@ -9,6 +9,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { ArticleCard } from '@/components/site/article/ArticleCard';
 import type { Article } from '@/lib/client-api/types';
 import type { Website } from '@/lib/client-api/public/website';
+import { getFieldValue } from '@/lib/client-api/public/website';
 import { cn } from '@/lib/utils';
 
 const fadeUp: Variants = {
@@ -57,7 +58,7 @@ interface HomePageClientProps {
 export function HomePageClient({ site, articles }: HomePageClientProps) {
   const postsRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
-  const { displayed: typedName, done: typeDone } = useTypewriter(site.name || 'developer', 60, 300);
+  const { displayed: typedName, done: typeDone } = useTypewriter(getFieldValue(site.name) || 'developer', 60, 300);
 
   const scrollToPosts = () => {
     postsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });

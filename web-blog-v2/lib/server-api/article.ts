@@ -22,7 +22,8 @@ export async function listArticlesServer(query?: ArticleListQuery): Promise<Page
     return await serverRequest<PageResult<Article>>(`/article/search${buildArticleQuery(query)}`, {
       next: { revalidate: 60 },
     });
-  } catch {
+  } catch (error) {
+    console.error('[SSR] listArticlesServer failed:', error, query);
     return {
       ...FALLBACK_ARTICLE_PAGE,
       current_page: query?.page || 1,

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { GithubIcon, BilibiliIcon, SteamIcon } from '@/components/common/icons';
-import type { Website } from '@/lib/client-api/public/website';
+import { getFieldValue, type Website } from '@/lib/client-api/public/website';
 
 const NAV = [
   ['/', '首页'],
@@ -15,12 +15,60 @@ interface FooterProps {
   site: Partial<Website>;
 }
 
+function getStartYear(createdAt?: string) {
+  if (!createdAt) return new Date().getFullYear();
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return new Date().getFullYear();
+  return date.getFullYear();
+}
+
+function getRunningDuration(createdAt?: string) {
+  if (!createdAt) return '';
+
+  const start = new Date(createdAt);
+  if (Number.isNaN(start.getTime())) return '';
+
+  const now = new Date();
+  if (start > now) return '已运行 0天';
+
+  let years = now.getFullYear() - start.getFullYear();
+  let months = now.getMonth() - start.getMonth();
+  let days = now.getDate() - start.getDate();
+
+  if (days < 0) {
+    months -= 1;
+    const prevMonthDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+    days += prevMonthDays;
+  }
+
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  const parts = [];
+  if (years > 0) parts.push(`${years}年`);
+  if (months > 0) parts.push(`${months}月`);
+  if (days > 0 || parts.length === 0) parts.push(`${days}天`);
+
+  return `已运行 ${parts.join('')}`;
+}
+
 export function Footer({ site }: FooterProps) {
   const socials = [
-    site.github_url && { href: site.github_url, Icon: GithubIcon, label: 'GitHub', hover: 'hover:text-foreground' },
-    site.bilibili_url && { href: site.bilibili_url, Icon: BilibiliIcon, label: 'Bilibili', hover: 'hover:text-[#00a1d6]' },
-    site.steam_url && { href: site.steam_url, Icon: SteamIcon, label: 'Steam', hover: 'hover:text-[#66c0f4]' },
+    getFieldValue(site.github_url) && { href: getFieldValue(site.github_url), Icon: GithubIcon, label: 'GitHub', hover: 'hover:text-foreground' },
+    getFieldValue(site.bilibili_url) && { href: getFieldValue(site.bilibili_url), Icon: BilibiliIcon, label: 'Bilibili', hover: 'hover:text-[#00a1d6]' },
+    getFieldValue(site.steam_url) && { href: getFieldValue(site.steam_url), Icon: SteamIcon, label: 'Steam', hover: 'hover:text-[#66c0f4]' },
   ].filter(Boolean) as { href: string; Icon: React.FC<{ className?: string }>; label: string; hover: string }[];
+
+  const createdAt = getFieldValue(site.created_at);
+  const startYear = getStartYear(createdAt);
+  const runningDuration = getRunningDuration(createdAt);
+  const title = getFieldValue(site.title) || '博客';
+  const name = getFieldValue(site.name) || title;
+  const description = getFieldValue(site.description);
+  const version = getFieldValue(site.version);
+  const icpFiling = getFieldValue(site.icp_filing);
 
   return (
     <footer className="border-t border-border/50 bg-background/80 mt-auto">
@@ -28,15 +76,15 @@ export function Footer({ site }: FooterProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-3">
             <h3 className="font-bold text-lg bg-gradient-to-r from-violet-600 to-cyan-500 bg-clip-text text-transparent">
-              {site.title || '博客'}
+              {title}
             </h3>
-            {site.description && (
-              <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">{site.description}</p>
+            {description && (
+              <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">{description}</p>
             )}
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold font-mono text-muted-foreground tracking-widest uppercase">// nav</h4>
+            <h4 className="text-sm font-semibold font-mono text-muted-foreground tracking-widest uppercase">{'// nav'}</h4>
             <ul className="space-y-2">
               {NAV.map(([href, label]) => (
                 <li key={href}>
@@ -49,7 +97,7 @@ export function Footer({ site }: FooterProps) {
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold font-mono text-muted-foreground tracking-widest uppercase">// social</h4>
+            <h4 className="text-sm font-semibold font-mono text-muted-foreground tracking-widest uppercase">{'// social'}</h4>
             {socials.length > 0 ? (
               <ul className="space-y-2.5">
                 {socials.map(({ href, Icon, label, hover }) => (
@@ -67,7 +115,7 @@ export function Footer({ site }: FooterProps) {
                 ))}
               </ul>
             ) : (
-              <p className="text-xs font-mono text-muted-foreground/40">// empty</p>
+              <p className="text-xs font-mono text-muted-foreground/40">{'// empty'}</p>
             )}
           </div>
         </div>
@@ -75,18 +123,20 @@ export function Footer({ site }: FooterProps) {
         <Separator className="my-6" />
 
         <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-foreground/60 font-mono">
-          <div className="flex items-center gap-3">
-            <p>© {new Date().getFullYear()} {site.name || site.title || '博客'}. All rights reserved.</p>
+          <div className="flex items-center gap-3 flex-wrap justify-center sm:justify-start">
+            <p>{startYear} {name}. All rights reserved.</p>
+            {runningDuration && <p>{runningDuration}</p>}
+            {version && <p>v{version}</p>}
           </div>
           <div className="flex items-center gap-3">
-            {site.icp_filing && (
+            {icpFiling && (
               <a
                 href="https://beian.miit.gov.cn"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline underline-offset-2 hover:text-muted-foreground transition-colors"
               >
-                {site.icp_filing}
+                {icpFiling}
               </a>
             )}
             <p>Built with Next.js</p>

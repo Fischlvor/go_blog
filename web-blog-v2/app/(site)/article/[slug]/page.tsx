@@ -9,6 +9,7 @@ import { TableOfContents } from '@/components/site/article/TableOfContents';
 import { getArticleServer } from '@/lib/server-api/article';
 import { getArticleCommentsServer } from '@/lib/server-api/comment';
 import { getWebsiteInfoServer } from '@/lib/server-api/website';
+import { getFieldValue } from '@/lib/client-api/public/website';
 import { FALLBACK_ARTICLE_DETAIL } from '@/lib/server-api/fallback';
 
 function formatDate(d: string | null | undefined) {
@@ -52,7 +53,7 @@ export async function generateMetadata({ params }: ArticleDetailPageProps): Prom
     }
 
     const title = article.meta_title || article.title;
-    const description = article.meta_description || article.excerpt || site.description || '';
+    const description = article.meta_description || article.excerpt || getFieldValue(site.description) || '';
 
     return {
       title,

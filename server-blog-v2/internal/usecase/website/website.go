@@ -19,40 +19,39 @@ type useCase struct {
 	cfg         *config.Config
 	redis       redis.Client
 	footerLinks repo.FooterLinkRepo
+	settings    repo.SiteSettingRepo
 }
 
 // New 创建 Website UseCase。
-func New(cfg *config.Config, redis redis.Client, footerLinks repo.FooterLinkRepo) usecase.Website {
+func New(cfg *config.Config, redis redis.Client, footerLinks repo.FooterLinkRepo, settings repo.SiteSettingRepo) usecase.Website {
 	return &useCase{
 		cfg:         cfg,
 		redis:       redis,
 		footerLinks: footerLinks,
+		settings:    settings,
 	}
 }
 
 func (u *useCase) GetInfo(ctx context.Context) *output.WebsiteInfo {
 	w := u.cfg.Website
+	values := u.loadWebsiteSettings(ctx)
 	return &output.WebsiteInfo{
-		Avatar:               urlutil.ResolveImageURL(u.cfg, w.Avatar),
-		Logo:                 urlutil.ResolveImageURL(u.cfg, w.Logo),
-		FullLogo:             urlutil.ResolveImageURL(u.cfg, w.FullLogo),
-		Title:                w.Title,
-		Slogan:               w.Slogan,
-		SloganEn:             w.SloganEn,
-		Description:          w.Description,
-		Version:              w.Version,
-		CreatedAt:            w.CreatedAt,
-		ICPFiling:            w.ICPFiling,
-		PublicSecurityFiling: w.PublicSecurityFiling,
-		BilibiliURL:          w.BilibiliURL,
-		GithubURL:            w.GithubURL,
-		SteamURL:             w.SteamURL,
-		Name:                 w.Name,
-		Job:                  w.Job,
-		Address:              w.Address,
-		Email:                w.Email,
-		QQImage:              w.QQImage,
-		WechatImage:          w.WechatImage,
+		Avatar:          settingValueWithKey(values, urlutil.ResolveImageURL(u.cfg, firstNonEmpty(values["profile.avatar"], values["website.avatar"], w.Avatar)), "profile.avatar", "website.avatar"),
+		Title:           settingValueWithKey(values, firstNonEmpty(values["website.title"], w.Title), "website.title"),
+		Description:     settingValueWithKey(values, firstNonEmpty(values["website.description"], w.Description), "website.description"),
+		ProfileIntro:    settingValueWithKey(values, firstNonEmpty(values["profile.intro"]), "profile.intro"),
+		TechStack:       settingValueWithKey(values, firstNonEmpty(values["profile.tech_stack"]), "profile.tech_stack"),
+		WorkExperiences: settingValueWithKey(values, firstNonEmpty(values["profile.work_experiences"]), "profile.work_experiences"),
+		Version:         settingValueWithKey(values, firstNonEmpty(values["website.version"], w.Version), "website.version"),
+		CreatedAt:       settingValueWithKey(values, firstNonEmpty(values["website.created_at"], w.CreatedAt), "website.created_at"),
+		ICPFiling:       settingValueWithKey(values, firstNonEmpty(values["website.icp_filing"], w.ICPFiling), "website.icp_filing"),
+		BilibiliURL:     settingValueWithKey(values, firstNonEmpty(values["profile.bilibili_url"], w.BilibiliURL), "profile.bilibili_url"),
+		GithubURL:       settingValueWithKey(values, firstNonEmpty(values["profile.github_url"], w.GithubURL), "profile.github_url"),
+		SteamURL:        settingValueWithKey(values, firstNonEmpty(values["profile.steam_url"]), "profile.steam_url"),
+		Name:            settingValueWithKey(values, firstNonEmpty(values["profile.name"], w.Name), "profile.name"),
+		Job:             settingValueWithKey(values, firstNonEmpty(values["profile.job"], w.Job), "profile.job"),
+		Address:         settingValueWithKey(values, firstNonEmpty(values["profile.address"], w.Address), "profile.address"),
+		Email:           settingValueWithKey(values, firstNonEmpty(values["profile.email"], w.Email), "profile.email"),
 	}
 }
 
@@ -164,4 +163,40 @@ func (u *useCase) GetFooterLinks(ctx context.Context) ([]output.FooterLink, erro
 		}
 	}
 	return result, nil
+}
+
+func (u *useCase) loadWebsiteSettings(ctx context.Context) map[string]string {
+	result := make(map[string]string)
+	if u.settings == nil {
+		return result
+	}
+	settings, err := u.settings.ListAll(ctx)
+	if err != nil {
+		return result
+	}
+	for _, item := range settings {
+		result[item.SettingKey] = item.SettingValue
+	}
+	return result
+}
+
+func settingValueWithKey(values map[string]string, value string, keys ...string) output.SettingValueWithKey {
+	for _, key := range keys {
+		if values[key] != "" {
+			return output.SettingValueWithKey{Value: value, SettingKey: key}
+		}
+	}
+	if len(keys) > 0 {
+		return output.SettingValueWithKey{Value: value, SettingKey: keys[0]}
+	}
+	return output.SettingValueWithKey{Value: value}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }

@@ -80,6 +80,7 @@ func main() {
 		g.GenerateModel("links", gen.FieldType("deleted_at", "gorm.DeletedAt")),
 		g.GenerateModel("advertisements"),
 		g.GenerateModel("footer_links"),
+		g.GenerateModel("site_settings"),
 		g.GenerateModel("emoji_groups"),
 		g.GenerateModel("emoji_sprites"),
 	)

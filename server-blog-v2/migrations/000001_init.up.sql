@@ -398,3 +398,35 @@ CREATE TABLE IF NOT EXISTS logins (
 CREATE INDEX IF NOT EXISTS idx_logins_user_uuid ON logins(user_uuid);
 CREATE INDEX IF NOT EXISTS idx_logins_created_at ON logins(created_at);
 CREATE INDEX IF NOT EXISTS idx_logins_deleted_at ON logins(deleted_at);
+
+-- ==================== 站点配置表 ====================
+CREATE TABLE IF NOT EXISTS site_settings (
+    id BIGSERIAL PRIMARY KEY,
+    setting_key VARCHAR(100) UNIQUE NOT NULL,
+    setting_value TEXT NOT NULL,
+    setting_type VARCHAR(20) NOT NULL DEFAULT 'string',
+    description TEXT,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_settings_is_public ON site_settings(is_public);
+
+INSERT INTO site_settings (setting_key, setting_value, setting_type, description, is_public)
+VALUES
+    ('profile.avatar', '', 'string', '头像', TRUE),
+    ('website.title', '', 'string', '网站标题', TRUE),
+    ('website.description', '', 'string', '网站描述', TRUE),
+    ('profile.intro', '', 'string', '个人介绍', TRUE),
+    ('website.version', '', 'string', '网站版本', TRUE),
+    ('website.created_at', '', 'string', '网站创建日期', TRUE),
+    ('website.icp_filing', '', 'string', 'ICP备案号', TRUE),
+    ('profile.bilibili_url', '', 'string', 'Bilibili 链接', TRUE),
+    ('profile.github_url', '', 'string', 'GitHub 链接', TRUE),
+    ('website.steam_url', '', 'string', 'Steam 链接', TRUE),
+    ('profile.name', '', 'string', '名称', TRUE),
+    ('profile.job', '', 'string', '职业', TRUE),
+    ('profile.address', '', 'string', '地址', TRUE),
+    ('profile.email', '', 'string', '联系邮箱', TRUE)
+ON CONFLICT (setting_key) DO NOTHING;

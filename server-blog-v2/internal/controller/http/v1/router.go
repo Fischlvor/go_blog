@@ -26,6 +26,7 @@ func NewRoutes(
 	link usecase.Link,
 	file usecase.File,
 	user usecase.User,
+	setting usecase.Setting,
 	website usecase.Website,
 	emoji usecase.Emoji,
 	advertisement usecase.Advertisement,
@@ -33,7 +34,7 @@ func NewRoutes(
 	ssoClient *webapi.SSOClient,
 	userRepo repo.UserRepo,
 ) {
-	v1 := New(cfg, l, content, comment, aiChat, feedback, link, file, user, website, emoji, advertisement, sessionManager)
+	v1 := New(cfg, l, content, comment, aiChat, feedback, link, file, user, setting, website, emoji, advertisement, sessionManager)
 
 	// SSO JWT 中间件配置（支持自动刷新 token）
 	ssoJWTConfig := middleware.SSOJWTConfig{

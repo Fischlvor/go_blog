@@ -33,6 +33,7 @@ func NewRouter(
 	file usecase.File,
 	resource usecase.Resource,
 	user usecase.User,
+	setting usecase.Setting,
 	website usecase.Website,
 	emoji usecase.Emoji,
 	advertisement usecase.Advertisement,
@@ -60,11 +61,11 @@ func NewRouter(
 
 	// V1 公开 API
 	v1Group := api.Group("/v1")
-	v1.NewRoutes(v1Group, cfg, l, publicKey, content, comment, aiChat, feedback, link, file, user, website, emoji, advertisement, sessionManager, ssoClient, userRepo)
+	v1.NewRoutes(v1Group, cfg, l, publicKey, content, comment, aiChat, feedback, link, file, user, setting, website, emoji, advertisement, sessionManager, ssoClient, userRepo)
 
 	// Admin API
 	adminGroup := api.Group("/admin")
-	admin.NewRoutes(adminGroup, cfg, l, publicKey, userRepo, sessionManager, ssoClient, content, comment, feedback, link, file, resource, user, emoji, aiChat, aiModel, website, advertisement)
+	admin.NewRoutes(adminGroup, cfg, l, publicKey, userRepo, sessionManager, ssoClient, content, comment, feedback, link, file, resource, user, setting, emoji, aiChat, aiModel, website, advertisement)
 
 	// 第三方回调（无需认证）
 	callbackGroup := api.Group("/callback")
