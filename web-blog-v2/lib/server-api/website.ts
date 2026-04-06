@@ -9,7 +9,8 @@ export async function getWebsiteInfoServer(): Promise<Website> {
     return await serverRequest<Website>('/website/info', {
       next: { revalidate: 300 },
     });
-  } catch {
+  } catch (error) {
+    console.error('[SSR] getWebsiteInfoServer failed:', error);
     return FALLBACK_SITE;
   }
 }

@@ -32,6 +32,7 @@ import (
 	"server-blog-v2/internal/usecase/file"
 	"server-blog-v2/internal/usecase/link"
 	"server-blog-v2/internal/usecase/resource"
+	"server-blog-v2/internal/usecase/setting"
 	"server-blog-v2/internal/usecase/user"
 	"server-blog-v2/internal/usecase/website"
 	"server-blog-v2/pkg/httpserver"
@@ -87,8 +88,10 @@ func InitializeApp(cfg *config.Config) (*App, func(), error) {
 	}
 	resource := NewResourceUseCase(resourceRepo, resourceUploadTaskRepo, objectStore, redis)
 	user := NewUserUseCase(cfg, userRepo)
+	siteSettingRepo := persistence.NewSiteSettingRepo(db)
+	setting := NewSettingUseCase(siteSettingRepo)
 	footerLinkRepo := persistence.NewFooterLinkRepo(db)
-	website := NewWebsiteUseCase(cfg, redis, footerLinkRepo)
+	website := NewWebsiteUseCase(cfg, redis, footerLinkRepo, siteSettingRepo)
 	emojiRepo := persistence.NewEmojiRepo(db)
 	emojiSpriteRepo := persistence.NewEmojiSpriteRepo(db)
 	emoji := NewEmojiUseCase(cfg, emojiRepo, emojiSpriteRepo)
@@ -96,7 +99,7 @@ func InitializeApp(cfg *config.Config) (*App, func(), error) {
 	advertisement := NewAdvertisementUseCase(cfg, advertisementRepo)
 	sessionManager := NewSessionManager(redis, loggerInterface)
 	ssoClient := NewSSOClient(cfg)
-	server := SetupHTTPServer(cfg, loggerInterface, publicKey, userRepo, content, comment, aiChat, aiModel, feedback, link, file, resource, user, website, emoji, advertisement, sessionManager, ssoClient)
+	server := SetupHTTPServer(cfg, loggerInterface, publicKey, userRepo, content, comment, aiChat, aiModel, feedback, link, file, resource, user, setting, website, emoji, advertisement, sessionManager, ssoClient)
 	app := NewApp(appInfo, loggerInterface, server)
 	return app, func() {
 		cleanup2()
@@ -288,9 +291,14 @@ func NewUserUseCase(cfg *config.Config, users repo.UserRepo) usecase.User {
 	return user.New(cfg, users)
 }
 
+// NewSettingUseCase 创建 Setting UseCase。
+func NewSettingUseCase(settings repo.SiteSettingRepo) usecase.Setting {
+	return setting.New(settings)
+}
+
 // NewWebsiteUseCase 创建 Website UseCase。
-func NewWebsiteUseCase(cfg *config.Config, redis2 *redis.Redis, footerLinks repo.FooterLinkRepo) usecase.Website {
-	return website.New(cfg, redis2, footerLinks)
+func NewWebsiteUseCase(cfg *config.Config, redis2 *redis.Redis, footerLinks repo.FooterLinkRepo, settings repo.SiteSettingRepo) usecase.Website {
+	return website.New(cfg, redis2, footerLinks, settings)
 }
 
 // NewEmojiUseCase 创建 Emoji UseCase。
@@ -322,6 +330,7 @@ func SetupHTTPServer(
 	fileUC usecase.File,
 	resourceUC usecase.Resource,
 	userUC usecase.User,
+	settingUC usecase.Setting,
 	websiteUC usecase.Website,
 	emojiUC usecase.Emoji,
 	advertisementUC usecase.Advertisement,
@@ -329,7 +338,7 @@ func SetupHTTPServer(
 	ssoClient *webapi.SSOClient,
 ) *httpserver.Server {
 	srv := httpserver.New(l, httpserver.WithPort(strconv.Itoa(cfg.HTTP.Port)), httpserver.WithPrefork(cfg.HTTP.UsePreforkMode))
-	http.NewRouter(srv.App, cfg, l, publicKey, userRepo, contentUC, commentUC, aiChatUC, aiModelUC, feedbackUC, linkUC, fileUC, resourceUC, userUC, websiteUC, emojiUC, advertisementUC, sessionManager, ssoClient)
+	http.NewRouter(srv.App, cfg, l, publicKey, userRepo, contentUC, commentUC, aiChatUC, aiModelUC, feedbackUC, linkUC, fileUC, resourceUC, userUC, settingUC, websiteUC, emojiUC, advertisementUC, sessionManager, ssoClient)
 	return srv
 }
 
@@ -342,7 +351,7 @@ var ProviderSet = wire.NewSet(
 	NewPostgres,
 	NewGormDB,
 	NewRedis,
-	NewPublicKey, persistence.NewArticleRepo, persistence.NewArticleLikeRepo, persistence.NewArticleViewRepo, persistence.NewCategoryRepo, persistence.NewTagRepo, persistence.NewCommentRepo, persistence.NewUserRepo, persistence.NewChatSessionRepo, persistence.NewChatMessageRepo, persistence.NewFeedbackRepo, persistence.NewLinkRepo, persistence.NewFileRepo, persistence.NewResourceRepo, persistence.NewResourceUploadTaskRepo, persistence.NewAIModelRepo, persistence.NewEmojiRepo, persistence.NewEmojiSpriteRepo, persistence.NewAdvertisementRepo, persistence.NewFooterLinkRepo, NewObjectStore,
+	NewPublicKey, persistence.NewArticleRepo, persistence.NewArticleLikeRepo, persistence.NewArticleViewRepo, persistence.NewCategoryRepo, persistence.NewTagRepo, persistence.NewCommentRepo, persistence.NewUserRepo, persistence.NewChatSessionRepo, persistence.NewChatMessageRepo, persistence.NewFeedbackRepo, persistence.NewLinkRepo, persistence.NewFileRepo, persistence.NewResourceRepo, persistence.NewResourceUploadTaskRepo, persistence.NewAIModelRepo, persistence.NewEmojiRepo, persistence.NewEmojiSpriteRepo, persistence.NewAdvertisementRepo, persistence.NewFooterLinkRepo, persistence.NewSiteSettingRepo, NewObjectStore,
 	NewLLMWebAPI,
 	NewSSOClient,
 
@@ -355,6 +364,7 @@ var ProviderSet = wire.NewSet(
 	NewResourceUseCase,
 	NewAIModelUseCase,
 	NewUserUseCase,
+	NewSettingUseCase,
 	NewWebsiteUseCase,
 	NewEmojiUseCase,
 	NewAdvertisementUseCase,

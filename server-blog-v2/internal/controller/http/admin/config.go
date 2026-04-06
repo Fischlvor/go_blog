@@ -1,9 +1,14 @@
 package admin
 
 import (
+	"net/http"
+
 	"github.com/gofiber/fiber/v3"
 
+	"server-blog-v2/internal/controller/http/admin/request"
+	"server-blog-v2/internal/controller/http/bizcode"
 	"server-blog-v2/internal/controller/http/shared"
+	"server-blog-v2/internal/usecase/input"
 )
 
 // maskSecret 隐藏敏感信息，只显示前4位。
@@ -22,28 +27,64 @@ func maskSecret(s string) string {
 // @Success 200 {object} shared.Envelope
 // @Router /admin/config/website [get]
 func (a *Admin) getWebsiteConfig(c fiber.Ctx) error {
-	return shared.WriteSuccess(c, shared.WithData(map[string]interface{}{
-		"avatar":                 a.cfg.Website.Avatar,
-		"logo":                   a.cfg.Website.Logo,
-		"full_logo":              a.cfg.Website.FullLogo,
-		"title":                  a.cfg.Website.Title,
-		"slogan":                 a.cfg.Website.Slogan,
-		"slogan_en":              a.cfg.Website.SloganEn,
-		"description":            a.cfg.Website.Description,
-		"version":                a.cfg.Website.Version,
-		"created_at":             a.cfg.Website.CreatedAt,
-		"icp_filing":             a.cfg.Website.ICPFiling,
-		"public_security_filing": a.cfg.Website.PublicSecurityFiling,
-		"bilibili_url":           a.cfg.Website.BilibiliURL,
-		"github_url":             a.cfg.Website.GithubURL,
-		"steam_url":              a.cfg.Website.SteamURL,
-		"name":                   a.cfg.Website.Name,
-		"job":                    a.cfg.Website.Job,
-		"address":                a.cfg.Website.Address,
-		"email":                  a.cfg.Website.Email,
-		"qq_image":               a.cfg.Website.QQImage,
-		"wechat_image":           a.cfg.Website.WechatImage,
-	}))
+	info := a.website.GetInfo(c.Context())
+	return shared.WriteSuccess(c, shared.WithData(info))
+}
+
+// updateWebsiteConfig 更新网站配置。
+// @Summary 更新网站配置（管理端）
+// @Tags Admin.Config
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param body body request.WebsiteConfig true "网站配置"
+// @Success 200 {object} shared.Envelope
+// @Router /admin/config/website [put]
+func (a *Admin) updateWebsiteConfig(c fiber.Ctx) error {
+	var req request.WebsiteConfig
+	if err := c.Bind().JSON(&req); err != nil {
+		return shared.WriteError(c, http.StatusBadRequest, bizcode.ErrorParam, "invalid request body")
+	}
+
+	settings := []input.UpsertSiteSetting{
+		toUpsertSiteSetting(req.Avatar, "profile.avatar", "string", "头像"),
+		toUpsertSiteSetting(req.Title, "website.title", "string", "网站标题"),
+		toUpsertSiteSetting(req.Description, "website.description", "string", "网站描述"),
+		toUpsertSiteSetting(req.ProfileIntro, "profile.intro", "string", "个人介绍"),
+		toUpsertSiteSetting(req.TechStack, "profile.tech_stack", "json", "技术栈"),
+		toUpsertSiteSetting(req.WorkExperiences, "profile.work_experiences", "json", "工作经历"),
+		toUpsertSiteSetting(req.Version, "website.version", "string", "网站版本"),
+		toUpsertSiteSetting(req.CreatedAt, "website.created_at", "string", "网站创建日期"),
+		toUpsertSiteSetting(req.ICPFiling, "website.icp_filing", "string", "ICP备案号"),
+		toUpsertSiteSetting(req.BilibiliURL, "profile.bilibili_url", "string", "Bilibili 链接"),
+		toUpsertSiteSetting(req.GithubURL, "profile.github_url", "string", "GitHub 链接"),
+		toUpsertSiteSetting(req.SteamURL, "profile.steam_url", "string", "Steam 链接"),
+		toUpsertSiteSetting(req.Name, "profile.name", "string", "名称"),
+		toUpsertSiteSetting(req.Job, "profile.job", "string", "职业"),
+		toUpsertSiteSetting(req.Address, "profile.address", "string", "地址"),
+		toUpsertSiteSetting(req.Email, "profile.email", "string", "联系邮箱"),
+	}
+
+	if err := a.setting.UpdateSiteSettings(c.Context(), settings); err != nil {
+		a.logger.Error(err, "http - admin - config - updateWebsiteConfig")
+		return shared.WriteError(c, http.StatusInternalServerError, bizcode.ErrorDatabase, "failed to update website config")
+	}
+
+	return shared.WriteSuccess(c)
+}
+
+func toUpsertSiteSetting(field request.SettingField, fallbackKey, settingType, description string) input.UpsertSiteSetting {
+	settingKey := field.SettingKey
+	if settingKey == "" {
+		settingKey = fallbackKey
+	}
+	return input.UpsertSiteSetting{
+		SettingKey:   settingKey,
+		SettingValue: field.Value,
+		SettingType:  settingType,
+		Description:  description,
+		IsPublic:     true,
+	}
 }
 
 // getSystemConfig 获取系统配置。

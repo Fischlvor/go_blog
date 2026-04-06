@@ -123,11 +123,10 @@ func showTableStatus(dbURL string) {
 	defer db.Close()
 
 	tables := []string{
-		"users", "categories", "tags", "articles", "article_tags",
-		"article_likes", "article_views", "comments", "comment_likes",
-		"chat_sessions", "chat_messages", "feedbacks", "links", "files",
-		"advertisements", "footer_links", "emoji_groups", "emojis",
-		"emoji_sprites", "emoji_tasks", "resources", "resource_upload_tasks", "logins",
+		"users", "article_categories", "article_tags", "articles", "article_likes",
+		"article_views", "comments", "comment_likes", "ai_chat_sessions", "ai_chat_messages",
+		"feedbacks", "links", "files", "advertisements", "footer_links", "emoji_groups", "emojis",
+		"emoji_sprites", "emoji_tasks", "resources", "resource_upload_tasks", "logins", "site_settings",
 	}
 
 	log.Println("Database tables status:")

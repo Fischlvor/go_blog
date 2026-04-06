@@ -44,7 +44,6 @@ eslint.config.mjs
 pnpm-workspace.yaml
 
 # Docker files
-Dockerfile.dev
 docker-compose.yml
 .dockerignore
 

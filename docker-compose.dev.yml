@@ -58,7 +58,7 @@ services:
   # 博客前端服务（Next.js SSR）
   web-blog:
     build:
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     image: web-blog-dev:latest
     container_name: web-blog-dev
     restart: "no"

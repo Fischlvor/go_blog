@@ -3,27 +3,25 @@ import 'server-only';
 import type { Website } from '@/lib/client-api/public/website';
 import type { Article, ArticleCategory, ArticleDetail, Comment, FriendLink, PageResult } from '@/lib/client-api/types';
 
+const EMPTY_FIELD = { value: '', setting_key: '' };
+
 export const FALLBACK_SITE: Website = {
-  avatar: '',
-  logo: '',
-  full_logo: '',
-  title: '博客',
-  slogan: '',
-  slogan_en: '',
-  description: '',
-  version: '',
-  created_at: '',
-  icp_filing: '',
-  public_security_filing: '',
-  bilibili_url: '',
-  github_url: '',
-  steam_url: '',
-  name: '博客',
-  job: '',
-  address: '',
-  email: '',
-  qq_image: '',
-  wechat_image: '',
+  avatar: EMPTY_FIELD,
+  title: { value: '博客', setting_key: 'website.title' },
+  description: EMPTY_FIELD,
+  profile_intro: EMPTY_FIELD,
+  tech_stack: EMPTY_FIELD,
+  work_experiences: EMPTY_FIELD,
+  version: EMPTY_FIELD,
+  created_at: EMPTY_FIELD,
+  icp_filing: EMPTY_FIELD,
+  bilibili_url: EMPTY_FIELD,
+  github_url: EMPTY_FIELD,
+  steam_url: { value: '', setting_key: 'profile.steam_url' },
+  name: { value: '博客', setting_key: 'profile.name' },
+  job: EMPTY_FIELD,
+  address: EMPTY_FIELD,
+  email: EMPTY_FIELD,
 };
 
 export const FALLBACK_ARTICLE_PAGE: PageResult<Article> = {

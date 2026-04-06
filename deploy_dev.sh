@@ -97,7 +97,7 @@ _build_service() {
             log_info "构建 web-blog 镜像..."
             cd "${LOCAL_PROJECT_DIR}/${WEB_BLOG_DIR}"
             log_info "构建 Docker 镜像..."
-            docker build -t ${WEB_BLOG_IMAGE} .
+            docker build -f Dockerfile.dev -t ${WEB_BLOG_IMAGE} .
             ;;
         web-auth)
             log_info "构建 web-auth 镜像..."

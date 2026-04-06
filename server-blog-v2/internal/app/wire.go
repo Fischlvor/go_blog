@@ -34,6 +34,7 @@ import (
 	"server-blog-v2/internal/usecase/file"
 	"server-blog-v2/internal/usecase/link"
 	"server-blog-v2/internal/usecase/resource"
+	"server-blog-v2/internal/usecase/setting"
 	"server-blog-v2/internal/usecase/user"
 	"server-blog-v2/internal/usecase/website"
 	"server-blog-v2/pkg/httpserver"
@@ -230,9 +231,14 @@ func NewUserUseCase(cfg *config.Config, users repo.UserRepo) usecase.User {
 	return user.New(cfg, users)
 }
 
+// NewSettingUseCase 创建 Setting UseCase。
+func NewSettingUseCase(settings repo.SiteSettingRepo) usecase.Setting {
+	return setting.New(settings)
+}
+
 // NewWebsiteUseCase 创建 Website UseCase。
-func NewWebsiteUseCase(cfg *config.Config, redis *pkgRedis.Redis, footerLinks repo.FooterLinkRepo) usecase.Website {
-	return website.New(cfg, redis, footerLinks)
+func NewWebsiteUseCase(cfg *config.Config, redis *pkgRedis.Redis, footerLinks repo.FooterLinkRepo, settings repo.SiteSettingRepo) usecase.Website {
+	return website.New(cfg, redis, footerLinks, settings)
 }
 
 // NewEmojiUseCase 创建 Emoji UseCase。
@@ -266,6 +272,7 @@ func SetupHTTPServer(
 	fileUC usecase.File,
 	resourceUC usecase.Resource,
 	userUC usecase.User,
+	settingUC usecase.Setting,
 	websiteUC usecase.Website,
 	emojiUC usecase.Emoji,
 	advertisementUC usecase.Advertisement,
@@ -273,7 +280,7 @@ func SetupHTTPServer(
 	ssoClient *webapi.SSOClient,
 ) *httpserver.Server {
 	srv := httpserver.New(l, httpserver.WithPort(strconv.Itoa(cfg.HTTP.Port)), httpserver.WithPrefork(cfg.HTTP.UsePreforkMode))
-	httpctrl.NewRouter(srv.App, cfg, l, publicKey, userRepo, contentUC, commentUC, aiChatUC, aiModelUC, feedbackUC, linkUC, fileUC, resourceUC, userUC, websiteUC, emojiUC, advertisementUC, sessionManager, ssoClient)
+	httpctrl.NewRouter(srv.App, cfg, l, publicKey, userRepo, contentUC, commentUC, aiChatUC, aiModelUC, feedbackUC, linkUC, fileUC, resourceUC, userUC, settingUC, websiteUC, emojiUC, advertisementUC, sessionManager, ssoClient)
 	return srv
 }
 
@@ -311,6 +318,7 @@ var ProviderSet = wire.NewSet(
 	persistence.NewEmojiSpriteRepo,
 	persistence.NewAdvertisementRepo,
 	persistence.NewFooterLinkRepo,
+	persistence.NewSiteSettingRepo,
 
 	// Repo - Storage & WebAPI
 	NewObjectStore,
@@ -327,6 +335,7 @@ var ProviderSet = wire.NewSet(
 	NewResourceUseCase,
 	NewAIModelUseCase,
 	NewUserUseCase,
+	NewSettingUseCase,
 	NewWebsiteUseCase,
 	NewEmojiUseCase,
 	NewAdvertisementUseCase,

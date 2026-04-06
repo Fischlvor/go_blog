@@ -162,6 +162,15 @@ type Website interface {
 	GetFooterLinks(ctx context.Context) ([]output.FooterLink, error)
 }
 
+// Setting 站点配置用例。
+type Setting interface {
+	GetAllSiteSettings(ctx context.Context) (*output.AllResult[output.SiteSettingDetail], error)
+	GetPublicSiteSettings(ctx context.Context) (*output.AllResult[output.SiteSettingDetail], error)
+	GetSiteSettingByKey(ctx context.Context, key string) (*output.SiteSettingDetail, error)
+	GetWebsiteSettingsMap(ctx context.Context) (map[string]string, error)
+	UpdateSiteSettings(ctx context.Context, settings []input.UpsertSiteSetting) error
+}
+
 // ==================== 表情 ====================
 
 // SSEWriter SSE 响应写入器接口。

@@ -1,27 +1,29 @@
 package output
 
+// SettingValueWithKey 配置值及其 setting_key。
+type SettingValueWithKey struct {
+	Value      string `json:"value"`
+	SettingKey string `json:"setting_key"`
+}
+
 // WebsiteInfo 网站信息。
 type WebsiteInfo struct {
-	Avatar               string `json:"avatar"`
-	Logo                 string `json:"logo"`
-	FullLogo             string `json:"full_logo"`
-	Title                string `json:"title"`
-	Slogan               string `json:"slogan"`
-	SloganEn             string `json:"slogan_en"`
-	Description          string `json:"description"`
-	Version              string `json:"version"`
-	CreatedAt            string `json:"created_at"`
-	ICPFiling            string `json:"icp_filing"`
-	PublicSecurityFiling string `json:"public_security_filing"`
-	BilibiliURL          string `json:"bilibili_url"`
-	GithubURL            string `json:"github_url"`
-	SteamURL             string `json:"steam_url"`
-	Name                 string `json:"name"`
-	Job                  string `json:"job"`
-	Address              string `json:"address"`
-	Email                string `json:"email"`
-	QQImage              string `json:"qq_image"`
-	WechatImage          string `json:"wechat_image"`
+	Avatar          SettingValueWithKey `json:"avatar"`
+	Title           SettingValueWithKey `json:"title"`
+	Description     SettingValueWithKey `json:"description"`
+	ProfileIntro    SettingValueWithKey `json:"profile_intro"`
+	TechStack       SettingValueWithKey `json:"tech_stack"`
+	WorkExperiences SettingValueWithKey `json:"work_experiences"`
+	Version         SettingValueWithKey `json:"version"`
+	CreatedAt       SettingValueWithKey `json:"created_at"`
+	ICPFiling       SettingValueWithKey `json:"icp_filing"`
+	BilibiliURL     SettingValueWithKey `json:"bilibili_url"`
+	GithubURL       SettingValueWithKey `json:"github_url"`
+	SteamURL        SettingValueWithKey `json:"steam_url"`
+	Name            SettingValueWithKey `json:"name"`
+	Job             SettingValueWithKey `json:"job"`
+	Address         SettingValueWithKey `json:"address"`
+	Email           SettingValueWithKey `json:"email"`
 }
 
 // HotItem 热搜项。
@@ -57,4 +59,16 @@ type CalendarData struct {
 type FooterLink struct {
 	Title string `json:"title"`
 	Link  string `json:"link"`
+}
+
+// SiteSettingDetail 站点配置详情。
+type SiteSettingDetail struct {
+	ID           int64  `json:"id"`
+	SettingKey   string `json:"setting_key"`
+	SettingValue string `json:"setting_value"`
+	SettingType  string `json:"setting_type"`
+	Description  string `json:"description"`
+	IsPublic     bool   `json:"is_public"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
 }

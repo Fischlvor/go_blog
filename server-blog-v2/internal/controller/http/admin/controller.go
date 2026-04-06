@@ -20,6 +20,7 @@ type Admin struct {
 	file          usecase.File
 	resource      usecase.Resource
 	user          usecase.User
+	setting       usecase.Setting
 	emoji         usecase.Emoji
 	aiChat        usecase.AIChat
 	aiModel       usecase.AIModel
@@ -38,6 +39,7 @@ func New(
 	file usecase.File,
 	resource usecase.Resource,
 	user usecase.User,
+	setting usecase.Setting,
 	emoji usecase.Emoji,
 	aiChat usecase.AIChat,
 	aiModel usecase.AIModel,
@@ -55,6 +57,7 @@ func New(
 		file:          file,
 		resource:      resource,
 		user:          user,
+		setting:       setting,
 		emoji:         emoji,
 		aiChat:        aiChat,
 		aiModel:       aiModel,

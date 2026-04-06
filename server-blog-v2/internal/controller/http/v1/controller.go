@@ -21,6 +21,7 @@ type V1 struct {
 	link           usecase.Link
 	file           usecase.File
 	user           usecase.User
+	setting        usecase.Setting
 	website        usecase.Website
 	emoji          usecase.Emoji
 	advertisement  usecase.Advertisement
@@ -38,6 +39,7 @@ func New(
 	link usecase.Link,
 	file usecase.File,
 	user usecase.User,
+	setting usecase.Setting,
 	website usecase.Website,
 	emoji usecase.Emoji,
 	advertisement usecase.Advertisement,
@@ -54,6 +56,7 @@ func New(
 		link:           link,
 		file:           file,
 		user:           user,
+		setting:        setting,
 		website:        website,
 		emoji:          emoji,
 		advertisement:  advertisement,
