@@ -74,6 +74,34 @@ async function calcFileHash(file: File, signal: AbortSignal): Promise<string> {
   });
 }
 
+function getMimeTypeFromExtension(filename: string): string {
+  const ext = filename.toLowerCase().match(/\.([^.]+)$/)?.[1];
+  const mimeMap: Record<string, string> = {
+    '7z': 'application/x-7z-compressed',
+    'rar': 'application/x-rar-compressed',
+    'zip': 'application/zip',
+    'tar': 'application/x-tar',
+    'gz': 'application/gzip',
+    'exe': 'application/x-msdownload',
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'txt': 'text/plain',
+    'csv': 'text/csv',
+  };
+  return ext && mimeMap[ext] ? mimeMap[ext] : '';
+}
+
+function getFileMimeType(file: File): string {
+  if (file.type && file.type !== 'application/octet-stream') {
+    return file.type;
+  }
+  const mimeFromExt = getMimeTypeFromExtension(file.name);
+  return mimeFromExt || file.type || 'application/octet-stream';
+}
+
 interface ResourceUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -241,11 +269,12 @@ export function ResourceUploadDialog({ open, onOpenChange, onSuccess }: Resource
       // Checking 阶段
       setStatus('checking');
       setProgress(100);
+      const mimeType = getFileMimeType(file);
       const checked = await adminCheckResource({
         file_hash: hash,
         file_size: file.size,
         file_name: file.name,
-        mime_type: file.type,
+        mime_type: mimeType,
       });
 
       if (checked.exists) {
@@ -267,7 +296,7 @@ export function ResourceUploadDialog({ open, onOpenChange, onSuccess }: Resource
           file_hash: hash,
           file_size: file.size,
           file_name: file.name,
-          mime_type: file.type,
+          mime_type: mimeType,
         });
         currentTaskId = init.task_id;
         currentTotalChunks = init.total_chunks;
@@ -382,9 +411,12 @@ export function ResourceUploadDialog({ open, onOpenChange, onSuccess }: Resource
       toast.error(`文件大小超限，最大 ${formatFileSize(maxSize)}，当前 ${formatFileSize(nextFile.size)}`);
       return;
     }
-    if (nextFile && !nextFile.type) {
-      toast.error('无法识别文件类型，请确保文件扩展名正确');
-      return;
+    if (nextFile) {
+      const mimeType = getFileMimeType(nextFile);
+      if (!mimeType) {
+        toast.error(`无法识别文件类型：${mimeType}，请确保文件扩展名正确`);
+        return;
+      }
     }
     setFile(nextFile);
     setStatus('idle');
