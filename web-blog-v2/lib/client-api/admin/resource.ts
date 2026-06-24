@@ -30,6 +30,7 @@ export interface ResourceCheckRequest {
   file_hash: string;
   file_size: number;
   file_name: string;
+  mime_type: string;
 }
 
 export interface ResourceCheckResponse {

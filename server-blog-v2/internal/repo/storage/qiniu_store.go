@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -131,7 +132,7 @@ func (s *qiniuStore) UploadBlock(ctx context.Context, data io.Reader, size int64
 }
 
 // MergeBlocks 合并所有块为最终文件。
-func (s *qiniuStore) MergeBlocks(ctx context.Context, fileSize int64, fileKey string, contexts []string) error {
+func (s *qiniuStore) MergeBlocks(ctx context.Context, fileSize int64, fileKey string, contexts []string) (string, error) {
 	putPolicy := storage.PutPolicy{Scope: s.bucket}
 	upToken := putPolicy.UploadToken(s.mac)
 
@@ -142,7 +143,7 @@ func (s *qiniuStore) MergeBlocks(ctx context.Context, fileSize int64, fileKey st
 	body := strings.Join(contexts, ",")
 	req, err := http.NewRequestWithContext(ctx, "POST", url, strings.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("create request error: %w", err)
+		return "", fmt.Errorf("create request error: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "text/plain")
@@ -151,16 +152,37 @@ func (s *qiniuStore) MergeBlocks(ctx context.Context, fileSize int64, fileKey st
 	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("merge blocks error: %w", err)
+		return "", fmt.Errorf("merge blocks error: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("merge blocks failed, status: %d, body: %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("merge blocks failed, status: %d, body: %s", resp.StatusCode, string(respBody))
 	}
 
-	return nil
+	var ret storage.PutRet
+	if err := json.NewDecoder(resp.Body).Decode(&ret); err != nil {
+		return "", fmt.Errorf("decode response error: %w", err)
+	}
+
+	// 返回七牛云的 etag（qetag 格式）
+	return ret.Hash, nil
+}
+
+// VerifyHash 验证文件 hash（clientHash 是前端传的 qetag）。
+func (s *qiniuStore) VerifyHash(ctx context.Context, clientHash, fileKey string) (bool, error) {
+	// 获取文件元数据
+	cfg := storage.Config{UseHTTPS: s.useHTTPS}
+	bucketManager := storage.NewBucketManager(s.mac, &cfg)
+
+	fileInfo, err := bucketManager.Stat(s.bucket, fileKey)
+	if err != nil {
+		return false, fmt.Errorf("get file info error: %w", err)
+	}
+
+	// 七牛云的 hash 就是 qetag 格式，直接比较
+	return fileInfo.Hash == clientHash, nil
 }
 
 // GenerateFileKey 生成文件存储 Key。

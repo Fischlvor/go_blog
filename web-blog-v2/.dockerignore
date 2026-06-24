@@ -41,7 +41,6 @@ AGENTS.md
 CLAUDE.md
 components.json
 eslint.config.mjs
-pnpm-workspace.yaml
 
 # Docker files
 docker-compose.yml

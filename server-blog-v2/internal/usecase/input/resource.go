@@ -7,6 +7,7 @@ type ResourceCheck struct {
 	FileHash string `json:"file_hash"`
 	FileName string `json:"file_name"`
 	FileSize int64  `json:"file_size"`
+	MimeType string `json:"mime_type"`
 }
 
 // ResourceInit 初始化上传任务请求。

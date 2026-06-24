@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"github.com/gofrs/uuid"
 
 	"server-blog-v2/internal/entity"
+	"server-blog-v2/internal/pkg/filetype"
 	"server-blog-v2/internal/repo"
 	"server-blog-v2/internal/usecase"
 	"server-blog-v2/internal/usecase/input"
@@ -146,6 +148,16 @@ func (u *useCase) GetMaxFileSize(ctx context.Context) int64 {
 
 // Check 检查文件（秒传/续传检测）。
 func (u *useCase) Check(ctx context.Context, userUUID string, params input.ResourceCheck) (*output.ResourceCheckResponse, error) {
+	// 验证输入参数
+	if err := validateResourceParams(params.FileName, params.FileHash, params.FileSize); err != nil {
+		return nil, err
+	}
+
+	// 验证 MimeType
+	if err := validateMimeType(params.MimeType); err != nil {
+		return nil, err
+	}
+
 	// 验证文件大小
 	if params.FileSize > u.GetMaxFileSize(ctx) {
 		return nil, errors.New("文件大小超过限制")
@@ -163,13 +175,13 @@ func (u *useCase) Check(ctx context.Context, userUUID string, params input.Resou
 	// 2. 检查其他用户是否已上传相同 hash 的资源（秒传）
 	existingResource, err := u.resources.GetByFileHashAny(ctx, params.FileHash)
 	if err == nil && existingResource != nil {
-		// 为当前用户创建新记录指向同一物理文件
+		// 为当前用户创建新记录指向同一物理文件，使用新的 MimeType
 		newResource := &entity.Resource{
 			FileKey:  existingResource.FileKey,
 			FileName: params.FileName,
 			FileHash: params.FileHash,
 			FileSize: params.FileSize,
-			MimeType: existingResource.MimeType,
+			MimeType: params.MimeType,
 			UserUUID: userUUID,
 		}
 		if _, err := u.resources.Create(ctx, newResource); err != nil {
@@ -200,6 +212,16 @@ func (u *useCase) Check(ctx context.Context, userUUID string, params input.Resou
 
 // Init 初始化上传任务。
 func (u *useCase) Init(ctx context.Context, userUUID string, params input.ResourceInit) (*output.ResourceInitResponse, error) {
+	// 验证输入参数
+	if err := validateResourceParams(params.FileName, params.FileHash, params.FileSize); err != nil {
+		return nil, err
+	}
+
+	// 验证 MimeType
+	if err := validateMimeType(params.MimeType); err != nil {
+		return nil, err
+	}
+
 	// 验证文件大小
 	if params.FileSize > u.GetMaxFileSize(ctx) {
 		return nil, errors.New("文件大小超过限制")
@@ -268,6 +290,55 @@ func (u *useCase) UploadChunk(ctx context.Context, userUUID string, params input
 		return nil, fmt.Errorf("无效的块号: %d, 有效范围: 0-%d", params.ChunkNumber, task.TotalChunks-1)
 	}
 
+	// 幂等性检查：解析已上传的块
+	var contexts []string
+	if err := json.Unmarshal([]byte(task.QiniuContexts), &contexts); err != nil {
+		return nil, fmt.Errorf("解析contexts失败: %w", err)
+	}
+
+	// 如果该块已上传，直接返回成功（幂等）
+	if params.ChunkNumber < len(contexts) && contexts[params.ChunkNumber] != "" {
+		return &output.ResourceUploadChunkResponse{
+			Success:     true,
+			ChunkNumber: params.ChunkNumber,
+		}, nil
+	}
+
+	// 验证第一个块的文件类型（基于真实内容）
+	if params.ChunkNumber == 0 {
+		// 创建可重读的 reader（先检测类型，再上传）
+		buffer, rewindableReader, err := filetype.CreateRewindableReader(params.ChunkData, 512)
+		if err != nil {
+			return nil, fmt.Errorf("读取文件失败: %w", err)
+		}
+
+		// 检测真实的文件类型
+		detectedType, matched, err := filetype.VerifyMimeType(bytes.NewReader(buffer), task.MimeType)
+		if err != nil {
+			return nil, fmt.Errorf("检测文件类型失败: %w", err)
+		}
+
+		// 如果类型不匹配，使用检测到的真实类型
+		if !matched {
+			// 验证检测到的类型是否在白名单中
+			if err := validateMimeType(detectedType); err != nil {
+				return nil, fmt.Errorf("文件类型不匹配且不支持: 声明为 %s, 实际检测为 %s", task.MimeType, detectedType)
+			}
+
+			// 更新任务的 MimeType 为检测到的真实类型
+			// 这样 Complete 时会使用正确的类型
+			if err := u.tasks.UpdateMimeType(ctx, task.TaskID, detectedType); err != nil {
+				return nil, fmt.Errorf("更新文件类型失败: %w", err)
+			}
+
+			// 更新本地变量，确保后续逻辑使用正确的类型
+			task.MimeType = detectedType
+		}
+
+		// 使用 rewindableReader 继续上传
+		params.ChunkData = rewindableReader
+	}
+
 	// 流式上传块到七牛云
 	qiniuCtx, err := u.objectStore.UploadBlock(ctx, params.ChunkData, params.ChunkSize)
 	if err != nil {
@@ -293,8 +364,16 @@ func (u *useCase) Complete(ctx context.Context, userUUID string, params input.Re
 		return nil, errors.New("任务不存在")
 	}
 
-	// 检查任务状态
+	// 检查任务状态（幂等性保护）
 	if task.Status == entity.TaskStatusCompleted {
+		// 任务已完成，查询已存在的资源记录
+		resource, err := u.resources.GetByFileHash(ctx, task.FileHash, userUUID)
+		if err == nil && resource != nil {
+			return &output.ResourceCompleteResponse{
+				FileURL: u.objectStore.GetURL(resource.FileKey),
+				FileKey: resource.FileKey,
+			}, nil
+		}
 		return nil, errors.New("任务已完成")
 	}
 
@@ -304,22 +383,41 @@ func (u *useCase) Complete(ctx context.Context, userUUID string, params input.Re
 		return nil, fmt.Errorf("解析contexts失败: %w", err)
 	}
 
-	// 检查是否所有块都已上传
+	// 检查是否所有块都已上传，收集缺失的块
 	var validContexts []string
+	var missingChunks []int
 	for i, ctx := range contexts {
 		if ctx == "" {
-			return nil, fmt.Errorf("块 %d 尚未上传", i)
+			missingChunks = append(missingChunks, i)
+		} else {
+			validContexts = append(validContexts, ctx)
 		}
-		validContexts = append(validContexts, ctx)
+	}
+
+	// 如果有缺失的块，返回详细信息
+	if len(missingChunks) > 0 {
+		return nil, fmt.Errorf("还有 %d 个分片未上传: %v", len(missingChunks), missingChunks)
 	}
 
 	// 生成文件 Key
 	fileKey := u.objectStore.GenerateFileKey(task.FileName, task.FileHash)
 
 	// 合并文件
-	if err := u.objectStore.MergeBlocks(ctx, task.FileSize, fileKey, validContexts); err != nil {
+	_, err = u.objectStore.MergeBlocks(ctx, task.FileSize, fileKey, validContexts)
+	if err != nil {
 		_ = u.tasks.UpdateStatus(ctx, task.TaskID, entity.TaskStatusFailed)
 		return nil, fmt.Errorf("合并文件失败: %w", err)
+	}
+
+	// 验证文件 Hash（前端传的是 qetag）
+	matched, err := u.objectStore.VerifyHash(ctx, task.FileHash, fileKey)
+	if err != nil {
+		_ = u.objectStore.Delete(ctx, fileKey)
+		return nil, fmt.Errorf("验证文件Hash失败: %w", err)
+	}
+	if !matched {
+		_ = u.objectStore.Delete(ctx, fileKey)
+		return nil, errors.New("文件Hash校验失败")
 	}
 
 	// 判断是否需要转码（视频文件）
@@ -339,6 +437,8 @@ func (u *useCase) Complete(ctx context.Context, userUUID string, params input.Re
 		TranscodeStatus: transcodeStatus,
 	}
 	if _, err := u.resources.Create(ctx, resourceRecord); err != nil {
+		// 回滚：删除已合并的文件
+		_ = u.objectStore.Delete(ctx, fileKey)
 		return nil, fmt.Errorf("创建资源记录失败: %w", err)
 	}
 
@@ -430,4 +530,72 @@ func parseContexts(contextsJSON string, totalChunks int) ([]int, []int) {
 // isVideoMimeType 判断是否为视频 MIME 类型。
 func isVideoMimeType(mimeType string) bool {
 	return len(mimeType) >= 6 && mimeType[:6] == "video/"
+}
+
+// validateResourceParams 验证资源参数。
+func validateResourceParams(fileName, fileHash string, fileSize int64) error {
+	// 验证文件名
+	if fileName == "" {
+		return errors.New("文件名不能为空")
+	}
+	if len(fileName) > 255 {
+		return errors.New("文件名长度不能超过255个字符")
+	}
+	// 检查文件名是否包含非法字符（路径穿越等）
+	if strings.Contains(fileName, "..") || strings.Contains(fileName, "/") || strings.Contains(fileName, "\\") {
+		return errors.New("文件名包含非法字符")
+	}
+
+	// 验证文件 Hash（qetag 格式，base64 编码）
+	if fileHash == "" {
+		return errors.New("文件Hash不能为空")
+	}
+	// qetag 格式：base64 编码（URL-safe），长度通常为 28 字符
+	if len(fileHash) < 20 || len(fileHash) > 64 {
+		return errors.New("文件Hash格式错误")
+	}
+
+	// 验证文件大小
+	if fileSize <= 0 {
+		return errors.New("文件大小必须大于0")
+	}
+
+	return nil
+}
+
+// validateMimeType 验证 MIME 类型。
+func validateMimeType(mimeType string) error {
+	if mimeType == "" {
+		return errors.New("MIME类型不能为空")
+	}
+
+	// MIME 类型白名单
+	allowedMimeTypes := map[string]bool{
+		// 图片
+		"image/jpeg": true, "image/jpg": true, "image/png": true, "image/gif": true,
+		"image/webp": true, "image/bmp": true, "image/svg+xml": true,
+		// 视频
+		"video/mp4": true, "video/mpeg": true, "video/quicktime": true,
+		"video/x-msvideo": true, "video/webm": true, "video/x-flv": true,
+		// 音频
+		"audio/mpeg": true, "audio/mp3": true, "audio/wav": true, "audio/ogg": true,
+		// 文档
+		"application/pdf": true, "application/msword": true,
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+		"application/vnd.ms-excel": true,
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true,
+		// 压缩包
+		"application/zip": true, "application/x-zip-compressed": true,
+		"application/x-rar-compressed": true, "application/x-7z-compressed": true,
+		// 二进制流（通用类型）
+		"application/octet-stream": true, "application/x-msdownload": true,
+		// 文本
+		"text/plain": true, "text/csv": true,
+	}
+
+	if !allowedMimeTypes[mimeType] {
+		return fmt.Errorf("不支持的文件类型: %s", mimeType)
+	}
+
+	return nil
 }
