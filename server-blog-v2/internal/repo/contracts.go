@@ -180,6 +180,7 @@ type ResourceUploadTaskRepo interface {
 	GetByFileHash(ctx context.Context, fileHash, userUUID string, statuses []entity.TaskStatus) (*entity.ResourceUploadTask, error)
 	UpdateStatus(ctx context.Context, taskID string, status entity.TaskStatus) error
 	UpdateChunkContext(ctx context.Context, taskID string, chunkNumber int, context string, status entity.TaskStatus) error
+	UpdateMimeType(ctx context.Context, taskID string, mimeType string) error
 }
 
 // ==================== 对象存储 ====================
@@ -191,7 +192,9 @@ type ObjectStore interface {
 	GetURL(key string) string
 	// 分片上传相关
 	UploadBlock(ctx context.Context, data io.Reader, size int64) (string, error)
-	MergeBlocks(ctx context.Context, fileSize int64, fileKey string, contexts []string) error
+	MergeBlocks(ctx context.Context, fileSize int64, fileKey string, contexts []string) (string, error)
+	// VerifyHash 验证文件 hash（clientHash 是前端传的 qetag）
+	VerifyHash(ctx context.Context, clientHash, fileKey string) (bool, error)
 	GenerateFileKey(fileName, fileHash string) string
 }
 

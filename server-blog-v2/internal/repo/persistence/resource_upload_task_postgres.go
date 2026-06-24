@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"server-blog-v2/internal/entity"
@@ -74,10 +75,50 @@ func (r *resourceUploadTaskRepo) UpdateStatus(ctx context.Context, taskID string
 	return r.db.WithContext(ctx).Model(&ResourceUploadTask{}).Where("task_id = ?", taskID).Update("status", int8(status)).Error
 }
 
+func (r *resourceUploadTaskRepo) UpdateMimeType(ctx context.Context, taskID string, mimeType string) error {
+	return r.db.WithContext(ctx).Model(&ResourceUploadTask{}).Where("task_id = ?", taskID).Updates(map[string]interface{}{
+		"mime_type":  mimeType,
+		"updated_at": time.Now(),
+	}).Error
+}
+
 func (r *resourceUploadTaskRepo) UpdateChunkContext(ctx context.Context, taskID string, chunkNumber int, context string, status entity.TaskStatus) error {
-	// 使用 PostgreSQL 的 jsonb_set 函数更新 JSON 数组中的特定元素
-	sql := fmt.Sprintf(`UPDATE resource_upload_tasks SET qiniu_contexts = jsonb_set(qiniu_contexts::jsonb, '{%d}', '"%s"'::jsonb), status = ? WHERE task_id = ?`, chunkNumber, context)
-	return r.db.WithContext(ctx).Exec(sql, int8(status), taskID).Error
+	// 使用参数化查询防止 SQL 注入
+	// 添加条件检查：只有当该块为空且任务状态允许时才更新（并发安全 + 幂等性）
+	sql := `UPDATE resource_upload_tasks
+            SET qiniu_contexts = jsonb_set(qiniu_contexts::jsonb, $1, to_jsonb($2::text)),
+                status = $3,
+                updated_at = NOW()
+            WHERE task_id = $4
+              AND status IN (0, 1)
+              AND (qiniu_contexts->$5 IS NULL OR qiniu_contexts->$5 = 'null'::jsonb OR qiniu_contexts->>$5 = '')`
+
+	path := fmt.Sprintf("{%d}", chunkNumber)
+	chunkNumberStr := strconv.Itoa(chunkNumber)
+	result := r.db.WithContext(ctx).Exec(sql, path, context, int8(status), taskID, chunkNumberStr)
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	// 检查是否真的更新了行（并发控制）
+	if result.RowsAffected == 0 {
+		// 可能是该块已上传或任务状态不对，查询任务状态
+		var task ResourceUploadTask
+		if err := r.db.WithContext(ctx).Where("task_id = ?", taskID).First(&task).Error; err != nil {
+			return fmt.Errorf("查询任务失败: %w", err)
+		}
+
+		// 检查任务状态
+		if task.Status != 0 && task.Status != 1 {
+			return fmt.Errorf("任务状态不允许上传: %d", task.Status)
+		}
+
+		// 如果任务状态正常但未更新，说明该块已有值（并发上传或重复上传），这是正常的
+		// 不报错，让上层逻辑处理
+	}
+
+	return nil
 }
 
 func toModelTask(t *entity.ResourceUploadTask) *ResourceUploadTask {

@@ -114,6 +114,7 @@ function AdminArticlePublishContent() {
       file_hash: hash,
       file_size: file.size,
       file_name: file.name,
+      mime_type: file.type,
     });
 
     if (checked.exists) {
@@ -349,6 +350,7 @@ function AdminArticlePublishContent() {
         file_hash: hash,
         file_size: file.size,
         file_name: file.name,
+        mime_type: file.type,
       });
 
       if (checked.exists) {

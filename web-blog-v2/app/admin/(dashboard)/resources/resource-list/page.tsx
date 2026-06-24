@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
-import { FileArchive, FileAudio2, FileCode2, FileText, FileVideo2, FileWarning, Image as ImageIcon } from 'lucide-react';
+import { FileArchive, FileAudio2, FileCode2, FileSpreadsheet, FileText, FileVideo2, FileWarning, Image as ImageIcon, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminDeleteResources, adminListResources } from '@/lib/client-api/admin/resource';
 import { formatDate } from '@/lib/date';
@@ -32,8 +32,10 @@ function ResourceTypeIcon({ mime }: { mime: string }) {
   if (mime.startsWith('video/')) return <FileVideo2 className="h-full w-full text-violet-600" />;
   if (mime.startsWith('audio/')) return <FileAudio2 className="h-full w-full text-orange-600" />;
   if (mime.includes('pdf') || mime.includes('word') || mime.includes('text/')) return <FileText className="h-full w-full text-blue-600" />;
+  if (mime.includes('excel') || mime.includes('spreadsheet') || mime === 'text/csv') return <FileSpreadsheet className="h-full w-full text-green-600" />;
   if (mime.includes('zip') || mime.includes('rar') || mime.includes('tar') || mime.includes('7z')) return <FileArchive className="h-full w-full text-amber-600" />;
   if (mime.includes('json') || mime.includes('javascript') || mime.includes('typescript') || mime.includes('xml')) return <FileCode2 className="h-full w-full text-cyan-600" />;
+  if (mime === 'application/x-msdownload' || mime === 'application/octet-stream') return <Download className="h-full w-full text-red-600" />;
   return <FileWarning className="h-full w-full text-muted-foreground" />;
 }
 
@@ -123,8 +125,8 @@ export default function AdminResourceListPage() {
         {loading ? <p className="text-sm text-muted-foreground">加载中...</p> : (
           <>
             <Table>
-              <TableHeader><TableRow><TableHead className="w-12"><input type="checkbox" checked={allChecked} onChange={(e) => setSelectedIds(e.target.checked ? new Set(items.map((it) => it.id)) : new Set())} /></TableHead><TableHead>ID</TableHead><TableHead className="w-[120px]">预览</TableHead><TableHead>文件名</TableHead><TableHead>MIME</TableHead><TableHead>状态</TableHead><TableHead>大小</TableHead><TableHead>URL</TableHead><TableHead>创建时间</TableHead><TableHead>操作</TableHead></TableRow></TableHeader>
-              <TableBody>{items.map((it) => { const status = it.transcode_status; const copyUrl = it.mime_type.startsWith('video/') && status === 2 ? (it.transcode_url || it.file_url) : it.file_url; return (<TableRow key={it.id} className="h-20"><TableCell><input type="checkbox" checked={selectedIds.has(it.id)} onChange={(e) => setSelectedIds((prev) => { const n = new Set(prev); if (e.target.checked) n.add(it.id); else n.delete(it.id); return n; })} /></TableCell><TableCell>{it.id}</TableCell><TableCell className="w-[120px] p-0 align-middle"><div className="h-16 w-24"><ResourcePreview item={it} /></div></TableCell><TableCell className="max-w-[220px] truncate">{it.file_name}</TableCell><TableCell>{it.mime_type}</TableCell><TableCell>{status === 2 ? <Badge>已转码</Badge> : status === 1 ? <Badge variant="secondary">转码中</Badge> : status === 3 ? <Badge variant="destructive">转码失败</Badge> : <Badge variant="outline">-</Badge>}</TableCell><TableCell>{formatFileSize(it.file_size)}</TableCell><TableCell className="max-w-[320px] truncate">{it.file_url}</TableCell><TableCell>{formatDate(it.created_at)}</TableCell><TableCell className="space-x-2"><Button size="sm" variant="outline" disabled={it.mime_type.startsWith('video/') && status !== 2} onClick={() => navigator.clipboard.writeText(copyUrl)}>复制链接</Button><Button size="sm" variant="destructive" onClick={() => onDelete([it.id])}>删除</Button></TableCell></TableRow>); })}</TableBody>
+              <TableHeader><TableRow><TableHead className="w-12"><input type="checkbox" checked={allChecked} onChange={(e) => setSelectedIds(e.target.checked ? new Set(items.map((it) => it.id)) : new Set())} /></TableHead><TableHead>ID</TableHead><TableHead className="w-[120px]">预览</TableHead><TableHead>文件名</TableHead><TableHead className="w-[180px]">MIME</TableHead><TableHead>状态</TableHead><TableHead>大小</TableHead><TableHead>URL</TableHead><TableHead>创建时间</TableHead><TableHead>操作</TableHead></TableRow></TableHeader>
+              <TableBody>{items.map((it) => { const status = it.transcode_status; const copyUrl = it.mime_type.startsWith('video/') && status === 2 ? (it.transcode_url || it.file_url) : it.file_url; return (<TableRow key={it.id} className="h-20"><TableCell><input type="checkbox" checked={selectedIds.has(it.id)} onChange={(e) => setSelectedIds((prev) => { const n = new Set(prev); if (e.target.checked) n.add(it.id); else n.delete(it.id); return n; })} /></TableCell><TableCell>{it.id}</TableCell><TableCell className="w-[120px] p-0 align-middle"><div className="h-16 w-24"><ResourcePreview item={it} /></div></TableCell><TableCell className="max-w-[220px] truncate" title={it.file_name}>{it.file_name}</TableCell><TableCell className="max-w-[180px] truncate" title={it.mime_type}>{it.mime_type}</TableCell><TableCell>{status === 2 ? <Badge>已转码</Badge> : status === 1 ? <Badge variant="secondary">转码中</Badge> : status === 3 ? <Badge variant="destructive">转码失败</Badge> : <Badge variant="outline">-</Badge>}</TableCell><TableCell>{formatFileSize(it.file_size)}</TableCell><TableCell className="max-w-[320px] truncate" title={it.file_url}>{it.file_url}</TableCell><TableCell>{formatDate(it.created_at)}</TableCell><TableCell className="space-x-2"><Button size="sm" variant="outline" disabled={it.mime_type.startsWith('video/') && status !== 2} onClick={() => navigator.clipboard.writeText(copyUrl)}>复制链接</Button><Button size="sm" variant="destructive" onClick={() => onDelete([it.id])}>删除</Button></TableCell></TableRow>); })}</TableBody>
             </Table>
 
             <AdminTablePagination page={page} pageSize={pageSize} total={total} onPageChange={(nextPage) => { setSelectedIds(new Set()); setPage(nextPage); }} onPageSizeChange={(size) => { setSelectedIds(new Set()); setPageSize(size); setPage(1); }} />
